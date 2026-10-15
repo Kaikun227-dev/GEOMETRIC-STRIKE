@@ -69,7 +69,7 @@
     <!-- 2. FORMATION -->
     <section class="screen formation-screen" id="screen-formation" data-screen="formation" aria-labelledby="formation-heading" hidden>
       <div class="screen-head">
-        <div><p class="eyebrow"><span class="tiny-line"></span> FORMATION</p><h2 id="formation-heading" tabindex="-1">編成</h2><p class="screen-sub">最大4体まで選べます。出番は左のキャラから順に回ります。</p></div>
+        <div><p class="eyebrow"><span class="tiny-line"></span> FORMATION</p><h2 id="formation-heading" tabindex="-1">編成</h2><p class="screen-sub">最大4体まで選べます。出番は左のキャラから順に回ります。編成を空にもできますが、1体以上いないと決定できません。</p></div>
         <div class="team-total"><span>チームHP</span><strong id="formation-hp">12,000</strong></div>
       </div>
       <div class="formation-layout">
@@ -82,10 +82,11 @@
             <div class="section-label"><h3 id="roster-heading">キャラクター</h3><span class="tag">タップでステータスを確認</span></div>
             <div class="roster-filters" aria-label="キャラクターを絞り込み">
               <label>撃種<select id="filter-shot"><option value="">すべて</option><option value="reflect">反射</option><option value="pierce">貫通</option></select></label>
-              <label>アビリティ<select id="filter-ability"><option value="">すべて</option></select></label>
+              <label>アビリティ１<select id="filter-ability"><option value="">すべて</option></select></label>
+              <label>アビリティ２<select id="filter-ability2"><option value="">すべて</option></select></label>
               <label>友情コンボ<select id="filter-friendship"><option value="">すべて</option></select></label>
               <div class="filter-footer"><span id="filter-count" role="status" aria-live="polite"></span><button type="button" id="filter-reset">絞り込みを解除</button></div>
-              <p class="filter-note">条件を組み合わせて絞り込み。友情は主・副どちらも対象です。</p>
+              <p class="filter-note">条件を組み合わせて絞り込み。アビリティ１・２の両方を持つキャラだけを表示します。友情は主・副どちらも対象です。</p>
             </div>
             <div class="roster" id="roster"></div>
           </section>

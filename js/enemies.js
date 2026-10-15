@@ -11,9 +11,9 @@
   const specialist=(kind,x,y,r=32,hp=3600)=>({...foe(x,y,r,hp,kind==='turret'?4:kind==='lancer'?3:8,kind==='turret'?'reflectLaser':kind==='lancer'?'pierce':'homing',2),species:kind,tint:kind==='turret'?'#9b82c5':kind==='lancer'?'#cf9470':'#779fa5',armor:kind==='sentinel'?.65:1});
 
 // Reusable enemy families. Stats/placement remain authored by each stage.
-const ENEMY_SPECIES={turret:'反射砲台',lancer:'貫通射手',sentinel:'装甲兵',orb:'球形兵',cruciform:'十字砲台',starBattery:'星光砲台',bomber:'爆撃兵'};
-Object.assign(ENEMY_ATTACKS,{plusLaser:{mult:.30,hits:2},crossLaser:{mult:.30,hits:2}});
-Object.assign(FRIENDSHIP_KINDS,{plusLaser:{name:'十字レーザー',label:'十字レーザー'},crossLaser:{name:'クロスレーザー',label:'クロスレーザー'}});
+const ENEMY_SPECIES={turret:'反射砲台',lancer:'貫通射手',sentinel:'装甲兵',orb:'球形兵',cruciform:'十字砲台',starBattery:'星光砲台',bomber:'爆撃兵',midBoss:'中ボス'};
+Object.assign(ENEMY_ATTACKS,{plusLaser:{mult:.30,hits:2},crossLaser:{mult:.30,hits:2},move:{mult:0}});
+Object.assign(FRIENDSHIP_KINDS,{plusLaser:{name:'十字レーザー',label:'十字レーザー'},crossLaser:{name:'クロスレーザー',label:'クロスレーザー'},move:{name:'移動',label:'MOVE'}});
 function variedFoe(kind,x,y,r=34,hp=6000){
  if(['turret','lancer','sentinel'].includes(kind)){
   const e=specialist(kind,x,y,r,hp);e.attacks=e.attacks.map(a=>({...a,countdown:2,interval:2,mult:.30}));return e;

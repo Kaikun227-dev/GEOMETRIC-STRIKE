@@ -7,7 +7,7 @@
   function setupArea(){
     const g=state.waves[state.wave].gimmicks||{};
     state.heartPanels=(g.hearts||[]).map((p,i)=>({...p,id:p.id||'heart-'+i}));
-    state.swordPanelsUsed=new Set();state.swordBonus=0;state.powerSwitchActive=false;state.powerSwitchContacts=new Set();state.powerSwitches=(g.powerSwitches||[]).map((p,i)=>({...p,state:p.initial??i%3,locked:false}));state.slowWallContacts=new Map();
+    state.swordPanelsUsed=new Set();state.swordBonus=0;state.typePanelsUsed=new Set();state.touchedAllies=new Set();for(const u of state.units){const base=CHAR_BY_ID[u.charId]?.shotType;if(base)u.shotType=base;}state.powerSwitchActive=false;state.powerSwitchContacts=new Set();state.powerSwitches=(g.powerSwitches||[]).map((p,i)=>({...p,state:p.initial??i%3,locked:false}));state.slowWallContacts=new Map();
     for(const u of state.units)u.heartContacts=new Set();
     setupEnemyGimmicks();
     state.winds=(g.winds||[]).map(w=>({...w,remaining:w.countdown??1,active:false}));
@@ -111,6 +111,7 @@
   function applyGimmicks(unit,dt){
     applyHeartPanels(unit);
     applySwordPanels(unit);
+    applyTypePanels(unit);
     applyPowerSwitches(unit);
     unit.boostTime=Math.max(0,(unit.boostTime||0)-dt);
     const inGravity=!hasAbility(unit,'agb')&&state.enemies.some(e=>e.alive&&!e.transparent&&e.gravity&&distance(unit,e)<e.gravity+unit.r);
@@ -130,7 +131,7 @@
     state.warpCooldown=Math.max(0,(state.warpCooldown||0)-dt);
     if(!state.boostPanelsUsed)state.boostPanelsUsed=new Set();
     (g.boosts||[]).forEach((p,i)=>{if(Math.hypot(Math.max(0,Math.abs(unit.x-p.x)-p.r),Math.max(0,Math.abs(unit.y-p.y)-p.r))<=unit.r&&!state.boostPanelsUsed.has(i)){
-      state.boostPanelsUsed.add(i);const speed=Math.hypot(unit.vx,unit.vy)||1;const boosted=Math.min(2200,Math.max(1200,speed*1.8));unit.vx*=boosted/speed;unit.vy*=boosted/speed;unit.boostTime=1.1;ring(p.x,p.y,'#35bf86',100,.5);burst(p.x,p.y,'#35bf86',18,240);floatingText(p.x,p.y-35,'BOOST '+Math.round(boosted),'#249a69',16);
+      state.boostPanelsUsed.add(i);const speed=Math.hypot(unit.vx,unit.vy)||1;const boosted=speed*2;unit.vx*=2;unit.vy*=2;unit.boostTime=1.1;ring(p.x,p.y,'#35bf86',100,.5);burst(p.x,p.y,'#35bf86',18,240);floatingText(p.x,p.y-35,'BOOST '+Math.round(boosted),'#249a69',16);
     }});
     if(state.warpCooldown>0||hasAbility(unit,'aw'))return;
     for(const pair of g.warps||[]){
@@ -151,6 +152,17 @@
       if(state.swordPanelsUsed.has(i)||Math.hypot(Math.max(0,Math.abs(unit.x-p.x)-p.r),Math.max(0,Math.abs(unit.y-p.y)-p.r))>unit.r)return;
       state.swordPanelsUsed.add(i);state.swordBonus=(state.swordBonus||0)+1;
       floatingText(p.x,p.y-34,'ATK ×'+(1+state.swordBonus),'#bc8130',16);ring(p.x,p.y,'#e3ad50',65,.4);
+    });
+  }
+  // 撃種変化パネル：踏むと反射⇔貫通が入れ替わる。1ショットにつき各パネル1回まで（剣パネルと同じ）。次の手番開始時に元へ戻る。
+  function applyTypePanels(unit){
+    if(state.phase!=='moving'||unit!==state.units[state.activeUnit])return;
+    state.typePanelsUsed??=new Set();
+    (state.waves[state.wave].gimmicks?.typePanels||[]).forEach((p,i)=>{
+      if(state.typePanelsUsed.has(i)||Math.hypot(Math.max(0,Math.abs(unit.x-p.x)-p.r),Math.max(0,Math.abs(unit.y-p.y)-p.r))>unit.r)return;
+      state.typePanelsUsed.add(i);
+      unit.shotType=isPiercing(unit)?'reflect':'pierce';
+      floatingText(p.x,p.y-36,'撃種変化 → '+(unit.shotType==='pierce'?'貫通':'反射'),'#3f5fae',15);ring(p.x,p.y,'#6f8fd0',70,.45);burst(p.x,p.y,'#e8985a',14,200);tone(620,.06,'sine',.02);
     });
   }
   function applyPowerSwitches(unit){
@@ -202,11 +214,38 @@
     const switchMultiplier=powerSwitchMultiplier();
     return baseDamage*(unit.atk/1000)*(state.skillShot?2.4:1)*styleMultiplier*(1+(state.swordBonus||0))*switchMultiplier*consumePhoton(unit);
   }
+  // キューブ状態：手番以外の味方は正方形の当たり判定を持つ（移動中の味方は反射し、友情は接触で発動）。
+  function cubeActive(){return !!(state.waves[state.wave].cube??state.stage.cube);}
+  const cubeHalf=ally=>ally.r+3;
+  function cubeOverlap(unit,ally){
+    const h=cubeHalf(ally),cx=clamp(unit.x,ally.x-h,ally.x+h),cy=clamp(unit.y,ally.y-h,ally.y+h);
+    return Math.hypot(unit.x-cx,unit.y-cy)<unit.r;
+  }
+  function cubeBounce(unit,ally){
+    const h=cubeHalf(ally),cx=clamp(unit.x,ally.x-h,ally.x+h),cy=clamp(unit.y,ally.y-h,ally.y+h);
+    let dx=unit.x-cx,dy=unit.y-cy,gap=Math.hypot(dx,dy);
+    if(gap>=unit.r)return;
+    let nx,ny;
+    if(gap>.001){nx=dx/gap;ny=dy/gap;unit.x=cx+nx*(unit.r+.3);unit.y=cy+ny*(unit.r+.3);}
+    else{ // 中心が箱の内側：浸透の浅い軸の向きへ押し出す
+      const px=h+unit.r-Math.abs(unit.x-ally.x),py=h+unit.r-Math.abs(unit.y-ally.y);
+      if(px<py){nx=Math.sign(unit.x-ally.x)||1;ny=0;unit.x=ally.x+nx*(h+unit.r+.3);}else{nx=0;ny=Math.sign(unit.y-ally.y)||1;unit.y=ally.y+ny*(h+unit.r+.3);}
+    }
+    const dot=unit.vx*nx+unit.vy*ny;
+    if(dot<0){const r=reflectVelocity(unit.vx,unit.vy,nx,ny);unit.vx=r.x*.92;unit.vy=r.y*.92;burst(unit.x,unit.y,ally.color,3,40);tone(520,.04,'sine',.015);}
+  }
+  const allyTouching=(unit,ally)=>cubeActive()?cubeOverlap(unit,ally):distance(unit,ally)<unit.r+ally.r;
+  function touchAlly(unit,ally){
+    state.touchedAllies??=new Set();
+    if(state.touchedAllies.has(ally.id))return;
+    state.touchedAllies.add(ally.id);
+    if(touchPowerActive()){const m=touchPowerMultiplier();floatingText(unit.x,unit.y-52,'TOUCH ×'+m,'#2f6fd1',16);ring(unit.x,unit.y,'#5b8fe0',62,.45);}
+  }
   function updatePhysics(dt) {
     const unit = state.units[state.activeUnit];
     state.moveTime += dt;
     const initialSpeed = Math.hypot(unit.vx, unit.vy);
-    const steps = Math.max(1, Math.ceil(Math.max(initialSpeed * (unit.battleStyle === 'speed' && !state.speedBoostUsed ? 1.45 : 1), 3200) * dt / 7));
+    const steps = Math.max(1, Math.ceil(Math.max(initialSpeed * (unit.battleStyle === 'speed' && !state.speedBoostUsed ? 2 : 1), 3200) * dt / 7));
     const step = dt / steps;
     for (let i = 0; i < steps; i++) {
       unit.x += unit.vx * step;
@@ -226,7 +265,7 @@
         if (unit.battleStyle === 'speed' && !state.speedBoostUsed) {
           state.speedBoostUsed = true;
           const current = Math.hypot(unit.vx, unit.vy) || 1;
-          const boosted = Math.max(850, current * 1.45);
+          const boosted = current * 2;
           unit.vx *= boosted / current; unit.vy *= boosted / current;
           floatingText(unit.x, unit.y - 38, 'SPEED UP', unit.color, 14); ring(unit.x,unit.y,unit.color,75,.45);
         }
@@ -275,7 +314,9 @@
       for (const ally of state.units) {
         if (ally.id === unit.id) continue;
         if(!state.friendshipContacts)state.friendshipContacts=new Set();
-        if(distance(unit,ally)<unit.r+ally.r){if(!state.friendshipContacts.has(ally.id)){state.friendshipContacts.add(ally.id);friendshipBlast(ally);if(hasAbility(unit,'heal')){if(!state.healedAllies)state.healedAllies=new Set();if(!state.healedAllies.has(ally.id)){state.healedAllies.add(ally.id);const heal=Math.min(300,state.maxHp-state.hp);state.hp+=heal;if(heal)floatingText(unit.x,unit.y-35,'HEAL +'+heal,'#35b981',13);}}}}else state.friendshipContacts.delete(ally.id);
+        if(allyTouching(unit,ally)){if(!state.friendshipContacts.has(ally.id)){state.friendshipContacts.add(ally.id);touchAlly(unit,ally);friendshipBlast(ally);if(hasAbility(unit,'heal')){if(!state.healedAllies)state.healedAllies=new Set();if(!state.healedAllies.has(ally.id)){state.healedAllies.add(ally.id);const heal=Math.min(300,state.maxHp-state.hp);state.hp+=heal;if(heal)floatingText(unit.x,unit.y-35,'HEAL +'+heal,'#35b981',13);}}}}else state.friendshipContacts.delete(ally.id);
+        // キューブ状態：手番以外の味方は正方形の当たり判定を持ち、移動中の味方は反射する（友情は上で発動済み）
+        if(cubeActive())cubeBounce(unit,ally);
       }
       unit.x = clamp(unit.x, FIELD.left + unit.r, FIELD.right - unit.r);
       unit.y = clamp(unit.y, FIELD.top + unit.r, FIELD.bottom - unit.r);

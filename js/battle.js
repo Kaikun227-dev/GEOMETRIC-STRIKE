@@ -289,6 +289,10 @@
   }
   function powerAreaValue(area){const wave=state.waves[state.wave];return area.multiplier??wave.powerAreaMultiplier??state.stage.powerAreaMultiplier??4;}
   function powerAreaMultiplier(unit){if(!unit)return 1;const a=(state.waves[state.wave].gimmicks?.powerAreas||[]).find(a=>unit.x>=a.x&&unit.x<=a.x+a.w&&unit.y>=a.y&&unit.y<=a.y+a.h);return a?powerAreaValue(a):1;}
+  // 触れた味方の数に応じて手番キャラの攻撃力アップ：0人=1倍、1人=4倍、2人=8倍、3人以上=30倍
+  const TOUCH_POWER_TABLE=[1,4,8,30];
+  function touchPowerActive(){return !!(state.waves[state.wave].touchPower??state.stage.touchPower);}
+  function touchPowerMultiplier(owner=state.units[state.activeUnit]){return touchPowerActive()&&owner?.id===state.units[state.activeUnit]?.id?TOUCH_POWER_TABLE[Math.min(TOUCH_POWER_TABLE.length-1,state.touchedAllies?.size||0)]:1;}
   function powerSwitchMultiplier(){return state.powerSwitchActive?(state.waves[state.wave].switchMultiplier??state.stage.switchMultiplier??1):1;}
   function inPowerArea(unit) {
     if(!unit)return false;
@@ -299,7 +303,7 @@
     const owner=options.owner||state.damageOwner||(!friendship?state.units[state.activeUnit]:null);
     const weak=hitsWeak(enemy,options.hit)&&(!enemy.weakPoint?.internal||friendship||owner&&isPiercing(owner));
     const multiplier=enemyWeakMultiplier(enemy);
-    const damage=Math.round(amount*powerAreaMultiplier(owner)*(friendship?powerSwitchMultiplier():1)*(weak?(options.weakBonusOnly?multiplier-1:multiplier):1)*(enemy.defenseMultiplier||1)*(enemy.switchArmor&&!state.powerSwitchActive?enemy.switchArmor:1)*enemyRestrictionMultiplier(enemy,owner,friendship)*(friendship?1:enemy.armor??1));
+    const damage=Math.round(amount*powerAreaMultiplier(owner)*touchPowerMultiplier(owner)*(friendship?powerSwitchMultiplier():1)*(weak?(options.weakBonusOnly?multiplier-1:multiplier):1)*(enemy.defenseMultiplier||1)*(enemy.switchArmor&&!state.powerSwitchActive?enemy.switchArmor:1)*enemyRestrictionMultiplier(enemy,owner,friendship)*(friendship?1:enemy.armor??1));
     if (weak) { floatingText(enemy.x, enemy.y - enemy.r - 38, 'WEAK ×'+multiplier, '#c79816', 15); ring(weakPosition(enemy).x, weakPosition(enemy).y, '#e1b327', 36, .3); }
     const actualDamage = Math.min(enemy.hp, damage);
     enemy.hp = Math.max(0, enemy.hp - damage);

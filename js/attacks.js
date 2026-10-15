@@ -212,19 +212,21 @@
   }
 
   const EXPANSION_COMBOS=['slash','involute','satellites','discharge'];
+  const EXPANSION_BALL_RADIUS=12,SATELLITE_ORBIT_RADIUS=78;
   function spawnExpansionFriendship(ally,f,carrier,damage){
     if(!EXPANSION_COMBOS.includes(f.kind))return false;
     const e={type:f.kind,side:'ally',x:ally.x,y:ally.y,damage,color:ally.color,age:0};
     if(f.kind==='slash')Object.assign(e,{emitted:0,wait:0,cuts:[],range:180,count:12});
     if(f.kind==='involute')e.balls=Array.from({length:f.count??6},(_,i)=>({arm:i*TAU/(f.count??6),x:ally.x,y:ally.y,trail:[],hits:new Map()}));
-    if(f.kind==='satellites')Object.assign(e,{carrier,lastCarrier:{x:carrier.x,y:carrier.y},balls:Array.from({length:Math.max(1,Math.min(32,f.count??6))},(_,i)=>({arm:i*TAU/(f.count??6),x:carrier.x+Math.cos(i*TAU/(f.count??6))*62,y:carrier.y+Math.sin(i*TAU/(f.count??6))*62,trail:[],hits:new Map()}))});
+    if(f.kind==='satellites')Object.assign(e,{carrier,lastCarrier:{x:carrier.x,y:carrier.y},balls:Array.from({length:Math.max(1,Math.min(32,f.count??6))},(_,i)=>({arm:i*TAU/(f.count??6),x:carrier.x+Math.cos(i*TAU/(f.count??6))*SATELLITE_ORBIT_RADIUS,y:carrier.y+Math.sin(i*TAU/(f.count??6))*SATELLITE_ORBIT_RADIUS,trail:[],hits:new Map()}))});
     if(f.kind==='discharge')Object.assign(e,{from:{x:ally.x,y:ally.y},visited:new Set(),wait:0,segments:[],finished:false});
     queueEffect(e);tone(750,.12,'triangle',.025);return true;
   }
   function expansionBallHit(e,b,from,to,now){
+    const radius=e.type==='satellites'||e.type==='involute'?EXPANSION_BALL_RADIUS:9;
     for(const enemy of state.enemies){
-      if(!(enemy.alive&&!enemy.transparent)||now-(b.hits.get(enemy.id)??-100)<.18||segmentDistance(enemy,from,to)>enemyCollisionRadius(enemy)+9)continue;
-      b.hits.set(enemy.id,now);damageEnemy(enemy,e.damage,true,{charge:.45,hit:{from,to,radius:9}});
+      if(!(enemy.alive&&!enemy.transparent)||now-(b.hits.get(enemy.id)??-100)<.18||segmentDistance(enemy,from,to)>enemyCollisionRadius(enemy)+radius)continue;
+      b.hits.set(enemy.id,now);damageEnemy(enemy,e.damage,true,{charge:.45,hit:{from,to,radius}});
     }
   }
   function updateExpansionFriendship(e,dt){
@@ -260,7 +262,7 @@
           b.x=e.x+x*Math.cos(b.arm)-y*Math.sin(b.arm);b.y=e.y+x*Math.sin(b.arm)+y*Math.cos(b.arm);
         }else{
           const progress=step/steps,cx=jumped?e.carrier.x:e.lastCarrier.x+(e.carrier.x-e.lastCarrier.x)*progress,cy=jumped?e.carrier.y:e.lastCarrier.y+(e.carrier.y-e.lastCarrier.y)*progress;
-          b.x=cx+Math.cos(b.arm+age*6)*62;b.y=cy+Math.sin(b.arm+age*6)*62;
+          b.x=cx+Math.cos(b.arm+age*6)*SATELLITE_ORBIT_RADIUS;b.y=cy+Math.sin(b.arm+age*6)*SATELLITE_ORBIT_RADIUS;
         }
         if(jumped){from.x=b.x;from.y=b.y;b.trail=[];}
         expansionBallHit(e,b,from,b,age);
@@ -281,7 +283,7 @@
       for(let i=1;i<9;i++){const jitter=(i%2?1:-1)*9;ctx.lineTo(s.from.x+dx*i/9-dy/l*jitter,s.from.y+dy*i/9+dx/l*jitter);}ctx.lineTo(s.to.x,s.to.y);ctx.stroke();ctx.shadowBlur=0;ctx.strokeStyle='#fff7d8';ctx.lineWidth=1.5;ctx.stroke();ctx.strokeStyle=e.color;
     }
     else for(const b of e.balls){
-      ctx.strokeStyle=e.color;ctx.lineWidth=e.type==='satellites'?4:5;ctx.globalAlpha=.45;ctx.beginPath();b.trail.forEach((p,i)=>{if(i)ctx.lineTo(p.x,p.y);else ctx.moveTo(p.x,p.y);});ctx.stroke();ctx.globalAlpha=1;ctx.shadowColor=e.color;ctx.shadowBlur=10;ctx.beginPath();ctx.arc(b.x,b.y,8,0,TAU);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(b.x-2,b.y-2,3,0,TAU);ctx.fill();ctx.fillStyle=e.color;
+      ctx.strokeStyle=e.color;ctx.lineWidth=5;ctx.globalAlpha=.45;ctx.beginPath();b.trail.forEach((p,i)=>{if(i)ctx.lineTo(p.x,p.y);else ctx.moveTo(p.x,p.y);});ctx.stroke();ctx.globalAlpha=1;ctx.shadowColor=e.color;ctx.shadowBlur=10;ctx.beginPath();ctx.arc(b.x,b.y,e.type==='satellites'||e.type==='involute'?EXPANSION_BALL_RADIUS:8,0,TAU);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(b.x-3,b.y-3,e.type==='satellites'||e.type==='involute'?4:3,0,TAU);ctx.fill();ctx.fillStyle=e.color;
     }
     ctx.restore();
   }
@@ -390,7 +392,7 @@
       if(state.phase!=='moving'||state.unitStopped||!e.route.length)return false;
       let remaining=1100*dt,coincident=0;
       while(remaining>0){const dest=e.route[e.index],d=distance(e,dest);if(d<.001){e.index=(e.index+1)%e.route.length;e.hitIds.clear();if(++coincident>=e.route.length)break;continue;}coincident=0;const from={x:e.x,y:e.y},travel=Math.min(d,remaining);e.x+=(dest.x-e.x)/d*travel;e.y+=(dest.y-e.y)/d*travel;remaining-=travel;
-        for(const target of state.enemies)if((target.alive&&!target.transparent)&&!e.hitIds.has(target.id)&&segmentDistance(target,from,e)<=enemyCollisionRadius(target)+14){e.hitIds.add(target.id);damageEnemy(target,e.damage,true,{charge:.7,hit:{from,to:e,radius:14}});}
+        for(const target of state.enemies)if((target.alive&&!target.transparent)&&!e.hitIds.has(target.id)&&segmentDistance(target,from,e)<=enemyCollisionRadius(target)+20){e.hitIds.add(target.id);damageEnemy(target,e.damage,true,{charge:.7,hit:{from,to:e,radius:20}});}
         e.trail.push({x:e.x,y:e.y});if(e.trail.length>15)e.trail.shift();if(travel>=d){e.index=(e.index+1)%e.route.length;e.hitIds.clear();}
       }
       return true;
@@ -524,7 +526,7 @@
     floatingText(ally.x, ally.y - (f===ally.secondary?62:43), (f===ally.secondary?'SUB / ':'')+kind.label, ally.color, f===ally.secondary?10:12);
     logAttack('ally', f.kind);
     if(f.kind==='copy'){if(!copied&&trigger.friendship.kind!=='copy')fireFriendship(ally,trigger.friendship,trigger,true);return;}
-    if(f.kind==='speedUp'){if(!state.unitStopped&&state.phase==='moving'){const v=Math.hypot(trigger.vx,trigger.vy);if(v>.01){const boost=Math.max(v,Math.min(2800,Math.max(1100,v*1.55)));trigger.vx*=boost/v;trigger.vy*=boost/v;trigger.boostTime=Math.max(trigger.boostTime||0,.7);ring(trigger.x,trigger.y,ally.color,80,.5);}}return;}
+    if(f.kind==='speedUp'){if(!state.unitStopped&&state.phase==='moving'){const v=Math.hypot(trigger.vx,trigger.vy);if(v>.01){trigger.vx*=2;trigger.vy*=2;trigger.boostTime=Math.max(trigger.boostTime||0,.7);ring(trigger.x,trigger.y,ally.color,80,.5);}}return;}
     const targets = livingEnemiesByDistance(ally);
     if (!targets.length&&f.kind!=='weakPierce') return;
     const damage = f.power * (ally.atk / 1000) * (state.skillShot ? 1.7 : 1) * (ally.battleStyle === 'artillery' ? 2 : 1);
@@ -572,7 +574,8 @@
     logAttack('enemy', attack.kind);
     floatingText(enemy.x, enemy.y - enemy.r - 26, FRIENDSHIP_KINDS[attack.kind].label, '#c65e55', 12);
     state.shake = Math.max(state.shake, enemy.boss ? 8 : 3);
-    if(attack.kind==='revive')applyEnemyEffect({type:'revive',targets:spec.targets,hpRatio:spec.hpRatio},enemy);
+    if(attack.kind==='move')moveEnemy(enemy,attack);
+    else if(attack.kind==='revive')applyEnemyEffect({type:'revive',targets:spec.targets,hpRatio:spec.hpRatio,limit:spec.limit},enemy);
     else if(attack.kind==='effect')for(const effect of spec.effects||[])applyEnemyEffect(effect,enemy);
     else if(attack.kind==='mines'||attack.kind==='photons')scatterPickups(attack.kind==='mines'?'mine':'photon',spec.count,spec.wall);
     else if(attack.kind==='plusLaser'||attack.kind==='crossLaser'){

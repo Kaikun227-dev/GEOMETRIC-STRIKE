@@ -60,7 +60,7 @@
     state.aiming = null;
     state.shotCount++;
     state.shotDirection={vx:dx,vy:dy};
-    state.swordPanelsUsed=new Set();state.swordBonus=0;state.slowWallContacts=new Map();
+    state.swordPanelsUsed=new Set();state.swordBonus=0;state.typePanelsUsed=new Set();state.touchedAllies=new Set();state.slowWallContacts=new Map();
     state.boostPanelsUsed=new Set();state.warpCooldown=0;state.hazardContacts={};
     for(const u of state.units){u.boostTime=0;u.inGravity=false;u.enemyContacts=new Map();}
     state.lastHitEnemyId = null;
@@ -127,13 +127,13 @@
 
   function readyNextTurn() {
     for(const e of state.enemies)if(e.transparent){e.transparent=false;allowSpawnExit(e);}
-    state.swordBonus=0;resetPowerSwitches();
+    state.swordBonus=0;state.swordPanelsUsed=new Set();state.typePanelsUsed=new Set();state.touchedAllies=new Set();for(const u of state.units){const base=CHAR_BY_ID[u.charId]?.shotType;if(base)u.shotType=base;}resetPowerSwitches();
     if(state.phase!=='wave')for(const e of state.enemies){if(!e.alive||!e.weakPoint||!e.weakAngles?.length||e.weakMoveOnHit||e.weakPoint.internal||e.weakPoint.routeId)continue;e.weakStep=(e.weakStep+1)%e.weakAngles.length;e.weakPoint.angle=e.weakAngles[e.weakStep];const w=weakPosition(e);ring(w.x,w.y,'#dfaa19',40,.5);floatingText(e.x,e.y-e.r-45,'WEAK SHIFT','#b48d27',12);}
     state.turn++;
     for(const e of state.enemies)if(e.defenseExpiresAt!==undefined&&e.defenseExpiresAt<=state.turn)e.defenseMultiplier=1;
     state.activeUnit = (state.activeUnit + 1) % state.units.length;
     state.phase = 'ready';
-    for(const u of state.units)if(hasAbility(u,'regen')){const healed=Math.min(1200,state.maxHp-state.hp);state.hp+=healed;if(healed>0){floatingText(u.x,u.y-40,'REGEN +'+healed,'#35b981',14);ring(u.x,u.y,'#35b981',65,.5);}}
+    for(const u of state.units)if(hasAbility(u,'regen')){const healed=Math.min(300,state.maxHp-state.hp);state.hp+=healed;if(healed>0){floatingText(u.x,u.y-40,'REGEN +'+healed,'#35b981',14);ring(u.x,u.y,'#35b981',65,.5);}}
     state.skillShot = false;
     state.keyboardAngle = -Math.PI / 2;
     state.keyboardPower = 0.8;

@@ -480,3 +480,203 @@ const stage66={id:'6-6',name:'終局・多重機構の覇者',switchMultiplier:1
  return {name:['剣刃の前哨','壁際の力場','光子のドクロ','防御崩しの関門','覇王キマイラとの決戦'][i],step:i<3?'CHIMERA '+(i+1):'CHIMERA / '+(i-2),...(i>=3?{bossPhase:i-2}:{}),...(i===4?{switchMultiplier:20}:{}),enemies,reserves,gimmicks,...(crossSkulls.length?{crossSkulls}:{})};
 })};
 const CHAPTER_SIX=[stage61,stage62,stage63,stage64,stage65,stage66];for(const stage of CHAPTER_SIX){STAGES.push(stage);STAGE_BY_ID[stage.id]=stage;}
+
+// ===== 第7章：7-1 万力の回廊 / 7-2 風と雷原（スライド準拠・各ステージ道中3＋ボス2の5エリア） =====
+// 7-1：重力バリア・ワープ・ブロック・弱点倍率9。雑魚は全員四角で弱点（黄色）を持つ。敵と敵の間に挟まって狙う。ボスの弱点は毎ターン移動。
+// 7-2：地雷・ウィンド・ブロック・加速パネル・内部弱点（6倍）。ピンクの「地雷兵」は地雷をランダムに撒く。
+// 座標はスライドを620×740の盤面へ換算した値。ワープの組み合わせはスライドに記載がないため、c7Warps で調整できる。
+ENEMY_SPECIES.mineLayer='地雷兵';
+const c7Attack=(kind,extra={})=>({kind,countdown:2,interval:2,mult:.2,...extra});
+const c7Warps=(...pairs)=>pairs.map(([a,b])=>({a:{x:a[0],y:a[1]},b:{x:b[0],y:b[1]},r:22}));
+const c7Mines=(coords,damage=750)=>coords.map(([x,y])=>({x,y,damage}));
+const c7Boosts=coords=>coords.map(([x,y])=>({x,y,r:27}));
+const c7Boss=(name,x,y,hp,tint,attacks,extra={})=>({...core(x,y,68,hp,0,attacks,{bossName:name,tint,shape:'circle',armor:1,...extra}),key:'boss'});
+// 7-1 の雑魚：全員四角。weakAngle は弱点の向き（0=右、π/2=下、π=左、-π/2=上）。gravity は重力バリア半径。
+const SQUARE_KINDS=['homing','laser','explosion','meteor','reflectLaser','pierce'];
+const c7Square=(key,x,y,weakAngle,hp,n,extra={})=>{const kind=SQUARE_KINDS[n%SQUARE_KINDS.length];
+ return {...foe(x,y,38,hp,4,kind,2),key,armor:1,tint:'#d98a7e',weakPoint:{angle:weakAngle,radius:15},
+  attacks:[c7Attack(kind,kind==='homing'?{count:3}:kind==='explosion'?{radius:120,maxHits:3}:kind==='meteor'?{count:2}:{})],...extra};};
+const C7P=Math.PI,C7H=Math.PI/2;
+// [x, y, 弱点の向き, 重力バリア半径(省略可)]
+const vise71=[
+ {name:'挟まれた弱点',step:'CLAMP 1',
+  e:[[104,96,C7P,80],[498,110,-C7H,80],[302,336,C7H],[302,482,-C7H]],
+  warps:[[[132,288],[484,501]],[[482,289],[128,501]]]},
+ {name:'十字の隙間',step:'CLAMP 2',
+  e:[[306,70,C7H,80],[315,272,-C7H],[242,342,0],[388,342,C7P],[315,412,C7H],[316,670,-C7H,80]],
+  warps:[[[83,274],[557,455]],[[417,159],[270,573]]]},
+ {name:'転送する縦列',step:'CLAMP 3',
+  e:[[74,78,0],[74,166,0],[74,254,0],[550,494,C7P],[550,582,C7P],[550,670,C7P]],
+  blocks:[[275,28,69,254],[275,464,69,248]],
+  warps:[[[309,323],[128,680]],[[309,406],[486,74]]]},
+ {name:'万力王・ヴァイス',step:'VISE / 1',boss:[520,396,[-C7H,C7P,C7H],125],
+  e:[[84,383,C7P,85],[520,222,C7H],[520,570,-C7H],[348,396,0]],
+  warps:[[[211,102],[418,528]],[[234,631],[411,247]]]},
+ {name:'万力王の終端',step:'VISE / 2',boss:[295,346,[-C7H,C7H]],
+  e:[[295,170,C7H,80],[295,522,-C7H,80],[80,104,-C7H],[546,636,C7H]],
+  warps:[[[52,346],[566,346]],[[142,346],[442,346]]]}
+];
+const stage71={id:'7-1',name:'九倍の挟撃回廊',weakMultiplier:9,hint:'重力バリア・ワープ・ブロック。雑魚は全員四角で、どの敵にも弱点がある。敵と敵の間に挟まって、向かい合う弱点を一撃でまとめて狙おう。ボスの弱点は毎ターン位置が変わる。弱点倍率は9倍。',
+ waves:vise71.map((a,i)=>{
+  const enemies=a.e.map(([x,y,w,g],j)=>c7Square('sq-'+j,x,y,w,26000+i*1500,j+i,g?{gravity:g}:{}));
+  if(a.boss){const [bx,by,wa,bg]=a.boss;
+   enemies.push(c7Boss('ヴァイス',bx,by,i===3?340000:460000,'#a8634f',i===3?[c7Attack('spread',{ways:8,volleys:1,mult:.12}),c7Attack('homing',{count:4,mult:.16}),c7Attack('explosion',{radius:140,mult:.2})]:[c7Attack('laser',{hits:3,mult:.16}),c7Attack('meteor',{count:3,mult:.16}),c7Attack('pierce',{count:3,mult:.2})],{shape:'octagon',sides:8,weakAngles:wa,...(bg?{gravity:bg}:{})}));}
+  return {name:a.name,step:a.step,...(a.boss?{bossPhase:i-2}:{}),enemies,
+   gimmicks:{warps:c7Warps(...a.warps),...(a.blocks?{blocks:a.blocks.map(b=>block(...b))}:{})}};
+ })};
+// 7-2 の雑魚：今までの種類（反射砲台・貫通射手・装甲兵・球形兵・十字・星光・爆撃兵）をそのまま使用。全敵が内部弱点。
+const c7Fam=['turret','lancer','orb','cruciform','sentinel','starBattery','bomber'];
+const c7Foe=(key,n,x,y,hp)=>({...variedFoe(c7Fam[n%c7Fam.length],x,y,36,hp),key,internalWeak:true,weakRadius:12});
+const c7MineLayer=(key,x,y,hp)=>({...foe(x,y,36,hp,0,'homing',1),key,armor:1,shape:'circle',tint:'#ee8fb9',species:'mineLayer',internalWeak:true,weakRadius:12,
+ attacks:[{kind:'mines',count:5,countdown:1,interval:2}]});
+const c7Wind=(x,y,mode,r,force=130)=>windDevice(x,y,mode,r,force,mode==='pull'?1:2);
+// f=通常敵 [x,y]、m=地雷兵 [x,y]
+const storm72=[
+ {name:'地雷原の入口',step:'STORM 1',f:[[68,68],[68,246]],m:[[535,68]],
+  mines:[[179,50],[179,96],[179,200],[179,284],[348,306],[484,368],[278,453],[437,521]],
+  blocks:[[28,123,112,52],[28,317,112,51],[374,28,56,109],[376,133,150,51]],boosts:[[565,215],[269,299]],
+  winds:[c7Wind(391,423,'pull',195)]},
+ {name:'風に挟まれる通路',step:'STORM 2',f:[[298,166],[300,271],[212,672],[423,672]],m:[[314,672]],
+  mines:[[142,86],[55,169],[148,221],[50,284],[553,86],[466,170],[558,221],[455,284],[50,605],[568,605]],
+  blocks:[[194,108,53,285],[351,45,55,286],[91,582,443,48]],boosts:[[294,57],[305,397],[110,683],[548,683]],
+  winds:[c7Wind(100,573,'push',210),c7Wind(497,445,'push',120)]},
+ {name:'引き寄せる地雷庭',step:'STORM 3',f:[[384,155],[545,155],[68,570],[205,570]],m:[[303,351]],
+  mines:[[50,119],[134,119],[218,119],[50,203],[134,203],[218,203],[404,531],[487,531],[568,531],[404,614],[487,614],[568,614]],
+  blocks:[[251,94,55,190],[287,432,56,215]],boosts:[[274,57],[318,683]],
+  winds:[c7Wind(160,237,'pull',200),c7Wind(460,508,'pull',200)]},
+ {name:'暴風王・ミストラル',step:'MISTRAL / 1',boss:[315,365],f:[],m:[[315,64],[315,672]],
+  mines:[[195,180],[319,180],[447,180],[535,291],[546,396],[510,477],[443,540],[317,572],[190,553],[106,462],[91,358],[121,248]],
+  blocks:[[183,226,52,189],[402,321,55,189],[227,104,175,42],[227,590,175,42]],boosts:[[363,241],[267,497]],
+  winds:[c7Wind(315,368,'push',251)]},
+ {name:'暴風王の終端',step:'MISTRAL / 2',boss:[499,642],f:[[78,672],[216,672]],m:[[535,226],[532,341]],
+  mines:[[156,53],[360,50],[63,138],[266,127],[365,177],[162,188],[52,252],[256,241],[134,328],[338,321],[50,410],[245,404],[140,463],[50,526],[233,520],[344,455]],
+  blocks:[[416,151,55,245],[421,502,171,51],[309,613,56,99]],boosts:[[544,107],[235,308],[538,436],[360,553],[162,595]],
+  winds:[c7Wind(175,156,'pull',240),c7Wind(422,570,'push',190)]}
+];
+const stage72={id:'7-2',name:'六倍の風と雷原',weakMultiplier:6,hint:'地雷・ウィンド・ブロック・加速パネル。全敵の中心に内部弱点があり、倍率は6倍。ピンクの地雷兵は地雷をランダムにばらまく。引き寄せ風と吹き出し風に流されないよう、加速パネルで中心を貫こう。',
+ waves:storm72.map((a,i)=>{
+  const hp=19000+i*1200,enemies=[...a.f.map(([x,y],j)=>c7Foe('foe-'+j,i+j,x,y,hp)),...a.m.map(([x,y],j)=>c7MineLayer('layer-'+j,x,y,hp))];
+  if(a.boss)enemies.push({...c7Boss('ミストラル',a.boss[0],a.boss[1],i===3?230000:320000,'#c4577a',i===3?[c7Attack('vibration',{radius:170,push:70,mult:.25}),c7Attack('meteor',{count:3,mult:.16}),c7Attack('explosion',{radius:140,mult:.2})]:[c7Attack('reflectLaser',{bounces:2,mult:.16}),c7Attack('homing',{count:4,mult:.16}),{kind:'mines',count:6,countdown:2,interval:2}]),shape:'starBattery',sides:8,internalWeak:true,weakRadius:12});
+  return {name:a.name,step:a.step,...(a.boss?{bossPhase:i-2}:{}),enemies,
+   gimmicks:{mines:c7Mines(a.mines),blocks:a.blocks.map(b=>block(...b)),boosts:c7Boosts(a.boosts),winds:a.winds}};
+ })};
+const CHAPTER_SEVEN=[stage71,stage72];for(const stage of CHAPTER_SEVEN){STAGES.push(stage);STAGE_BY_ID[stage.id]=stage;}
+
+// ===== 第7章 後半：7-3 回遊する剣の蘇生陣 / 7-4 球体と貫通の封印 =====
+// 7-3：ダメージウォール(2〜3面)・剣パネル・蘇生・敵移動・中ボス。
+//   敵移動＝攻撃欄に { kind:'move', to:{x,y} } を追加（出発点と移動先を行ったり来たり）。雑魚は毎ターン、中ボス／ボスは3ターンごと。
+//   蘇生＝{ kind:'revive', targets:'others', limit:2 }：自分・ボス・中ボス以外の倒れた雑魚（蘇生役を含む）から最大2体。
+// 7-4：重力バリア・貫通制限・キューブ状態（ステージの cube:true）・中ボス・弱点倍率8・クロスドクロ→防御ダウン12倍。
+const c7Reviver=(key,n,x,y,hp,moveTo)=>({...variedFoe(c7Fam[n%c7Fam.length],x,y,38,hp),key,tint:'#b78be6',
+ attacks:[...variedFoe(c7Fam[n%c7Fam.length],x,y,38,hp).attacks.slice(0,1),...(moveTo?[{kind:'move',to:{x:moveTo[0],y:moveTo[1]},countdown:1,interval:1}]:[]),{kind:'revive',targets:'others',limit:2,countdown:2,interval:2}]});
+const c7Normal=(key,n,x,y,hp,extra={})=>({...variedFoe(c7Fam[n%c7Fam.length],x,y,38,hp),key,...extra});
+const c7Mid=(key,x,y,hp,weakAngles,attacks,extra={})=>({...foe(x,y,54,hp,0,'homing',2),key,armor:1,shape:'circle',tint:'#4a78c4',species:'midBoss',midBoss:true,weakAngles,weakPoint:{angle:weakAngles[0],radius:15},attacks,...extra});
+const c7Swords=coords=>coords.map(([x,y])=>({x,y,r:24}));
+// 7-3：[x,y] は通常の雑魚、rv は蘇生役 [x,y,移動先?]、swords は剣パネル、walls はダメージウォールの面
+const nomad73=[
+ {name:'蘇る六つの影',step:'NOMAD 1',walls:['top','right'],
+  f:[[138,166],[308,168],[308,383],[476,383]],rv:[[476,166],[138,383]],
+  swords:[[225,56],[398,56],[52,267],[305,267],[564,267],[223,489],[390,489]]},
+ {name:'回遊する蘇生者',step:'NOMAD 2',walls:['left','bottom','right'],
+  f:[],rv:[[169,208,[168,341]],[442,199,[307,201]],[163,488,[303,489]],[442,485,[441,338]]],
+  swords:[[307,67],[57,264],[567,267],[303,337],[57,448],[566,445],[300,657]]},
+ {name:'中ボス・ヴァグラント',step:'NOMAD 3',walls:['top','left'],f:[],rv:[],mid:[300,607,[298,121]],
+  swords:[[90,101],[519,99],[298,255],[298,365],[298,476],[81,607],[523,618]]},
+ {name:'回遊王・ノマド',step:'NOMAD / 1',walls:['top','bottom','right'],boss:[135,352,[Math.PI,0],[504,356]],
+  f:[[135,192],[505,192],[135,504],[503,504]],rv:[[322,66,[323,662]]],
+  swords:[[131,78],[499,83],[322,203],[323,358],[322,514],[135,644],[503,644]]},
+ {name:'回遊王の終端',step:'NOMAD / 2',walls:['left','top','bottom'],boss:[488,114,[-Math.PI/2,0],[120,604]],
+  f:[[121,467],[308,619]],rv:[[305,111,[119,333]],[488,271,[469,619]]],
+  swords:[[140,159],[356,214],[239,293],[417,362],[264,438],[542,442],[404,517]]}
+];
+const stage73={id:'7-3',name:'回遊する剣の蘇生陣',hint:'ダメージウォール（2〜3面）・剣パネル・蘇生・敵移動・中ボス。灰色の破線円が敵の次の移動先。雑魚は毎ターン、中ボスとボスは3ターンごとに行ったり来たりする。紫の蘇生役は2ターンごとに倒れた雑魚を最大2体蘇生する。剣パネルを踏んで威力を加算しよう。',
+ waves:nomad73.map((a,i)=>{
+  const hp=8000+i*1200,enemies=[...a.f.map(([x,y],j)=>c7Normal('foe-'+j,i+j,x,y,hp)),...a.rv.map(([x,y,to],j)=>c7Reviver('rev-'+j,i+j+2,x,y,hp,to))];
+  if(a.mid)enemies.push(c7Mid('mid',a.mid[0],a.mid[1],60000,[C7P,0],[c7Attack('homing',{count:4,mult:.22}),c7Attack('explosion',{radius:130,mult:.22}),{kind:'move',to:{x:a.mid[2][0],y:a.mid[2][1]},countdown:3,interval:3}]));
+  if(a.boss)enemies.push(c7Boss('ノマド',a.boss[0],a.boss[1],i===3?100000:160000,'#d19a3e',i===3?[c7Attack('crossLaser',{mult:.2}),c7Attack('explosion',{radius:140,mult:.2}),{kind:'move',to:{x:a.boss[3][0],y:a.boss[3][1]},countdown:3,interval:3}]:[c7Attack('plusLaser',{mult:.2}),c7Attack('meteor',{count:3,mult:.18}),{kind:'move',to:{x:a.boss[3][0],y:a.boss[3][1]},countdown:3,interval:3}],{shape:'hexagon',sides:6,weakAngles:a.boss[2]}));
+  return {name:a.name,step:a.step,...(a.boss?{bossPhase:i-2}:{}),enemies,gimmicks:{walls:a.walls.map(s=>c6Wall(s,560)),swords:c7Swords(a.swords)}};
+ })};
+// 7-4：g=[x,y,弱点の向き] 重力バリア付きの雑魚、s=[x,y] 貫通制限（灰）、mid=中ボス、boss=ボス
+const sealGrey=(key,n,x,y,peers)=>({...foe(x,y,38,3000,0,'homing',3),key,armor:1,shape:'circle',restriction:'pierce',crossSkull:'seal',tint:'#8e9aab',
+ attacks:[{kind:'revive',targets:peers,countdown:3,interval:3},c7Attack(['homing','laser','explosion','meteor'][n%4],{count:2,mult:.16,hits:2,radius:110})]});
+const cube74=[
+ {name:'貫通の封印',step:'SPHERE 1',g:[[471,147,Math.PI/2]],s:[[72,103],[160,156],[70,199],[291,405],[399,405],[343,485]]},
+ {name:'球体の円環',step:'SPHERE 2',g:[[78,72,0],[548,668,Math.PI]],s:[[302,136],[99,236],[506,236],[107,519],[483,524],[303,606]],mid:[303,364,[C7P,0]]},
+ {name:'四つの重力',step:'SPHERE 3',g:[[130,194,Math.PI/2],[479,194,Math.PI],[131,504,0],[464,513,-Math.PI/2]],s:[[304,286],[304,419]]},
+ {name:'球体王・スフェラ',step:'SPHERE / 1',g:[[289,138,Math.PI/2],[289,268,-Math.PI/2]],s:[[119,201],[218,201],[355,201],[456,201]],boss:[286,600,[-Math.PI/2,Math.PI/2]]},
+ {name:'球体王の終端',step:'SPHERE / 2',g:[[505,543,0],[423,633,Math.PI/2]],s:[[480,66],[550,125],[70,622],[140,670],[383,526]],boss:[142,123,[-Math.PI/2,Math.PI]]}
+];
+const stage74={id:'7-4',name:'球体と貫通の封印',weakMultiplier:8,cube:true,hint:'重力バリア・貫通制限・キューブ状態・中ボス。手番以外の味方は四角いキューブになり、移動中の味方は反射するが友情は発動する。貫通制限（灰色）は3ターンごとに全蘇生。すべて倒すとクロスドクロで他の敵の防御が12倍ダウン。弱点倍率は8倍。',
+ waves:cube74.map((a,i)=>{
+  const keys=a.s.map((p,j)=>'seal-'+j),enemies=a.s.map(([x,y],j)=>sealGrey(keys[j],i+j,x,y,keys.filter(k=>k!==keys[j])));
+  enemies.push(...a.g.map(([x,y,w],j)=>c7Normal('guard-'+j,i+j,x,y,220000+i*1500,{gravity:92,weakPoint:{angle:w,radius:15}})));
+  if(a.mid)enemies.push(c7Mid('mid',a.mid[0],a.mid[1],800000,a.mid[2],[c7Attack('plusLaser',{mult:.22}),c7Attack('meteor',{count:3,mult:.2}),c7Attack('explosion',{radius:140,mult:.22})],{gravity:150}));
+  if(a.boss)enemies.push(c7Boss('スフェラ',a.boss[0],a.boss[1],i===3?1200000:1800000,'#7b63c9',i===3?[c7Attack('crossLaser',{mult:.2}),c7Attack('homing',{count:4,mult:.18}),c7Attack('explosion',{radius:140,mult:.2})]:[c7Attack('plusLaser',{mult:.2}),c7Attack('meteor',{count:3,mult:.18}),c7Attack('vibration',{radius:170,push:70,mult:.25})],{weakAngles:a.boss[2],gravity:185}));
+  return {name:a.name,step:a.step,...(a.boss?{bossPhase:i-2}:{}),enemies,
+   crossSkulls:[{id:'seal',members:{group:'seal'},effects:[{type:'defenseDown',targets:'nonRestriction',multiplier:12}]}],gimmicks:{}};
+ })};
+CHAPTER_SEVEN.push(stage73,stage74);for(const stage of [stage73,stage74]){STAGES.push(stage);STAGE_BY_ID[stage.id]=stage;}
+
+// ===== 第7章 終盤：7-5 撃種変化の蘇生回廊 / 7-6 立方体と暴風の九倍域（スライド準拠・道中3＋ボス2の5エリア） =====
+// 座標はスライドの各盤面を620×740の盤面（フィールド 28〜592 × 28〜712）へ換算した値。
+// 7-5：ダメージウォール（4面）・ブロック・反射制限／貫通制限（3ターンごとに蘇生しあう）・撃種変化パネル・弱点付与・蘇生・敵移動。
+//   撃種変化パネル＝gimmicks.typePanels。踏むと反射⇔貫通が入れ替わり、1ショットにつき各パネル1回まで（剣パネルと同じ）。次の手番開始時に元へ戻る。
+//   弱点付与＝ボスに weakEnabled:false を付け、雑魚（制限敵を含む）全員に crossSkull:'weak' を付けて全滅で grantWeak。
+// 7-6：ウィンド・キューブ状態・触れた味方の数に応じて攻撃力アップ（stage.touchPower）・撃種変化パネル（ボス2）・弱点付与・内部弱点（ボス2）・中ボス・弱点倍率9。
+// 触れた味方の数に応じて手番キャラの攻撃力アップ＝1人2倍・2人4倍・3人20倍。
+const c7Type=coords=>coords.map(([x,y])=>({x,y,r:27}));
+const c7Restrict=(key,kind,n,x,y,peers,hp,extra={})=>({...foe(x,y,38,hp,0,'homing',3),key,armor:1,shape:'circle',restriction:kind,tint:'#8e9aab',
+ attacks:[{kind:'revive',targets:peers,countdown:3,interval:3},c7Attack(['homing','laser','explosion','meteor'][n%4],{count:2,mult:.16,hits:2,radius:110})],...extra});
+const c7WeakGrant=(target,angle,extra={})=>[{id:'weak',members:{group:'weak'},effects:[{type:'grantWeak',targets:[target],angle,...extra}]}];
+// f=通常敵、g=貫通制限（灰）、c=反射制限（水色）、types=撃種変化パネル、blocks=ブロック
+const meta75=[
+ {name:'反転の交差路',step:'TYPE 1',f:[[70,81],[70,187],[416,356],[546,356]],g:[],c:[[70,274],[481,435]],
+  types:[[71,134],[481,355]],blocks:[[119,28,64,207],[354,265,238,50]]},
+ {name:'封印の天秤',step:'TYPE 2',f:[[228,672],[376,672]],g:[[205,159],[298,158],[392,159]],c:[],
+  types:[[86,149],[529,147],[302,681]],blocks:[[145,198,319,50],[259,610,87,36]]},
+ {name:'蘇生の挟み撃ち',step:'TYPE 3',f:[],g:[[70,309],[174,312],[118,375],[221,380]],c:[[540,236],[462,289],[385,346],[459,400],[538,458]],
+  types:[[214,204],[81,489]],blocks:[[272,178,64,337]]},
+ {name:'変転王・メタモル',step:'META / 1',boss:[301,128],f:[[546,315],[546,432],[70,531],[70,642]],g:[],c:[],
+  types:[[303,55],[548,375],[70,584]],blocks:[]},
+ {name:'変転王の終端',step:'META / 2',boss:[463,208],move:[151,603],f:[],g:[[300,207],[303,602]],c:[[72,201],[542,607]],
+  types:[[562,208],[168,321],[439,482],[55,602]],blocks:[]}
+];
+const stage75={id:'7-5',name:'撃種変化の蘇生回廊',hint:'ダメージウォール（4面）・ブロック・反射制限／貫通制限・撃種変化パネル・弱点付与・蘇生・敵移動。灰色の貫通制限は反射で、水色の反射制限は貫通で倒すと大ダメージ。逆の撃種ではほとんど通らない。撃種変化パネルを踏むと反射と貫通が入れ替わる（各パネル1ショット1回）。制限敵は3ターンごとに蘇生しあう。ボス戦では、雑魚と制限敵を全員倒すとボスに弱点が現れる。',
+ waves:meta75.map((a,i)=>{
+  const hp=12000+i*1500,rhp=3000+i*1500,keys=[...a.g.map((_,j)=>'pierce-'+j),...a.c.map((_,j)=>'reflect-'+j)],mob=a.boss?{crossSkull:'weak'}:{};
+  const enemies=[...a.f.map(([x,y],j)=>c7Normal('foe-'+j,i+j,x,y,hp,mob)),
+   ...a.g.map(([x,y],j)=>c7Restrict('pierce-'+j,'pierce',i+j,x,y,keys.filter(k=>k!=='pierce-'+j),rhp,mob)),
+   ...a.c.map(([x,y],j)=>c7Restrict('reflect-'+j,'reflect',i+j+1,x,y,keys.filter(k=>k!=='reflect-'+j),rhp,mob))];
+  if(i===3)enemies.push(c7Boss('メタモル',a.boss[0],a.boss[1],150000,'#2f9fa8',[c7Attack('crossLaser',{mult:.2}),c7Attack('meteor',{count:3,mult:.18}),c7Attack('explosion',{radius:140,mult:.2})],{shape:'cruciform',sides:4,weakEnabled:false}));
+  if(i===4)enemies.push(c7Boss('メタモル',a.boss[0],a.boss[1],220000,'#2f9fa8',[c7Attack('plusLaser',{mult:.2}),c7Attack('homing',{count:4,mult:.18}),{kind:'move',to:{x:a.move[0],y:a.move[1]},countdown:3,interval:3}],{shape:'cruciform',sides:4,weakEnabled:false,weakAngles:[C7P,0]}));
+  return {name:a.name,step:a.step,...(a.boss?{bossPhase:i-2}:{}),enemies,
+   ...(a.boss?{crossSkulls:c7WeakGrant('boss',i===3?-C7H:C7P)}:{}),
+   gimmicks:{walls:['top','right','bottom','left'].map(s=>c6Wall(s,560)),blocks:a.blocks.map(b=>block(...b)),typePanels:c7Type(a.types)}};
+ })};
+// 7-6：f=通常敵、mid=中ボス、winds=[向き,x,y,半径]。mid.grant＝雑魚全滅で中ボスに弱点、mid.grantBoss＝中ボス撃破でボスに内部弱点、mid.panel＝中ボスの下に隠れた撃種変化パネル
+const c7Strong=([mode,x,y,r])=>c7Wind(x,y,mode,r,300);
+const cube76=[
+ {name:'吹き出す風の庭',step:'CUBE 1',f:[[193,130],[72,231],[433,202],[547,327]],winds:[['push',86,100,232],['push',480,351,232]]},
+ {name:'中ボス・ガスト',step:'CUBE 2',f:[],mid:{p:[374,217],weak:[-C7H,0]},winds:[['pull',378,233,304]]},
+ {name:'引き寄せの環',step:'CUBE 3',f:[[318,73],[546,373],[301,672]],mid:{p:[108,373],weak:[-C7H,C7H],grant:true},winds:[['pull',391,376,278]]},
+ {name:'立方王・ゼニス',step:'ZENITH / 1',boss:[301,642],f:[[180,186],[431,186],[99,421],[515,438]],winds:[['push',298,398,216]]},
+ {name:'立方王の終端',step:'ZENITH / 2',boss:[304,98],mid:{p:[303,646],weak:[-C7H],grantBoss:true,panel:[303,646]},f:[],winds:[['pull',304,97,284],['push',307,652,292]]}
+];
+const c7Vibe=(extra={})=>c7Attack('vibration',{radius:170,push:70,mult:.25,...extra});
+const stage76={id:'7-6',name:'立方体と暴風の九倍域',weakMultiplier:9,cube:true,touchPower:true,hint:'ウィンド・キューブ状態・触れた味方の数に応じて攻撃力アップ（1人4倍・2人8倍・3人30倍）・撃種変化パネル（ボス2）・弱点付与・内部弱点（ボス2）・中ボス・弱点倍率9倍。味方に触れてから敵を殴ろう。道中3とボス1では雑魚を全員倒すと弱点が現れ、ボス2の中ボスには最初から上側に弱点があり、倒すとボスに内部弱点が付く。中ボスの下には撃種変化パネルが隠れている。',
+ waves:cube76.map((a,i)=>{
+  const mob=(a.boss||a.mid?.grant)?{crossSkull:'weak'}:{};
+  const enemies=a.f.map(([x,y],j)=>c7Normal('foe-'+j,i+j,x,y,18000+i*2500,mob));
+  const crossSkulls=[];
+  if(a.mid){const m=a.mid,hpMid=[0,700000,900000,0,500000][i];
+   const extra={r:64,shape:'square',sides:4,tint:'#3d8aa6',...(m.weak.length===1?{weakAngles:null}:{}),...(m.grant?{weakEnabled:false}:{}),...(m.grantBoss?{crossSkull:'weak'}:{})};
+   enemies.push(c7Mid('mid',m.p[0],m.p[1],hpMid,m.weak,[c7Vibe(),c7Attack('plusLaser',{mult:.22}),c7Attack('meteor',{count:3,mult:.2})],extra));
+   if(m.grant)crossSkulls.push(...c7WeakGrant('mid',m.weak[0]));
+   if(m.grantBoss)crossSkulls.push(...c7WeakGrant('boss',0,{internal:true,radius:12}));}
+  if(i===3)enemies.push(c7Boss('ゼニス',a.boss[0],a.boss[1],1100000,'#4e5cc4',[c7Attack('crossLaser',{mult:.2}),c7Attack('homing',{count:4,mult:.18}),c7Attack('explosion',{radius:140,mult:.2})],{shape:'pentagon',sides:5,weakEnabled:false}));
+  if(i===3)crossSkulls.push(...c7WeakGrant('boss',-C7H));
+  if(i===4)enemies.push(c7Boss('ゼニス',a.boss[0],a.boss[1],1800000,'#4e5cc4',[c7Attack('plusLaser',{mult:.2}),c7Attack('meteor',{count:3,mult:.18}),c7Vibe()],{shape:'pentagon',sides:5,weakEnabled:false,internalWeak:true,weakRadius:12}));
+  return {name:a.name,step:a.step,...(a.boss?{bossPhase:i-2}:{}),enemies,...(crossSkulls.length?{crossSkulls}:{}),
+   gimmicks:{winds:a.winds.map(c7Strong),...(a.mid?.panel?{typePanels:c7Type([a.mid.panel])}:{})}};
+ })};
+CHAPTER_SEVEN.push(stage75,stage76);for(const stage of [stage75,stage76]){STAGES.push(stage);STAGE_BY_ID[stage.id]=stage;}

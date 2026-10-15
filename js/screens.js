@@ -23,6 +23,7 @@
   }
 
   function startBattle(stageId) {
+    if (!team.length) { formationReturn = 'stage'; showScreen('formation'); return; }
     currentStage = STAGE_BY_ID[stageId] || STAGES[0];
     selectedStageId = currentStage.id;
     previousTime = 0;
@@ -67,20 +68,22 @@
     setText('formation-note', message || '');
   }
 
-  const rosterFilters={shot:'',ability:'',friendship:''};
-  function filteredCharacters(){return CHARACTERS.filter(c=>(!rosterFilters.shot||c.shotType===rosterFilters.shot)&&(!rosterFilters.ability||c.abilities.includes(rosterFilters.ability))&&(!rosterFilters.friendship||[c.friendship,c.secondary].some(f=>f?.kind===rosterFilters.friendship)));}
-  $('filter-ability').innerHTML+=[...new Set(CHARACTERS.flatMap(c=>c.abilities))].sort((a,b)=>ABILITIES[a][0].localeCompare(ABILITIES[b][0],'ja')).map(id=>'<option value="'+id+'">'+ABILITIES[id][0]+'</option>').join('');
+  const rosterFilters={shot:'',ability:'',ability2:'',friendship:''};
+  function filteredCharacters(){return CHARACTERS.filter(c=>(!rosterFilters.shot||c.shotType===rosterFilters.shot)&&(!rosterFilters.ability||c.abilities.includes(rosterFilters.ability))&&(!rosterFilters.ability2||c.abilities.includes(rosterFilters.ability2))&&(!rosterFilters.friendship||[c.friendship,c.secondary].some(f=>f?.kind===rosterFilters.friendship)));}
+  const abilityOptions=[...new Set(CHARACTERS.flatMap(c=>c.abilities))].sort((a,b)=>ABILITIES[a][0].localeCompare(ABILITIES[b][0],'ja')).map(id=>'<option value="'+id+'">'+ABILITIES[id][0]+'</option>').join('');
+  $('filter-ability').innerHTML+=abilityOptions;$('filter-ability2').innerHTML+=abilityOptions;
   $('filter-friendship').innerHTML+=[...new Set(CHARACTERS.flatMap(c=>[c.friendship.kind,c.secondary.kind]))].sort((a,b)=>FRIENDSHIP_KINDS[a].name.localeCompare(FRIENDSHIP_KINDS[b].name,'ja')).map(id=>'<option value="'+id+'">'+FRIENDSHIP_KINDS[id].name+'</option>').join('');
-  for(const key of ['shot','ability','friendship'])$('filter-'+key).addEventListener('change',event=>{
+  for(const key of ['shot','ability','ability2','friendship'])$('filter-'+key).addEventListener('change',event=>{
     rosterFilters[key]=event.target.value;const matches=filteredCharacters();if(matches.length&&!matches.some(c=>c.id===selectedCharId))selectedCharId=matches[0].id;renderFormation();
   });
   $('filter-reset').addEventListener('click',()=>{for(const key of Object.keys(rosterFilters)){rosterFilters[key]='';$('filter-'+key).value='';}renderFormation();});
   function renderFormation() {
-    if (!selectedCharId || !CHAR_BY_ID[selectedCharId]) selectedCharId = team[0];
+    if (!selectedCharId || !CHAR_BY_ID[selectedCharId]) selectedCharId = team[0] || CHARACTERS[0].id;
     setText('formation-count', `${team.length} / ${MAX_TEAM}`);
     setText('formation-hp', fmt(teamHp(team)));
     const confirm = $('formation-confirm');
     if (confirm) confirm.disabled = team.length < 1;
+    if (!team.length) setFormationNote('編成が空です。1体以上選ぶと「この編成で決定」を押せます。');
 
     $('team-slots').innerHTML = Array.from({ length: MAX_TEAM }, (_, i) => {
       const id = team[i];
@@ -94,7 +97,7 @@
         <span class="slot-tools">
           <button type="button" data-move="${i}" data-dir="-1" aria-label="${c.name}を前に出す"${i === 0 ? ' disabled' : ''}>◀</button>
           <button type="button" data-move="${i}" data-dir="1" aria-label="${c.name}を後ろに下げる"${i === team.length - 1 ? ' disabled' : ''}>▶</button>
-          <button type="button" data-remove="${id}" aria-label="${c.name}を編成から外す"${team.length <= 1 ? ' disabled' : ''}>×</button>
+          <button type="button" data-remove="${id}" aria-label="${c.name}を編成から外す">×</button>
         </span></li>`;
     }).join('');
 
@@ -110,7 +113,7 @@
           <span class="roster-abilities">${abilityNames(c)}</span>
           <span class="roster-friend">主：${friendshipTitle(c.friendship)}<br>副：${friendshipTitle(c.secondary)}</span>
         </button>
-        <button type="button" class="roster-toggle" data-toggle="${c.id}"${full ? ' disabled' : ''}${inTeam && team.length <= 1 ? ' disabled' : ''}>${inTeam ? '外す' : full ? '満員' : '加える'}</button>
+        <button type="button" class="roster-toggle" data-toggle="${c.id}"${full ? ' disabled' : ''}>${inTeam ? '外す' : full ? '満員' : '加える'}</button>
       </div>`;
     }).join('');
 
@@ -119,7 +122,6 @@
     const f = c.friendship;
     const inTeam = team.includes(c.id);
     const full = !inTeam && team.length >= MAX_TEAM;
-    const lastOne = inTeam && team.length <= 1;
     const detail = $('char-detail');
     detail.setAttribute('style', colorVars(c.color));
     detail.innerHTML = `
@@ -129,13 +131,12 @@
       <dl class="stat-list">${statRow('HP', c.hp, 5000)}${statRow('攻撃', c.atk, 1500)}${statRow('スピード', c.speed, 300)}</dl>
       <div class="friend-box"><p class="friend-label">友情コンボ</p><p class="friend-name">${friendshipTitle(f)}</p><p class="friend-desc">${FRIENDSHIP_KINDS[f.kind].describe(f)}</p></div>
       <div class="friend-box"><p class="friend-label">副友情コンボ</p><p class="friend-name">${friendshipTitle(c.secondary)}</p><p class="friend-desc">${FRIENDSHIP_KINDS[c.secondary.kind].describe(c.secondary)}</p></div>
-      <button type="button" class="${inTeam ? 'outline-button' : 'primary-button'} wide-button" data-detail-toggle="${c.id}"${full || lastOne ? ' disabled' : ''}>${inTeam ? '編成から外す' : full ? '編成がいっぱいです' : '編成に加える'}</button>`;
+      <button type="button" class="${inTeam ? 'outline-button' : 'primary-button'} wide-button" data-detail-toggle="${c.id}"${full ? ' disabled' : ''}>${inTeam ? '編成から外す' : full ? '編成がいっぱいです' : '編成に加える'}</button>`;
   }
 
   function toggleMember(id) {
     const index = team.indexOf(id);
     if (index >= 0) {
-      if (team.length <= 1) { setFormationNote('編成には最低1体が必要です。'); return; }
       team.splice(index, 1);
     } else {
       if (team.length >= MAX_TEAM) { setFormationNote(`編成は最大${MAX_TEAM}体までです。`); return; }
@@ -153,6 +154,7 @@
   }
 
   function confirmFormation() {
+    if (!team.length) { setFormationNote('編成が空です。1体以上選んでください。'); return; }
     saveTeam();
     setFormationNote('');
     showScreen(formationReturn);
@@ -182,6 +184,8 @@
     selectedStageId=chapterSelections[chapter]||STAGES.find(s=>s.id.split('-')[0]===chapter).id;
     renderStageSelect();if(focus)$('chapter-tab-'+chapter).focus();
   }
+  // ギミック名は赤（危険）→青（強化）→灰色（その他）の順に、色を付けて表示する。
+  const gimmickListHTML=stage=>{const entries=stageGimmickEntries(stage);return entries.length?entries.map(e=>'<span class="gimmick-'+e.tone+'">'+e.name+'</span>').join('<span class="gimmick-sep">・</span>'):'ギミックなし';};
   function renderStageSelect() {
     if (!STAGE_BY_ID[selectedStageId]) selectedStageId = STAGES[0].id;
     const chapter=selectedStageId.split('-')[0];
@@ -201,7 +205,7 @@
 
     const stage = STAGE_BY_ID[selectedStageId];
     $('stage-detail').innerHTML = `<div class="section-label"><h3>STAGE ${stage.id}</h3><span class="tag">${stage.waves.length} WAVES</span></div>
-      <p class="stage-detail-name">${stage.name}</p><p class="style-ability stage-gimmicks">${stageGimmickNames(stage).join('・')||'ギミックなし'}</p>
+      <p class="stage-detail-name">${stage.name}</p><p class="style-ability stage-gimmicks">${gimmickListHTML(stage)}</p>
       <ol class="stage-waves">${stage.waves.map((w, i) => `<li><span>${pad2(i + 1)}</span>${w.name}${w.bossPhase ? '<em>BOSS '+w.bossPhase+'/2</em>' : w.enemies.some(e => e.boss) ? '<em>BOSS</em>' : ''}</li>`).join('')}</ol>`;
 
     $('stage-team').innerHTML = team.map(id => { const c = CHAR_BY_ID[id]; return `<span class="stage-team-member" style="${colorVars(c.color)}" title="${c.name}"><span class="roster-avatar">${shapeHTML(c)}</span><span>${c.name}</span></span>`; }).join('');
