@@ -18,11 +18,25 @@
     let y = clamp(origin.y, bounds.top, bounds.bottom);
     let remaining = Math.max(0, length);
     const points = [{ x, y }];
+    // 結界：外にいれば外殻で、中にいれば内側の面で反射する（触れた回数が規定に達した結界はその先で消える）
+    const barriers=(state.barriers||[]).filter(b=>!b.broken).map(b=>({b,left:b.left,mode:barrierRelation({x,y,r:UNIT_RADIUS},b)})).filter(o=>o.mode!=='edge');
     for (let i = 0; i < 3 && remaining > 0.001; i++) {
       const tx = Math.abs(vx) < 0.0001 ? Infinity : (vx > 0 ? bounds.right - x : bounds.left - x) / vx;
       const ty = Math.abs(vy) < 0.0001 ? Infinity : (vy > 0 ? bounds.bottom - y : bounds.top - y) / vy;
       let obstacle=null;
       if(!hasAbility(state.units[state.activeUnit],'ab'))for(const b of state.waves[state.wave].gimmicks?.blocks||[]){const hit=rayBlock(x,y,vx,vy,b,UNIT_RADIUS);if(hit&&(!obstacle||hit.t<obstacle.t))obstacle=hit;}
+      if(cubeActive())for(const ally of state.units){if(ally===state.units[state.activeUnit])continue;const h=cubeHalf(ally),hit=rayBlock(x,y,vx,vy,{x:ally.x-h,y:ally.y-h,w:h*2,h:h*2},UNIT_RADIUS);if(hit&&(!obstacle||hit.t<obstacle.t))obstacle=hit;}
+      for(const c of state.waves[state.wave].gimmicks?.containers||[]){const hit=rayBlock(x,y,vx,vy,containerRect(c),UNIT_RADIUS);if(hit&&(!obstacle||hit.t<obstacle.t))obstacle=hit;}
+      for(const o of barriers){
+        if(o.left<=0)continue;let hit=null;
+        if(o.mode==='out')hit=rayBlock(x,y,vx,vy,o.b,UNIT_RADIUS);
+        else{
+          const lx=o.b.x+UNIT_RADIUS,hx=o.b.x+o.b.w-UNIT_RADIUS,ly=o.b.y+UNIT_RADIUS,hy=o.b.y+o.b.h-UNIT_RADIUS;
+          const bx=Math.abs(vx)<.0001?Infinity:((vx>0?hx:lx)-x)/vx,by=Math.abs(vy)<.0001?Infinity:((vy>0?hy:ly)-y)/vy;
+          if(Math.min(bx,by)<Infinity)hit=bx<=by?{t:Math.max(0,bx),nx:vx>0?-1:1,ny:0}:{t:Math.max(0,by),nx:0,ny:vy>0?-1:1};
+        }
+        if(hit&&(!obstacle||hit.t<obstacle.t))obstacle={...hit,barrier:o};
+      }
       const blockHit=obstacle&&obstacle.t<Math.min(tx,ty);
       const travel = Math.min(remaining, Math.max(0,blockHit?obstacle.t:Math.min(tx, ty)));
       x += vx * travel;
@@ -30,7 +44,7 @@
       points.push({ x, y });
       remaining -= travel;
       if (remaining <= 0.001) break;
-      if(blockHit){const dot=vx*obstacle.nx+vy*obstacle.ny;vx-=2*dot*obstacle.nx;vy-=2*dot*obstacle.ny;x+=vx*.001;y+=vy*.001;}
+      if(blockHit){if(obstacle.barrier)obstacle.barrier.left--;const dot=vx*obstacle.nx+vy*obstacle.ny;vx-=2*dot*obstacle.nx;vy-=2*dot*obstacle.ny;x+=vx*.001;y+=vy*.001;}
       else {if (tx <= ty + 0.001) vx *= -1;if (ty <= tx + 0.001) vy *= -1;}
     }
     return points;
@@ -53,16 +67,18 @@
       ring(unit.x, unit.y, unit.color, 250, 0.8);
       tone(140, 0.5, 'sawtooth', 0.035, 0, 740);
     }
-    const speed = (390 + clamp(power, 0, 1) * 710) * (state.skillShot ? 1.14 : 1) * (unit.speed / 100);
+    const speed = (390 + clamp(power, 0, 1) * 710) * (state.skillShot ? 2 : 1) * (unit.speed * dashMultiplier(unit) / 100);
     unit.vx = dx / magnitude * speed;
     unit.vy = dy / magnitude * speed;
     state.phase = 'moving';
     state.aiming = null;
     state.shotCount++;
     state.shotDirection={vx:dx,vy:dy};
-    state.swordPanelsUsed=new Set();state.swordBonus=0;state.typePanelsUsed=new Set();state.touchedAllies=new Set();state.slowWallContacts=new Map();
+    state.atkUp=1;state.firstTouchId=null;state.wallSides=new Set();for(const u of state.units)u.bubblyGift=false;
+    state.swordPanelsUsed=new Set();state.swordBonus=0;state.typePanelsUsed=new Set();state.touchedAllies=new Set();state.slowWallContacts=new Map();state.swordBoost=1;state.swordToucher=null;state.transPanelsUsed=new Set();
     state.boostPanelsUsed=new Set();state.warpCooldown=0;state.hazardContacts={};
-    for(const u of state.units){u.boostTime=0;u.inGravity=false;u.enemyContacts=new Map();}
+    for(const u of state.units){u.boostTime=0;u.inGravity=false;u.enemyContacts=new Map();u.barrierMode=null;}
+    state.laserGens=[];
     state.lastHitEnemyId = null;
     state.speedBoostUsed = false;
     state.powerHitUsed = false;
@@ -111,6 +127,7 @@
       clearWave();
       return;
     }
+    endOfTurnHeartFruits();
     state.phase = 'enemy';
     state.phaseTimer = 0.48;
     beginWindTurn();
@@ -126,10 +143,14 @@
   }
 
   function readyNextTurn() {
-    for(const e of state.enemies)if(e.transparent){e.transparent=false;allowSpawnExit(e);}
+    for(const e of state.enemies)if(e.transparent&&!e.stealthManaged){e.transparent=false;allowSpawnExit(e);}
+    resetBarriers();state.laserGens=[];
+    state.atkUp=1;state.firstTouchId=null;state.wallSides=new Set();for(const u of state.units)u.bubblyGift=false;
+    state.swordBoost=1;state.swordToucher=null;state.transPanelsUsed=new Set();state.containerLeft=(state.waves[state.wave].gimmicks?.containers||[]).map(c=>c.n);
     state.swordBonus=0;state.swordPanelsUsed=new Set();state.typePanelsUsed=new Set();state.touchedAllies=new Set();for(const u of state.units){const base=CHAR_BY_ID[u.charId]?.shotType;if(base)u.shotType=base;}resetPowerSwitches();
     if(state.phase!=='wave')for(const e of state.enemies){if(!e.alive||!e.weakPoint||!e.weakAngles?.length||e.weakMoveOnHit||e.weakPoint.internal||e.weakPoint.routeId)continue;e.weakStep=(e.weakStep+1)%e.weakAngles.length;e.weakPoint.angle=e.weakAngles[e.weakStep];const w=weakPosition(e);ring(w.x,w.y,'#dfaa19',40,.5);floatingText(e.x,e.y-e.r-45,'WEAK SHIFT','#b48d27',12);}
     state.turn++;
+    state.waveTurn++;
     for(const e of state.enemies)if(e.defenseExpiresAt!==undefined&&e.defenseExpiresAt<=state.turn)e.defenseMultiplier=1;
     state.activeUnit = (state.activeUnit + 1) % state.units.length;
     state.phase = 'ready';
@@ -143,7 +164,7 @@
   }
 
   function clearWave() {
-    state.score += 2000 + state.wave * 1000;
+    if (!scoreDisabled()) state.score += 2000 + state.wave * 1000;
     rememberBest();
     chime();
     if (state.wave === state.waves.length - 1) {
@@ -163,12 +184,14 @@
 
   function enterWave() {
     state.wave++;
+    state.waveTurn = 0;
+    state.friendshipCleanupTimer = null;
     state.enemies = makeEnemies(state.stage, state.wave);
     // Preserve every ally's exact position across waves. Newly overlapping
     // enemies are passable only until that ally exits their body once.
     for (const unit of state.units) {
       unit.vx = 0; unit.vy = 0;
-      unit.spawnOverlaps = new Set(state.enemies.filter(e => distance(unit,e) < unit.r + enemyCollisionRadius(e)).map(e=>e.id));
+      unit.spawnOverlaps = new Set(state.enemies.filter(e => enemyOverlaps(unit,e)).map(e=>e.id));
     }
     setupArea();
     state.effects = [];
@@ -181,7 +204,7 @@
     state.phase = won ? 'victory' : 'gameover';
     state.phaseTimer = -1;
     state.aiming = null;
-    state.score += won ? Math.round(state.hp / 10) : 0;
+    if (!scoreDisabled()) state.score += won ? Math.round(state.hp / 10) : 0;
     rememberBest();
     showOverlay({
       eyebrow: won ? 'MISSION COMPLETE' : 'TRY AGAIN',

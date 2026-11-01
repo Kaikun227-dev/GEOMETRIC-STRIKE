@@ -7,12 +7,16 @@
   function setupArea(){
     const g=state.waves[state.wave].gimmicks||{};
     state.heartPanels=(g.hearts||[]).map((p,i)=>({...p,id:p.id||'heart-'+i}));
+    state.heartFruits=[];state.heartFruitSeq=0;
+    setupBarriers(g);state.laserGens=[];
     state.swordPanelsUsed=new Set();state.swordBonus=0;state.typePanelsUsed=new Set();state.touchedAllies=new Set();for(const u of state.units){const base=CHAR_BY_ID[u.charId]?.shotType;if(base)u.shotType=base;}state.powerSwitchActive=false;state.powerSwitchContacts=new Set();state.powerSwitches=(g.powerSwitches||[]).map((p,i)=>({...p,state:p.initial??i%3,locked:false}));state.slowWallContacts=new Map();
     for(const u of state.units)u.heartContacts=new Set();
+    state.atkUp=1;state.firstTouchId=null;state.wallSides=new Set();for(const u of state.units)u.bubblyGift=false;
+    state.swordBoost=1;state.swordToucher=null;state.transPanelsUsed=new Set();state.containerLeft=(g.containers||[]).map(c=>c.n);
     setupEnemyGimmicks();
     state.winds=(g.winds||[]).map(w=>({...w,remaining:w.countdown??1,active:false}));
     state.pickups=[...(g.mines||[]).map(p=>({...p,kind:'mine'})),...(g.photons||[]).map(p=>({...p,kind:'photon'}))];
-    for(const u of state.units){if(hasAbility(u,'pm'))u.photons=4;u.boostTime=0;u.inGravity=false;u.blockGrace=new Set((g.blocks||[]).map((b,i)=>overlapsBlock(u,b)?i:-1).filter(i=>i>=0));}
+    for(const u of state.units){if(hasAbility(u,'pm'))u.photons=4;u.boostTime=0;u.inGravity=false;u.blockGrace=new Set((g.blocks||[]).map((b,i)=>overlapsBlock(u,b)?i:-1).filter(i=>i>=0));u.containerGrace=new Set((g.containers||[]).map((c,i)=>overlapsBlock(u,containerRect(c))?i:-1).filter(i=>i>=0));}
   }
   // Wind devices pulse during the enemy turn, one device at a time.
   function beginWindTurn(){
@@ -39,6 +43,7 @@
     unit.vx=0;unit.vy=0;
     applyDamageWalls(unit);
     applyHeartPanels(unit);
+    applyHeartFruits(unit);
     return blocked;
   }
   function updateWind(effect,dt){
@@ -73,16 +78,23 @@
     if(!(unit.photons>0))return 1;
     const multiplier=currentPhotonMultiplier();unit.photons--;floatingText(unit.x,unit.y-48,'PHOTON ×'+multiplier,'#b88a16',14);return multiplier;
   }
+  // ブロック／コンテナの衝突：狙い線（rayBlock）と同じ「半径ぶん膨らませた四角形」で判定し、法線は常に面に垂直（角でも斜めに飛ばない）。
+  // 侵入した面は、各軸で「面を越えてからの経過時間」が短い方（＝直前に越えた面）で決める。
+  function boxNormal(unit,b){
+    const r=unit.r,l=unit.x-(b.x-r),rt=(b.x+b.w+r)-unit.x,tp=unit.y-(b.y-r),bt=(b.y+b.h+r)-unit.y;
+    if(l<=0||rt<=0||tp<=0||bt<=0)return null;
+    const px=Math.min(l,rt),sx=l<rt?-1:1,py=Math.min(tp,bt),sy=tp<bt?-1:1;
+    const ex=Math.abs(unit.vx)>1e-6?px/Math.abs(unit.vx):Infinity,ey=Math.abs(unit.vy)>1e-6?py/Math.abs(unit.vy):Infinity;
+    const useX=ex===ey?px<=py:ex<ey;
+    return useX?{nx:sx,ny:0,push:px+.05}:{nx:0,ny:sy,push:py+.05};
+  }
   function overlapsBlock(u,b){return Math.hypot(u.x-clamp(u.x,b.x,b.x+b.w),u.y-clamp(u.y,b.y,b.y+b.h))<u.r;}
   function applyBlocks(unit){
     if(hasAbility(unit,'ab'))return;
     const blocks=state.waves[state.wave].gimmicks?.blocks||[];
     for(let i=0;i<blocks.length;i++){
       const b=blocks[i];if(unit.blockGrace?.has(i)){if(!overlapsBlock(unit,b))unit.blockGrace.delete(i);else continue;}
-      const qx=clamp(unit.x,b.x,b.x+b.w),qy=clamp(unit.y,b.y,b.y+b.h),dx=unit.x-qx,dy=unit.y-qy,d=Math.hypot(dx,dy);if(d>=unit.r)continue;
-      let nx,ny,push;
-      if(d>.0001){nx=dx/d;ny=dy/d;push=unit.r-d+.05;}
-      else {const faces=[{d:unit.x-b.x,nx:-1,ny:0},{d:b.x+b.w-unit.x,nx:1,ny:0},{d:unit.y-b.y, nx:0,ny:-1},{d:b.y+b.h-unit.y,nx:0,ny:1}].sort((a,b)=>a.d-b.d);({nx,ny}=faces[0]);push=faces[0].d+unit.r+.05;}
+      const hit=boxNormal(unit,b);if(!hit)continue;const {nx,ny,push}=hit;
       unit.x+=nx*push;unit.y+=ny*push;const dot=unit.vx*nx+unit.vy*ny;if(dot<0){unit.vx-=2*dot*nx;unit.vy-=2*dot*ny;burst(unit.x,unit.y,'#8c9dab',3,45);}
     }
   }
@@ -97,21 +109,90 @@
     return near>=0&&far>=near?{t:near,nx,ny}:null;
   }
   // A panel heals once on entry; leaving it rearms that panel for this ally.
+  // キャラ側のパネル系（撃種変化・透明・剣・加速・回復・パワースイッチ）の当たり判定：キャラの中心付近の小さな円だけがパネル（四角）に触れたとき反応する。
+  // ブロック・壁・敵・フォトンコンテナとの当たり判定は従来どおりキャラ全体の大きさ。
+  const PANEL_TOUCH_RATIO=.35;
+  const panelTouch=(unit,p)=>Math.hypot(Math.max(0,Math.abs(unit.x-p.x)-p.r),Math.max(0,Math.abs(unit.y-p.y)-p.r))<=unit.r*PANEL_TOUCH_RATIO;
   function applyHeartPanels(unit){
     if(state.phase==='gameover'||state.phase==='victory')return;
     if(!unit.heartContacts)unit.heartContacts=new Set();
     for(const p of state.heartPanels||[]){
-      const inside=Math.hypot(Math.max(0,Math.abs(unit.x-p.x)-p.r),Math.max(0,Math.abs(unit.y-p.y)-p.r))<=unit.r;
+      const inside=panelTouch(unit,p);
       if(!inside){unit.heartContacts.delete(p.id);continue;}
       if(unit.heartContacts.has(p.id))continue;
       unit.heartContacts.add(p.id);const healed=Math.min(200,state.maxHp-state.hp);state.hp+=healed;
       if(healed>0){floatingText(p.x,p.y-35,'HP +'+healed,'#cf628e',15);ring(p.x,p.y,'#e68cad',65,.4);}
     }
   }
+  // ---------------------------------------------------------------------------
+  // HEART FRUIT — 自ターン終了時に上下左右いずれかの壁沿いへ出現。取らないと毎ターン lv.1→2→3 に成長。
+  // ---------------------------------------------------------------------------
+  function heartFruitChance(){
+    const ratio=state.maxHp>0?state.hp/state.maxHp:1;
+    for(const [limit,chance] of HEART_FRUIT.lowHpChances)if(ratio<=limit)return chance;
+    return HEART_FRUIT.spawnChance;
+  }
+  // 壁に接する位置（side と壁沿いの座標 along から中心を求める。成長で半径が変わっても壁に接したまま）
+  function heartFruitPlace(f){
+    const r=HEART_FRUIT.radius[f.level-1];f.r=r;
+    if(f.side==='left'){f.x=FIELD.left+r;f.y=f.along;}
+    else if(f.side==='right'){f.x=FIELD.right-r;f.y=f.along;}
+    else if(f.side==='top'){f.x=f.along;f.y=FIELD.top+r;}
+    else{f.x=f.along;f.y=FIELD.bottom-r;}
+  }
+  function spawnHeartFruit(){
+    if(heartFruitDisabled())return null;
+    const fruits=state.heartFruits;
+    if(fruits.length>=HEART_FRUIT.maxCount)return null;
+    const m=HEART_FRUIT.wallMargin,sides=['top','bottom','left','right'];
+    for(let attempt=0;attempt<20;attempt++){
+      const side=sides[Math.floor(Math.random()*sides.length)],horizontal=side==='top'||side==='bottom';
+      const lo=(horizontal?FIELD.left:FIELD.top)+m,hi=(horizontal?FIELD.right:FIELD.bottom)-m;
+      const f={id:++state.heartFruitSeq,level:1,side,along:lo+Math.random()*(hi-lo)};
+      heartFruitPlace(f);
+      // 他のハートフルーツ・味方と重ならない位置だけ採用
+      if(fruits.some(o=>distance(o,f)<o.r+f.r+16))continue;
+      if(state.units.some(u=>distance(u,f)<u.r+f.r+6))continue;
+      fruits.push(f);
+      ring(f.x,f.y,'#ef8fb0',55,.6);burst(f.x,f.y,'#f2a3bf',8,90);
+      floatingText(f.x+(f.side==='left'?34:f.side==='right'?-34:0),f.y+(f.side==='top'?36:f.side==='bottom'?-36:-30),'HEART FRUIT','#cf628e',12);
+      return f;
+    }
+    return null;
+  }
+  function growHeartFruits(){
+    for(const f of state.heartFruits){
+      if(f.level>=HEART_FRUIT.heal.length)continue;
+      f.level++;heartFruitPlace(f);
+      ring(f.x,f.y,f.level>=3?'#e6b422':'#ef8fb0',60,.55);burst(f.x,f.y,f.level>=3?'#f0cf5c':'#f2a3bf',8,100);
+      floatingText(f.x+(f.side==='left'?30:f.side==='right'?-30:0),f.y+(f.side==='top'?32:f.side==='bottom'?-32:-28),'Lv.'+f.level,'#cf628e',13);
+    }
+  }
+  // 自ターン終了時：既存のハートフルーツを成長させてから、生成を抽選する（今回生成した実は成長しない）。
+  function endOfTurnHeartFruits(){
+    if(heartFruitDisabled())return;
+    if(!state.heartFruits)state.heartFruits=[];
+    const roll=Math.random(); // 抽選は成長演出より先に引く（演出の乱数に左右されない）
+    growHeartFruits();
+    if(state.heartFruits.length<HEART_FRUIT.maxCount&&roll<heartFruitChance())spawnHeartFruit();
+  }
+  function applyHeartFruits(unit){
+    if(state.phase==='gameover'||state.phase==='victory'||!state.heartFruits?.length)return;
+    for(const f of state.heartFruits.slice()){
+      if(distance(unit,f)>unit.r+f.r)continue;
+      state.heartFruits.splice(state.heartFruits.indexOf(f),1);
+      const healed=Math.min(HEART_FRUIT.heal[f.level-1],Math.max(0,state.maxHp-state.hp));state.hp+=healed;
+      floatingText(f.x+(f.side==='left'?34:f.side==='right'?-34:0),f.y+(f.side==='top'?40:f.side==='bottom'?-40:-34),healed>0?'HP +'+fmt(healed):'HP MAX','#cf628e',17);
+      ring(f.x,f.y,'#ef8fb0',80,.5);burst(f.x,f.y,f.level>=3?'#f0cf5c':'#f2a3bf',14,150);
+      tone(660,.12,'sine',.035,0,880);tone(880,.16,'sine',.03,.08,1100);
+    }
+  }
   function applyGimmicks(unit,dt){
     applyHeartPanels(unit);
+    applyHeartFruits(unit);
     applySwordPanels(unit);
     applyTypePanels(unit);
+    applyTransPanels(unit);
     applyPowerSwitches(unit);
     unit.boostTime=Math.max(0,(unit.boostTime||0)-dt);
     const inGravity=!hasAbility(unit,'agb')&&state.enemies.some(e=>e.alive&&!e.transparent&&e.gravity&&distance(unit,e)<e.gravity+unit.r);
@@ -130,7 +211,7 @@
     const g=state.waves[state.wave].gimmicks||{};
     state.warpCooldown=Math.max(0,(state.warpCooldown||0)-dt);
     if(!state.boostPanelsUsed)state.boostPanelsUsed=new Set();
-    (g.boosts||[]).forEach((p,i)=>{if(Math.hypot(Math.max(0,Math.abs(unit.x-p.x)-p.r),Math.max(0,Math.abs(unit.y-p.y)-p.r))<=unit.r&&!state.boostPanelsUsed.has(i)){
+    (g.boosts||[]).forEach((p,i)=>{if(panelTouch(unit,p)&&!state.boostPanelsUsed.has(i)){
       state.boostPanelsUsed.add(i);const speed=Math.hypot(unit.vx,unit.vy)||1;const boosted=speed*2;unit.vx*=2;unit.vy*=2;unit.boostTime=1.1;ring(p.x,p.y,'#35bf86',100,.5);burst(p.x,p.y,'#35bf86',18,240);floatingText(p.x,p.y-35,'BOOST '+Math.round(boosted),'#249a69',16);
     }});
     if(state.warpCooldown>0||hasAbility(unit,'aw'))return;
@@ -141,7 +222,12 @@
         unit.x=clamp(exit.x+unit.vx/speed*(pair.r+unit.r+4),FIELD.left+unit.r,FIELD.right-unit.r);
         unit.y=clamp(exit.y+unit.vy/speed*(pair.r+unit.r+4),FIELD.top+unit.r,FIELD.bottom-unit.r);
         state.warpCooldown=.4;state.trail=[];ring(entry.x,entry.y,'#9a75de',65,.4);ring(exit.x,exit.y,'#9a75de',65,.4);
-        unit.spawnOverlaps=new Set(state.enemies.filter(e=>distance(unit,e)<unit.r+enemyCollisionRadius(e)).map(e=>e.id));return;
+        // 出口が敵（ボスなど）の内側だったら外へ押し出す。出現直後の「すり抜け猶予」は与えず、壁と敵の間に挟まって通常どおり衝突する。
+        for(let k=0;k<4;k++){let moved=false;
+          for(const e of state.enemies){if(!e.alive||e.transparent)continue;const info=contactEnemy(unit,e);if(info){unit.x+=info.nx*info.push;unit.y+=info.ny*info.push;moved=true;}}
+          unit.x=clamp(unit.x,FIELD.left+unit.r,FIELD.right-unit.r);unit.y=clamp(unit.y,FIELD.top+unit.r,FIELD.bottom-unit.r);
+          if(!moved)break;}
+        unit.spawnOverlaps=new Set(state.enemies.filter(e=>e.alive&&!e.transparent&&enemyOverlaps(unit,e)).map(e=>e.id));return;
       }
     }
   }
@@ -149,7 +235,7 @@
     if(state.phase!=='moving'||unit!==state.units[state.activeUnit])return;
     state.swordPanelsUsed??=new Set();
     (state.waves[state.wave].gimmicks?.swords||[]).forEach((p,i)=>{
-      if(state.swordPanelsUsed.has(i)||Math.hypot(Math.max(0,Math.abs(unit.x-p.x)-p.r),Math.max(0,Math.abs(unit.y-p.y)-p.r))>unit.r)return;
+      if(state.swordPanelsUsed.has(i)||!panelTouch(unit,p))return;
       state.swordPanelsUsed.add(i);state.swordBonus=(state.swordBonus||0)+1;
       floatingText(p.x,p.y-34,'ATK ×'+(1+state.swordBonus),'#bc8130',16);ring(p.x,p.y,'#e3ad50',65,.4);
     });
@@ -159,17 +245,133 @@
     if(state.phase!=='moving'||unit!==state.units[state.activeUnit])return;
     state.typePanelsUsed??=new Set();
     (state.waves[state.wave].gimmicks?.typePanels||[]).forEach((p,i)=>{
-      if(state.typePanelsUsed.has(i)||Math.hypot(Math.max(0,Math.abs(unit.x-p.x)-p.r),Math.max(0,Math.abs(unit.y-p.y)-p.r))>unit.r)return;
+      if(state.typePanelsUsed.has(i)||!panelTouch(unit,p))return;
       state.typePanelsUsed.add(i);
       unit.shotType=isPiercing(unit)?'reflect':'pierce';
       floatingText(p.x,p.y-36,'撃種変化 → '+(unit.shotType==='pierce'?'貫通':'反射'),'#3f5fae',15);ring(p.x,p.y,'#6f8fd0',70,.45);burst(p.x,p.y,'#e8985a',14,200);tone(620,.06,'sine',.02);
     });
   }
+  // 透明パネル：踏むと全ての敵の透明／不透明が入れ替わる。各パネル1ショット1回（次の手番開始で使用済み表示を戻す）。透明状態そのものは持ち越す。
+  function applyTransPanels(unit){
+    if(state.phase!=='moving'||unit!==state.units[state.activeUnit])return;
+    state.transPanelsUsed??=new Set();
+    (state.waves[state.wave].gimmicks?.transPanels||[]).forEach((p,i)=>{
+      if(state.transPanelsUsed.has(i)||!panelTouch(unit,p))return;
+      state.transPanelsUsed.add(i);flipTransparency(p);
+    });
+  }
+  // フォトンコンテナ：正方形の当たり判定を持つ固い箱。反射するたびにフォトンを1つ獲得（各キャラ最大4個）。
+  // 獲得できる回数は箱の数字まで。フォトンが満タンの接触は回数を消費せず、回数は次の手番開始時（ターン終了時）に元へ戻る。
+  const containerRect=c=>({x:c.x-c.r,y:c.y-c.r,w:c.r*2,h:c.r*2});
+  function applyContainers(unit){
+    const cs=state.waves[state.wave].gimmicks?.containers||[];if(!cs.length)return;
+    state.containerLeft??=cs.map(c=>c.n);
+    for(let i=0;i<cs.length;i++){
+      const c=cs[i],b=containerRect(c);
+      if(unit.containerGrace?.has(i)){if(!overlapsBlock(unit,b))unit.containerGrace.delete(i);else continue;}
+      const hit=boxNormal(unit,b);if(!hit)continue;const {nx,ny,push}=hit;
+      unit.x+=nx*push;unit.y+=ny*push;
+      const dot=unit.vx*nx+unit.vy*ny;if(dot>=0)continue;
+      unit.vx-=2*dot*nx;unit.vy-=2*dot*ny;burst(unit.x,unit.y,'#e8c14a',3,45);
+      if((state.containerLeft[i]||0)>0&&(unit.photons||0)<4){
+        unit.photons=(unit.photons||0)+1;state.containerLeft[i]--;
+        floatingText(c.x,c.y-c.r-14,'PHOTON '+unit.photons+'/4','#b88a16',13);ring(c.x,c.y,'#d3a128',c.r+30,.35);tone(880,.05,'sine',.02,0,1180);
+      }
+    }
+  }
+  // ---------------------------------------------------------------------------
+  // 結界（BARRIER）：ステージ上の四角い枠。外殻に当たり判定があり、触れると壁と同じく反射する。
+  //   ・枠の外にいる味方は枠の中へ入れず、枠の中にいる味方は閉じ込められて内側の面で反射する。
+  //   ・規定の回数（枠の数字）だけ触れると破壊され、そのショットのあいだは自由に通れる。
+  //   ・結界と触れた回数は毎ターン（次の手番開始時）にリセットされ、元の姿へ戻る。
+  //   ・友情の弾・爆風や敵の攻撃は結界を通過する。アンチブロックでも結界は通過できない。
+  //   ・ショット開始時に外殻と重なっている味方は、完全に外へ出る（または中へ入る）まで外殻との衝突を保留する。
+  // ---------------------------------------------------------------------------
+  const BARRIER_COLOR='#2de0cf';
+  function setupBarriers(g){state.barriers=(g.barriers||[]).map((b,i)=>({...b,id:i,left:b.n,broken:false,flash:0}));}
+  function resetBarriers(){
+    for(const b of state.barriers||[]){
+      if(b.broken){ring(b.x+b.w/2,b.y+b.h/2,BARRIER_COLOR,Math.min(120,Math.max(b.w,b.h)/2+20),.5);}
+      b.left=b.n;b.broken=false;b.flash=0;
+    }
+  }
+  // 味方と結界の位置関係：'in'=完全に内側、'out'=完全に外側、'edge'=外殻をまたいでいる
+  function barrierRelation(u,b){
+    const r=u.r;
+    if(u.x-r>b.x&&u.x+r<b.x+b.w&&u.y-r>b.y&&u.y+r<b.y+b.h)return 'in';
+    return overlapsBlock(u,b)?'edge':'out';
+  }
+  function barrierTouch(b,unit){
+    b.left--;b.flash=.22;
+    ring(unit.x,unit.y,BARRIER_COLOR,46,.3);burst(unit.x,unit.y,'#5ff0dc',6,90);tone(520,.06,'sine',.02,0,700);
+    if(b.left<=0){
+      b.broken=true;const cx=b.x+b.w/2,cy=b.y+b.h/2;
+      ring(cx,cy,BARRIER_COLOR,Math.min(160,Math.max(b.w,b.h)/2+30),.6);burst(cx,cy,'#7ff5e4',26,230);
+      floatingText(cx,Math.max(FIELD.top+16,b.y+14),'BARRIER BREAK','#16a595',14);tone(330,.18,'triangle',.035,0,120);
+      state.shake=Math.max(state.shake,3);
+    }
+  }
+  function applyBarriers(unit){
+    const list=state.barriers;if(!list?.length)return;
+    if(!unit.barrierMode)unit.barrierMode=list.map(b=>barrierRelation(unit,b));
+    for(let i=0;i<list.length;i++){
+      const b=list[i];if(b.broken)continue;
+      let mode=unit.barrierMode[i];
+      if(mode==='edge'){const rel=barrierRelation(unit,b);if(rel==='edge')continue;unit.barrierMode[i]=mode=rel;}
+      if(mode==='out'){
+        const hit=boxNormal(unit,b);if(!hit)continue;
+        unit.x+=hit.nx*hit.push;unit.y+=hit.ny*hit.push;
+        const dot=unit.vx*hit.nx+unit.vy*hit.ny;if(dot>=0)continue;
+        unit.vx-=2*dot*hit.nx;unit.vy-=2*dot*hit.ny;barrierTouch(b,unit);
+      }else{
+        const lo={x:b.x+unit.r,y:b.y+unit.r},hi={x:b.x+b.w-unit.r,y:b.y+b.h-unit.r};let touched=false;
+        if(unit.x<lo.x){unit.x=lo.x;unit.vx=Math.abs(unit.vx);touched=true;}
+        if(unit.x>hi.x){unit.x=hi.x;unit.vx=-Math.abs(unit.vx);touched=true;}
+        if(unit.y<lo.y){unit.y=lo.y;unit.vy=Math.abs(unit.vy);touched=true;}
+        if(unit.y>hi.y){unit.y=hi.y;unit.vy=-Math.abs(unit.vy);touched=true;}
+        if(touched)barrierTouch(b,unit);
+      }
+    }
+  }
+  // ---------------------------------------------------------------------------
+  // レーザージェネレーター（LASER GENERATOR）
+  //   ・ステージの laserMultipliers または共通設定がある場合に有効（共通設定は指定ステージを除く）。上下左右の各辺で、手番キャラが最初に触れた壁に設置（辺ごとに1基）。
+  //   ・手番キャラが停止すると、設置された全基が壁に垂直なレーザーを3回一斉に発射する。設置数がレベル（1〜4）。
+  //   ・威力＝手番キャラの攻撃力×攻撃力アップ×ウォールブースト×ステージ倍率（レベル別）。キラー等の敵別倍率は命中時に適用し、フォトンは適用しない。
+  //   ・設置は毎ショット。発射後（または次の手番開始時）に消える。
+  // ---------------------------------------------------------------------------
+  const laserStage=()=>!!(state.waves[state.wave].laserMultipliers||state.stage.laserMultipliers||commonLaserGeneratorActive());
+  function laserMultipliers(){return state.waves[state.wave].laserMultipliers||state.stage.laserMultipliers||LASER_GENERATOR.defaultMultipliers;}
+  function laserLevelInfo(level){const m=laserMultipliers(),i=Math.max(1,Math.min(4,level))-1;return {mult:m[Math.min(i,m.length-1)]??1,thickness:LASER_GENERATOR.thickness[i]};}
+  function laserBeam(g){
+    return {from:{x:g.x,y:g.y},to:{x:g.side==='left'?FIELD.right:g.side==='right'?FIELD.left:g.x,y:g.side==='top'?FIELD.bottom:g.side==='bottom'?FIELD.top:g.y}};
+  }
+  function placeLaserGen(side,unit){
+    if(!laserStage()||state.laserGens.some(g=>g.side===side))return;
+    const horizontal=side==='top'||side==='bottom';
+    const along=horizontal?clamp(unit.x,FIELD.left+14,FIELD.right-14):clamp(unit.y,FIELD.top+14,FIELD.bottom-14);
+    const g={side,x:side==='left'?FIELD.left:side==='right'?FIELD.right:along,y:side==='top'?FIELD.top:side==='bottom'?FIELD.bottom:along,color:unit.color};
+    state.laserGens.push(g);
+    const lv=state.laserGens.length,info=laserLevelInfo(lv);
+    ring(g.x,g.y,'#f08a3c',62,.5);burst(g.x,g.y,'#f6b36a',10,140);
+    floatingText(g.x+(side==='left'?64:side==='right'?-64:0),g.y+(side==='top'?40:side==='bottom'?-40:-4),'LASER GEN Lv.'+lv+' ×'+info.mult,'#d6702a',13);
+    tone(420+lv*110,.1,'square',.022,0,720+lv*110);
+  }
+  function fireLaserGens(){
+    const gens=state.laserGens||[];if(!gens.length)return;
+    state.laserGens=[];
+    if(!state.enemies.some(e=>e.alive))return;
+    const unit=state.units[state.activeUnit],level=gens.length,info=laserLevelInfo(level);
+    queueEffect({type:'laserGen',side:'ally',ownerId:unit.id,gens:gens.map(g=>({...g})),level,mult:info.mult,thickness:info.thickness,
+      damage:Math.round(unit.atk*(state.atkUp||1)*wallBoostMultiplier(unit)*info.mult*LASER_GENERATOR.damagePerPower),color:unit.color,fired:0,wait:LASER_GENERATOR.chargeDelay,interval:LASER_GENERATOR.interval,flash:0});
+    floatingText(310,FIELD.top+64,'LASER Lv.'+level+' ×'+info.mult+' ×'+LASER_GENERATOR.volleys,'#d6702a',17);
+    tone(300,.35,'sawtooth',.03,0,900);
+  }
   function applyPowerSwitches(unit){
     const switches=state.powerSwitches||[];if(!switches.length)return;
     state.powerSwitchContacts??=new Set();
     switches.forEach((p,i)=>{
-      const inside=Math.hypot(Math.max(0,Math.abs(unit.x-p.x)-p.r),Math.max(0,Math.abs(unit.y-p.y)-p.r))<=unit.r,key=String(i);
+      const inside=panelTouch(unit,p),key=String(i);
       if(!inside){state.powerSwitchContacts.delete(key);return;}
       if(state.powerSwitchContacts.has(key)||p.locked||state.powerSwitchActive)return;
       state.powerSwitchContacts.add(key);p.state=(p.state+1)%3;
@@ -189,7 +391,7 @@
       const key=unit.id+':'+w.side;
       if(!on||pos<w.start||pos>w.end){state.slowWallContacts.delete(key);continue;}
       if(hasAbility(unit,'asw')||state.slowWallContacts.has(key))continue;
-      state.slowWallContacts.set(key,true);unit.vx*=w.retention??.35;unit.vy*=w.retention??.35;
+      state.slowWallContacts.set(key,true);{const rr=bubblyRelax(unit,w.retention??.35);unit.vx*=rr;unit.vy*=rr;}
       floatingText(unit.x,unit.y-38,'SLOW WALL','#478fcc',12);
     }
   }
@@ -205,34 +407,82 @@
       }
     }
   }
-  function enemyCollisionRadius(enemy) { return enemy.r * (enemy.shape === 'circle' ? 1 : enemy.sides === 3 ? .85 : .94); }
+  // 円で近似する場面（風の遮蔽・円との交差判定）用の目安半径。判定の本体は enemyGap / contactEnemy。
+  function enemyCollisionRadius(enemy) { return enemy.r * (enemy.shape === 'circle' ? 1 : enemy.sides === 3 ? .85 : enemyIsSquare(enemy) ? .85 : .94); }
+  // ---- 敵の当たり判定：見た目どおりの外形（円／四角／多角形／十字など）で判定する ----
+  // 外形の頂点（描画の enemyPath と同じ。揺れは無視）。円は null。
+  function enemyOutline(enemy){
+    if(enemy.shape==='circle')return null;
+    const r=enemy.r;
+    if(enemy.shape==='cruciform'){const a=.38;return [[-a,-1],[a,-1],[a,-a],[1,-a],[1,a],[a,a],[a,1],[-a,1],[-a,a],[-1,a],[-1,-a],[-a,-a]].map(([x,y])=>[x*r,y*r]);}
+    if(enemy.shape==='starBattery')return Array.from({length:16},(_,i)=>{const ang=-Math.PI/2+i*TAU/16,k=i%2?.58:1;return [Math.cos(ang)*r*k,Math.sin(ang)*r*k];});
+    const n=enemy.sides|0;if(n<3)return null;
+    const rot=-Math.PI/2+(n===4?Math.PI/4:0);
+    return Array.from({length:n},(_,i)=>[Math.cos(rot+i*TAU/n)*r,Math.sin(rot+i*TAU/n)*r]);
+  }
+  const enemyIsSquare=e=>e.shape!=='circle'&&e.shape!=='cruciform'&&e.shape!=='starBattery'&&e.sides===4;
+  const enemyWorldPoly=e=>enemyOutline(e)?.map(([x,y])=>({x:e.x+x,y:e.y+y}));
+  function nearestOnSegment(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,t=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1),0,1);return {x:a.x+t*dx,y:a.y+t*dy};}
+  function pointInPoly(p,pts){let inside=false;for(let i=0,j=pts.length-1;i<pts.length;j=i++){const a=pts[i],b=pts[j];if((a.y>p.y)!==(b.y>p.y)&&p.x<(b.x-a.x)*(p.y-a.y)/(b.y-a.y)+a.x)inside=!inside;}return inside;}
+  function segmentsCross(a,b,c,d){const o=(p,q,r)=>(q.x-p.x)*(r.y-p.y)-(q.y-p.y)*(r.x-p.x);return o(a,b,c)*o(a,b,d)<0&&o(c,d,a)*o(c,d,b)<0;}
+  // 線分(a,b)と敵の外形との距離。触れていれば0以下。円は「中心との距離−半径」。a===b なら点との距離。
+  function enemyGap(enemy,a,b){
+    const pts=enemyWorldPoly(enemy);
+    if(!pts)return segmentDistance(enemy,a,b)-enemy.r;
+    if(pointInPoly(a,pts)||pointInPoly(b,pts))return 0;
+    let best=Infinity;
+    for(let i=0;i<pts.length;i++){const c=pts[i],d=pts[(i+1)%pts.length];
+      if(segmentsCross(a,b,c,d))return 0;
+      best=Math.min(best,segmentDistance(a,c,d),segmentDistance(b,c,d),segmentDistance(c,a,b),segmentDistance(d,a,b));}
+    return best;
+  }
+  // 手番キャラ（円）と敵の接触。接触していなければ null。接触なら押し出し法線(nx,ny)と押し出し量(push)。
+  //   円＝中心間距離／四角＝ブロックと同じ「半径ぶん膨らませた四角形」（面に垂直に反射）／それ以外の多角形＝外形との最近点。
+  function contactEnemy(unit,enemy){
+    const pts=enemyWorldPoly(enemy);
+    if(!pts){
+      const dx=unit.x-enemy.x,dy=unit.y-enemy.y,sep=Math.hypot(dx,dy),min=unit.r+enemy.r;if(sep>=min)return null;
+      return {nx:sep>.001?dx/sep:0,ny:sep>.001?dy/sep:1,push:min-sep+.3};
+    }
+    if(enemyIsSquare(enemy)){const h=enemy.r*Math.SQRT1_2;return boxNormal(unit,{x:enemy.x-h,y:enemy.y-h,w:h*2,h:h*2});}
+    let best=Infinity,bx=0,by=0;
+    for(let i=0;i<pts.length;i++){const q=nearestOnSegment(unit,pts[i],pts[(i+1)%pts.length]),d2=(q.x-unit.x)**2+(q.y-unit.y)**2;if(d2<best){best=d2;bx=q.x;by=q.y;}}
+    const d=Math.sqrt(best),inside=pointInPoly(unit,pts);if(!inside&&d>=unit.r)return null;
+    if(inside){const L=d||1;return {nx:(bx-unit.x)/L,ny:(by-unit.y)/L,push:d+unit.r+.3};}
+    return {nx:(unit.x-bx)/d,ny:(unit.y-by)/d,push:unit.r-d+.3};
+  }
+  const enemyOverlaps=(unit,enemy)=>contactEnemy(unit,enemy)!==null;
 
+
+  // ウォールブースト：そのショットで触れた壁の面数（1〜4）に応じて直殴りのパワーが上がる。友情コンボには乗らない。
+  const wallBoostMultiplier=unit=>hasAbility(unit,'wb')?(WALL_BOOST_TABLE[(state.wallSides?.size||0)-1]||1):1;
+  // 敵への接触時：ファーストキラー用の「最初に触れた敵」の記録、ドレインの回復。
+  function onEnemyTouch(unit,enemy){
+    sakuraTouch(unit,enemy);
+    if(state.firstTouchId==null&&!enemy.sword)state.firstTouchId=enemy.id;
+    if(hasAbility(unit,'drain')){const heal=Math.min(DRAIN_HEAL,state.maxHp-state.hp);if(heal>0){state.hp+=heal;floatingText(unit.x,unit.y-35,'DRAIN +'+heal,'#2a9a56',14);}}
+  }
   function directHitDamage(unit){
     const speed=Math.hypot(unit.vx,unit.vy),baseDamage=390+Math.min(speed,1100)*.24;
     let styleMultiplier=unit.battleStyle==='balance'?1.2:1;
     if(unit.battleStyle==='power'&&!state.powerHitUsed){state.powerHitUsed=true;styleMultiplier=2;floatingText(unit.x,unit.y-38,'POWER ×2',unit.color,14);}
     const switchMultiplier=powerSwitchMultiplier();
-    return baseDamage*(unit.atk/1000)*(state.skillShot?2.4:1)*styleMultiplier*(1+(state.swordBonus||0))*switchMultiplier*consumePhoton(unit);
+    return baseDamage*(unit.atk/1000)*(state.skillShot?2.4:1)*styleMultiplier*(1+(state.swordBonus||0))*(state.atkUp||1)*wallBoostMultiplier(unit)*switchMultiplier*consumePhoton(unit);
   }
   // キューブ状態：手番以外の味方は正方形の当たり判定を持つ（移動中の味方は反射し、友情は接触で発動）。
-  function cubeActive(){return !!(state.waves[state.wave].cube??state.stage.cube);}
+  function cubeActive(){return !!(state.waves[state.wave].cube??state.stage.cube??stageSettings.cube);}
   const cubeHalf=ally=>ally.r+3;
   function cubeOverlap(unit,ally){
     const h=cubeHalf(ally),cx=clamp(unit.x,ally.x-h,ally.x+h),cy=clamp(unit.y,ally.y-h,ally.y+h);
     return Math.hypot(unit.x-cx,unit.y-cy)<unit.r;
   }
+  // キューブの反射：ブロックと同じ「半径ぶん膨らませた四角形」で判定し、法線は常に面に垂直（角でも斜めに飛ばない）。狙い線（predictTrajectory）とも一致。
   function cubeBounce(unit,ally){
-    const h=cubeHalf(ally),cx=clamp(unit.x,ally.x-h,ally.x+h),cy=clamp(unit.y,ally.y-h,ally.y+h);
-    let dx=unit.x-cx,dy=unit.y-cy,gap=Math.hypot(dx,dy);
-    if(gap>=unit.r)return;
-    let nx,ny;
-    if(gap>.001){nx=dx/gap;ny=dy/gap;unit.x=cx+nx*(unit.r+.3);unit.y=cy+ny*(unit.r+.3);}
-    else{ // 中心が箱の内側：浸透の浅い軸の向きへ押し出す
-      const px=h+unit.r-Math.abs(unit.x-ally.x),py=h+unit.r-Math.abs(unit.y-ally.y);
-      if(px<py){nx=Math.sign(unit.x-ally.x)||1;ny=0;unit.x=ally.x+nx*(h+unit.r+.3);}else{nx=0;ny=Math.sign(unit.y-ally.y)||1;unit.y=ally.y+ny*(h+unit.r+.3);}
-    }
-    const dot=unit.vx*nx+unit.vy*ny;
-    if(dot<0){const r=reflectVelocity(unit.vx,unit.vy,nx,ny);unit.vx=r.x*.92;unit.vy=r.y*.92;burst(unit.x,unit.y,ally.color,3,40);tone(520,.04,'sine',.015);}
+    const h=cubeHalf(ally),hit=boxNormal(unit,{x:ally.x-h,y:ally.y-h,w:h*2,h:h*2});
+    if(!hit)return;
+    unit.x+=hit.nx*hit.push;unit.y+=hit.ny*hit.push;
+    const dot=unit.vx*hit.nx+unit.vy*hit.ny;
+    if(dot<0){const r=reflectVelocity(unit.vx,unit.vy,hit.nx,hit.ny);unit.vx=r.x*.92;unit.vy=r.y*.92;burst(unit.x,unit.y,ally.color,3,40);tone(520,.04,'sine',.015);}
   }
   const allyTouching=(unit,ally)=>cubeActive()?cubeOverlap(unit,ally):distance(unit,ally)<unit.r+ally.r;
   function touchAlly(unit,ally){
@@ -252,15 +502,22 @@
       unit.y += unit.vy * step;
       applyGimmicks(unit,step);
       applyBlocks(unit);
+      applyContainers(unit);
+      applyBarriers(unit);
       if(state.phase==='gameover')return;
-      let wallHit = false;
-      if (unit.x < FIELD.left + unit.r) { unit.x = FIELD.left + unit.r; unit.vx = Math.abs(unit.vx); wallHit = true; }
-      if (unit.x > FIELD.right - unit.r) { unit.x = FIELD.right - unit.r; unit.vx = -Math.abs(unit.vx); wallHit = true; }
-      if (unit.y < FIELD.top + unit.r) { unit.y = FIELD.top + unit.r; unit.vy = Math.abs(unit.vy); wallHit = true; }
-      if (unit.y > FIELD.bottom - unit.r) { unit.y = FIELD.bottom - unit.r; unit.vy = -Math.abs(unit.vy); wallHit = true; }
+      let wallHit = false;const hitSides=[];
+      if (unit.x < FIELD.left + unit.r) { unit.x = FIELD.left + unit.r; unit.vx = Math.abs(unit.vx); wallHit = true; hitSides.push('left'); }
+      if (unit.x > FIELD.right - unit.r) { unit.x = FIELD.right - unit.r; unit.vx = -Math.abs(unit.vx); wallHit = true; hitSides.push('right'); }
+      if (unit.y < FIELD.top + unit.r) { unit.y = FIELD.top + unit.r; unit.vy = Math.abs(unit.vy); wallHit = true; hitSides.push('top'); }
+      if (unit.y > FIELD.bottom - unit.r) { unit.y = FIELD.bottom - unit.r; unit.vy = -Math.abs(unit.vy); wallHit = true; hitSides.push('bottom'); }
       if (wallHit) {
+        state.wallSides??=new Set();const sidesBefore=state.wallSides.size;for(const sd of hitSides)state.wallSides.add(sd);
+        if(hasAbility(unit,'wb')&&state.wallSides.size>sidesBefore)floatingText(unit.x,unit.y-52,'WALL ×'+WALL_BOOST_TABLE[state.wallSides.size-1],unit.color,14);
+        noteWallTouch(unit);
+        for(const side of hitSides)placeLaserGen(side,unit);
         applyDamageWalls(unit);
     applyHeartPanels(unit);
+    applyHeartFruits(unit);
         if(state.phase==='gameover')return;
         if (unit.battleStyle === 'speed' && !state.speedBoostUsed) {
           state.speedBoostUsed = true;
@@ -275,21 +532,20 @@
       applySlowWalls(unit);
       for (const enemy of state.enemies) {
         if (!enemy.alive||enemy.transparent) continue;
-        const dx = unit.x - enemy.x;
-        const dy = unit.y - enemy.y;
-        const separation = Math.hypot(dx, dy);
-        const minSeparation = unit.r + enemyCollisionRadius(enemy);
+        const info=contactEnemy(unit,enemy);
         if (unit.spawnOverlaps?.has(enemy.id)) {
-          if (separation >= minSeparation) unit.spawnOverlaps.delete(enemy.id);
+          if (!info) unit.spawnOverlaps.delete(enemy.id);
           else continue;
         }
-        if (separation >= minSeparation) {unit.enemyContacts?.delete(enemy.id);continue;}
+        if (!info) {unit.enemyContacts?.delete(enemy.id);continue;}
         const hit={x:unit.x,y:unit.y,radius:unit.r};
         if(isPiercing(unit)){
           if(!unit.enemyContacts)unit.enemyContacts=new Map();
           let contact=unit.enemyContacts.get(enemy.id);
           if(!contact){
+            onEnemyTouch(unit,enemy);
             const retention=contactRetention(unit,enemy);unit.vx*=retention;unit.vy*=retention;
+            if(enemy.sword){touchSwordEnemy(unit,enemy);unit.enemyContacts.set(enemy.id,{amount:0,weak:true});continue;}
             const amount=directHitDamage(unit);contact={amount,weak: hitsWeak(enemy,hit)};
             unit.enemyContacts.set(enemy.id,contact);
             damageEnemy(enemy,amount,false,{hit,owner:unit});
@@ -299,14 +555,14 @@
           }
           continue;
         }
-        const nx=separation>.001?dx/separation:0,ny=separation>.001?dy/separation:1;
-        const dot=unit.vx*nx+unit.vy*ny;
-        unit.x=enemy.x+nx*(minSeparation+.3);unit.y=enemy.y+ny*(minSeparation+.3);
+        const {nx,ny}=info,dot=unit.vx*nx+unit.vy*ny;
+        unit.x+=nx*info.push;unit.y+=ny*info.push;
         if(dot<0){
           const reflected=reflectVelocity(unit.vx,unit.vy,nx,ny),retention=contactRetention(unit,enemy);
           unit.vx=reflected.x*retention;unit.vy=reflected.y*retention;
-          enemy.hitAt=state.clock;state.lastHitEnemyId=enemy.id;
-          damageEnemy(enemy,directHitDamage(unit),false,{hit:{x:unit.x,y:unit.y,radius:unit.r},owner:unit});
+          enemy.hitAt=state.clock;state.lastHitEnemyId=enemy.id;onEnemyTouch(unit,enemy);
+          if(enemy.sword)touchSwordEnemy(unit,enemy);
+          else damageEnemy(enemy,directHitDamage(unit),false,{hit:{x:unit.x,y:unit.y,radius:unit.r},owner:unit});
           state.shake=Math.max(state.shake,state.skillShot?4:1.5);
         }
       }
@@ -326,10 +582,12 @@
     unit.vx *= friction;
     unit.vy *= friction;
     state.trail.push({ x: unit.x, y: unit.y, life: 0.25, max: 0.25 });
+    if(isBubbly(unit)&&Math.random()<.2)burst(unit.x,unit.y,'#8ddcf5',1,40); // バブリー状態の泡
     if (Math.hypot(unit.vx, unit.vy) < 64 || state.moveTime > 6.8 || !state.enemies.some(enemy => enemy.alive)) {
       unit.vx = 0;
       unit.vy = 0;
       state.unitStopped = true;
+      fireLaserGens();
     }
   }
 
@@ -345,6 +603,7 @@
       if (state.notice.remaining <= 0) state.notice = null;
     }
     for (const enemy of state.enemies) enemy.flash = Math.max(0, enemy.flash - dt);
+    for (const b of state.barriers || []) b.flash = Math.max(0, b.flash - dt);
     for (const particle of state.particles) {
       particle.life -= dt;
       particle.x += particle.vx * dt;

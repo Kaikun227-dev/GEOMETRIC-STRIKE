@@ -10,7 +10,14 @@
   }
 
   function livingEnemiesByDistance(from) {
-    return state.enemies.filter(enemy => (enemy.alive&&!enemy.transparent)).sort((a, b) => distance(a, from) - distance(b, from));
+    return state.enemies.filter(enemy => targetable(enemy)).sort((a, b) => distance(a, from) - distance(b, from));
+  }
+
+  function friendshipVisualTargets(from) {
+    const targets = livingEnemiesByDistance(from);
+    if (targets.length) return targets;
+    // Transparent enemies are animation targets only; damage checks still use targetable().
+    return state.enemies.filter(enemy => enemy.alive && enemy.transparent).sort((a, b) => distance(a, from) - distance(b, from));
   }
 
   // 点から半直線(origin, 単位方向)までの距離
@@ -52,11 +59,13 @@
 
   // ホーミング(X): 対象に向かって曲がりながら飛ぶ弾を count 発放つ
   function spawnHoming(side, source, targets, o) {
+    if (!targets.length) return;
     const base = Math.random() * TAU;
     for (let i = 0; i < o.count; i++) {
+      const target=targets[i % targets.length];
       queueEffect({
         type: 'homing', side, x: source.x, y: source.y, angle: base + i * TAU / o.count,
-        speed: o.speed || 430, target: targets[i % targets.length], delay: i * 0.07, age: 0, life: 3.2,
+        speed: o.speed || 430, target, visualOnly: side === 'ally' && !targetable(target), delay: i * 0.07, age: 0, life: 3.2,
         damage: o.damage, color: o.color, trail: [], launched: false,
       });
     }
@@ -82,14 +91,19 @@
     queueEffect({ type: 'meteor', side, x:source.x, y:source.y, left:o.count, damage:o.damage, color:o.color, wait:0, impact:null, age:0 });
   }
   function updateMeteor(effect, dt) {
-    const pool = effect.side === 'ally' ? state.enemies.filter(e=>(e.alive&&!e.transparent)) : state.units;
-    if (!pool.length) return false;
-    if (effect.impact && effect.side === 'ally' && !(effect.target.alive&&!effect.target.transparent)) { effect.impact=null; effect.wait=0; }
+    const pool = effect.side === 'ally' ? state.enemies.filter(e=>targetable(e)) : state.units;
+    const targets=pool.length?pool:effect.side==='ally'?friendshipVisualTargets(effect):pool;
+    if (!targets.length) {
+      if(effect.side==='ally')showFriendshipActivation(effect.x,effect.y,effect.color,FRIENDSHIP_KINDS.meteor.label);
+      return false;
+    }
+    if (effect.impact && effect.side === 'ally' && !effect.visualOnly && !targetable(effect.target)) { effect.impact=null; effect.wait=0; }
     if (!effect.impact) {
       if (effect.left <= 0) return false;
       effect.wait -= dt;
       if (effect.wait > 0) return true;
-      effect.target=pool[Math.floor(Math.random()*pool.length)];
+      effect.target=targets[Math.floor(Math.random()*targets.length)];
+      effect.visualOnly=effect.side==='ally'&&!targetable(effect.target);
       const a=Math.random()*TAU, offset=Math.random()*effect.target.r*.5;
       effect.impact={x:effect.target.x+Math.cos(a)*offset,y:effect.target.y+Math.sin(a)*offset};
       effect.wait=METEOR.fall;
@@ -131,7 +145,7 @@
     for(const bullet of effect.bullets){
       const from={x:bullet.x,y:bullet.y};
       bullet.x+=bullet.vx*dt;bullet.y+=bullet.vy*dt;bullet.life-=dt;
-      const pool=effect.side==='ally'?state.enemies.filter(e=>(e.alive&&!e.transparent)):state.units;
+      const pool=effect.side==='ally'?state.enemies.filter(e=>targetable(e)):state.units;
       let target=null,nearest=Infinity;
       for(const candidate of pool){const t=segmentCircleHit(from,bullet,candidate,candidate.r+5);if(t!==null&&t<nearest){target=candidate;nearest=t;}}
       if(target){
@@ -171,7 +185,7 @@
   }
   function damageAlongSegment(from,to,width,damage,charge=1) {
     for(const enemy of state.enemies){
-      if((enemy.alive&&!enemy.transparent)&&segmentDistance(enemy,from,to)<=enemyCollisionRadius(enemy)+width/2)
+      if(targetable(enemy)&&enemyGap(enemy,from,to)<=width/2)
         damageEnemy(enemy,damage,true,{charge,hit:{from,to,radius:width/2}});
     }
   }
@@ -182,9 +196,9 @@
       if(seg.progress<=0)continue;
       const dx=seg.to.x-seg.from.x,dy=seg.to.y-seg.from.y,len2=dx*dx+dy*dy;
       for(const enemy of effect.side==='enemy'?state.units:state.enemies){
-        if((effect.side!=='enemy'&&!(enemy.alive&&!enemy.transparent))||seg.hitIds.has(enemy.id))continue;
+        if((effect.side!=='enemy'&&!targetable(enemy))||seg.hitIds.has(enemy.id))continue;
         const along=clamp(((enemy.x-seg.from.x)*dx+(enemy.y-seg.from.y)*dy)/(len2||1),0,1);
-        if(along<=seg.progress&&segmentDistance(enemy,seg.from,seg.to)<=(effect.side==='enemy'?enemy.r:enemyCollisionRadius(enemy))+effect.width/2){
+        if(along<=seg.progress&&(effect.side==='enemy'?segmentDistance(enemy,seg.from,seg.to)<=enemy.r+effect.width/2:enemyGap(enemy,seg.from,seg.to)<=effect.width/2)){
           seg.hitIds.add(enemy.id);if(effect.side==='enemy'){damageTeam(effect.damage,enemy.x,enemy.y,enemy);if(state.phase==='gameover')return false;}else damageEnemy(enemy,effect.damage,true,{charge:.65,hit:{from:seg.from,to:seg.to,radius:effect.width/2}});
         }
       }
@@ -200,10 +214,10 @@
   function updateEnergyBall(effect,dt){
     const from={x:effect.x,y:effect.y};effect.x+=effect.vx*dt;effect.y+=effect.vy*dt;effect.life-=dt;
     let nearest=Infinity,target=null;
-    for(const enemy of state.enemies){if(!(enemy.alive&&!enemy.transparent))continue;const t=segmentCircleHit(from,effect,enemy,enemyCollisionRadius(enemy)+effect.r);if(t!==null&&t<nearest){target=enemy;nearest=t;}}
+    for(const enemy of state.enemies){if(!targetable(enemy))continue;const t=segmentCircleHit(from,effect,enemy,enemyCollisionRadius(enemy)+effect.r);if(t!==null&&t<nearest){target=enemy;nearest=t;}}
     if(target){
       effect.x=from.x+(effect.x-from.x)*nearest;effect.y=from.y+(effect.y-from.y)*nearest;
-      const entries=state.enemies.filter(e=>(e.alive&&!e.transparent)).map(e=>({target:e,hits:clamp(Math.ceil((1-Math.max(0,distance(e,effect)-enemyCollisionRadius(e))/effect.radius)*effect.maxHits),0,effect.maxHits)})).filter(e=>e.hits>0);
+      const entries=state.enemies.filter(e=>targetable(e)).map(e=>({target:e,hits:clamp(Math.ceil((1-Math.max(0,enemyGap(e,effect,effect))/effect.radius)*effect.maxHits),0,effect.maxHits)})).filter(e=>e.hits>0);
       Object.assign(effect,{type:'explosion',entries,tick:0,maxTick:Math.max(1,...entries.map(e=>e.hits)),wait:0,interval:.09,pulse:1,age:0});
       burst(effect.x,effect.y,effect.color,45,280);state.shake=Math.max(state.shake,7);return true;
     }
@@ -213,6 +227,9 @@
 
   const EXPANSION_COMBOS=['slash','involute','satellites','discharge'];
   const EXPANSION_BALL_RADIUS=12,SATELLITE_ORBIT_RADIUS=78;
+  // 放電の感電範囲：最初の対象を探す範囲と、電撃が次の敵へ伝わる距離。
+  const DISCHARGE_START_RANGE=420,DISCHARGE_CHAIN_RANGE=320;
+  const DISCHARGE_STEP_BONUS=.10; // 感電するたびに次の感電ダメージが基礎威力の+10%ずつ増える（1回目×1.0、2回目×1.1、3回目×1.2…）
   function spawnExpansionFriendship(ally,f,carrier,damage){
     if(!EXPANSION_COMBOS.includes(f.kind))return false;
     const e={type:f.kind,side:'ally',x:ally.x,y:ally.y,damage,color:ally.color,age:0};
@@ -225,7 +242,7 @@
   function expansionBallHit(e,b,from,to,now){
     const radius=e.type==='satellites'||e.type==='involute'?EXPANSION_BALL_RADIUS:9;
     for(const enemy of state.enemies){
-      if(!(enemy.alive&&!enemy.transparent)||now-(b.hits.get(enemy.id)??-100)<.18||segmentDistance(enemy,from,to)>enemyCollisionRadius(enemy)+radius)continue;
+      if(!targetable(enemy)||now-(b.hits.get(enemy.id)??-100)<.18||enemyGap(enemy,from,to)>radius)continue;
       b.hits.set(enemy.id,now);damageEnemy(enemy,e.damage,true,{charge:.45,hit:{from,to,radius}});
     }
   }
@@ -233,20 +250,20 @@
     if(e.type==='slash'){
       e.cuts=e.cuts.filter(c=>(c.life-=dt)>0);e.wait-=dt;
       while(e.wait<=0&&e.emitted<e.count){
-        const target=livingEnemiesByDistance(e).find(t=>distance(t,e)<=e.range+enemyCollisionRadius(t));if(!target){e.emitted=e.count;break;}
+        const target=friendshipVisualTargets(e).find(t=>enemyGap(t,e,e)<=e.range);if(!target){if(!e.emitted&&!e.cuts.length)showFriendshipActivation(e.x,e.y,e.color,FRIENDSHIP_KINDS[e.type].label);e.emitted=e.count;break;}
         const a=Math.atan2(target.y-e.y,target.x-e.x)+Math.PI/2+(e.emitted%2?.55:-.55),dx=Math.cos(a)*58,dy=Math.sin(a)*58;
         const from={x:target.x-dx,y:target.y-dy},to={x:target.x+dx,y:target.y+dy};e.cuts.push({from,to,life:.19});e.emitted++;e.wait+=.075;
-        for(const t of state.enemies)if((t.alive&&!t.transparent)&&segmentDistance(t,from,to)<enemyCollisionRadius(t)+6)damageEnemy(t,e.damage,true,{charge:.4,hit:{from,to,radius:6}});
+        for(const t of state.enemies)if(targetable(t)&&enemyGap(t,from,to)<6)damageEnemy(t,e.damage,true,{charge:.4,hit:{from,to,radius:6}});
       }
       return e.emitted<e.count||e.cuts.length>0;
     }
     if(e.type==='discharge'){
       e.segments=e.segments.filter(s=>(s.life-=dt)>0);e.wait-=dt;
       while(e.wait<=0&&!e.finished){
-        const radius=e.visited.size?210:240,target=livingEnemiesByDistance(e.from).find(t=>!e.visited.has(t.id)&&distance(t,e.from)<=radius);
-        if(!target||e.visited.size>=16){e.finished=true;break;}
-        const to={x:target.x,y:target.y};e.segments.push({from:{...e.from},to,life:.25});e.visited.add(target.id);
-        damageEnemy(target,e.damage,true,{charge:1,hit:{from:e.from,to,radius:7}});e.from=to;e.wait+=.085;
+        const radius=e.visited.size?DISCHARGE_CHAIN_RANGE:DISCHARGE_START_RANGE,target=friendshipVisualTargets(e.from).find(t=>!e.visited.has(t.id)&&distance(t,e.from)<=radius);
+        if(!target||e.visited.size>=16){if(!e.visited.size&&!e.segments.length)showFriendshipActivation(e.x,e.y,e.color,FRIENDSHIP_KINDS[e.type].label);e.finished=true;break;}
+        const to={x:target.x,y:target.y};e.segments.push({from:{...e.from},to,life:.25});const shockMult=1+DISCHARGE_STEP_BONUS*e.visited.size;e.visited.add(target.id);
+        damageEnemy(target,e.damage*shockMult,true,{charge:1,hit:{from:e.from,to,radius:7}});e.from=to;e.wait+=.085;
       }
       return !e.finished||e.segments.length>0;
     }
@@ -310,9 +327,9 @@
       for(let i=0;i<steps;i++){
         const from={x:bullet.x,y:bullet.y},tx=bullet.vx>0?(FIELD.right-bullet.x)/bullet.vx:bullet.vx<0?(FIELD.left-bullet.x)/bullet.vx:Infinity,ty=bullet.vy>0?(FIELD.bottom-bullet.y)/bullet.vy:bullet.vy<0?(FIELD.top-bullet.y)/bullet.vy:Infinity;
         const travel=Math.max(0,Math.min(dt/steps,tx,ty));bullet.x+=bullet.vx*travel;bullet.y+=bullet.vy*travel;
-        for(const enemy of state.enemies){if(!(enemy.alive&&!enemy.transparent)||bullet.hitIds.has(enemy.id))continue;if(segmentDistance(enemy,from,bullet)<=enemyCollisionRadius(enemy)+6){bullet.hitIds.add(enemy.id);damageEnemy(enemy,effect.damage,true,{charge:.25,hit:{from,to:bullet,radius:6}});}}
+        for(const enemy of state.enemies){if(!targetable(enemy)||bullet.hitIds.has(enemy.id))continue;if(enemyGap(enemy,from,bullet)<=6){bullet.hitIds.add(enemy.id);damageEnemy(enemy,effect.damage,true,{charge:.25,hit:{from,to:bullet,radius:6}});}}
         if(tx<=dt/steps||ty<=dt/steps){
-          if(effect.type==='trident'){spawnExplosion('ally',bullet,state.enemies.filter(e=>(e.alive&&!e.transparent)),{radius:effect.radius,maxHits:effect.maxHits,damage:effect.damage*2,color:effect.color});burst(bullet.x,bullet.y,effect.color,24,220);ended=true;break;}
+          if(effect.type==='trident'){spawnExplosion('ally',bullet,state.enemies.filter(e=>targetable(e)),{radius:effect.radius,maxHits:effect.maxHits,damage:effect.damage*2,color:effect.color});burst(bullet.x,bullet.y,effect.color,24,220);ended=true;break;}
           if(bullet.generation>=3){ended=true;break;}
           const hitX=tx<=ty+.00001,hitY=ty<=tx+.00001,rx=hitX?-bullet.vx:bullet.vx,ry=hitY?-bullet.vy:bullet.vy;
           const a=Math.atan2(ry,rx);
@@ -325,7 +342,7 @@
     effect.bullets=next;return effect.life>0&&next.length>0;
   }
   function spawnPiercing(side,source,o){
-    const pool=side==='enemy'?state.units:state.enemies.filter(e=>(e.alive&&!e.transparent)),aims=[];
+    const pool=side==='enemy'?state.units:state.enemies.filter(e=>targetable(e)),aims=[];
     if(o.weak){for(const e of pool)if(e.weakPoint){const w=weakPosition(e);for(let i=0;i<5;i++)aims.push({x:w.x,y:w.y,delay:i*.055});}if(!aims.length)for(let i=0;i<5;i++)aims.push({x:source.x,y:source.y-100,delay:i*.055});}
     else for(let i=0;i<o.count;i++){const p=pool[Math.floor(Math.random()*pool.length)]||{x:source.x,y:source.y-100};aims.push({x:p.x,y:p.y,delay:i*.055});}
     const bullets=aims.map(p=>{let dx=p.x-source.x,dy=p.y-source.y;if(Math.hypot(dx,dy)<.001)dy=-1;const m=Math.hypot(dx,dy);return{x:source.x,y:source.y,vx:dx/m*700,vy:dy/m*700,from:{x:source.x,y:source.y},to:rayEnd(source.x,source.y,dx/m,dy/m),delay:p.delay,life:2,hitIds:new Set()};});
@@ -334,50 +351,50 @@
   function updateNewCombo(e,dt){
     if(e.type==='pierce'){
       e.bullets=e.bullets.filter(b=>{if(b.delay>0){b.delay-=dt;return true;}const from={x:b.x,y:b.y};b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;
-        for(const target of e.side==='enemy'?state.units:state.enemies){if((e.side!=='enemy'&&!(target.alive&&!target.transparent))||b.hitIds.has(target.id))continue;const r=e.side==='enemy'?target.r:enemyCollisionRadius(target);if(segmentDistance(target,from,b)<=r+5){b.hitIds.add(target.id);if(e.side==='enemy'){damageTeam(e.damage,target.x,target.y,target);if(state.phase==='gameover')return false;}else damageEnemy(target,e.damage,true,{charge:.4,hit:{from:b.from,to:b.to,radius:5}});}}
+        for(const target of e.side==='enemy'?state.units:state.enemies){if((e.side!=='enemy'&&!targetable(target))||b.hitIds.has(target.id))continue;if(e.side==='enemy'?segmentDistance(target,from,b)<=target.r+5:enemyGap(target,from,b)<=5){b.hitIds.add(target.id);if(e.side==='enemy'){damageTeam(e.damage,target.x,target.y,target);if(state.phase==='gameover')return false;}else damageEnemy(target,e.damage,true,{charge:.4,hit:{from:b.from,to:b.to,radius:5}});}}
         return b.life>0&&b.x>=FIELD.left-20&&b.x<=FIELD.right+20&&b.y>=FIELD.top-20&&b.y<=FIELD.bottom+20;});return e.bullets.length>0&&state.phase!=='gameover';
     }
     if(e.type==='roundBurst'){
-      if(state.unitStopped||Math.hypot(e.carrier.vx,e.carrier.vy)<.01){spawnExplosion('ally',e,state.enemies.filter(t=>(t.alive&&!t.transparent)),{radius:e.radius,maxHits:e.maxHits,damage:e.damage,color:e.color});return false;}
+      if(state.unitStopped||Math.hypot(e.carrier.vx,e.carrier.vy)<.01){spawnExplosion('ally',e,state.enemies.filter(t=>targetable(t)),{radius:e.radius,maxHits:e.maxHits,damage:e.damage,color:e.color});return false;}
       e.radius=Math.min(e.maxRadius,e.radius+65*dt);return true;
     }
     if(e.type==='dropBomb'){
-      e.bombs=e.bombs.filter(b=>{if(b.delay>0){b.delay-=dt;return true;}b.elapsed+=dt;if(b.elapsed<.55)return true;spawnExplosion('ally',b,state.enemies.filter(t=>(t.alive&&!t.transparent)),{radius:e.radius,maxHits:e.maxHits,damage:e.damage,color:e.color});return false;});return e.bombs.length>0;
+      e.bombs=e.bombs.filter(b=>{if(b.delay>0){b.delay-=dt;return true;}b.elapsed+=dt;if(b.elapsed<.55)return true;spawnExplosion('ally',b,state.enemies.filter(t=>targetable(t)),{radius:e.radius,maxHits:e.maxHits,damage:e.damage,color:e.color});return false;});return e.bombs.length>0;
     }
     if(e.type==='eruption'){
-      e.wait-=dt;if(e.wait<=0&&e.ticks<6){e.wait+=.15;e.ticks++;for(const target of state.enemies)if((target.alive&&!target.transparent)&&distance(target,e)<=e.radius+enemyCollisionRadius(target))damageEnemy(target,e.damage,true,{charge:.5,hit:{x:e.x,y:e.y,radius:e.radius}});}
+      e.wait-=dt;if(e.wait<=0&&e.ticks<6){e.wait+=.15;e.ticks++;for(const target of state.enemies)if(targetable(target)&&enemyGap(target,e,e)<=e.radius)damageEnemy(target,e.damage,true,{charge:.5,hit:{x:e.x,y:e.y,radius:e.radius}});}
       return e.age<1.65;
     }
     if(e.type==='thunder'){
       e.radius=Math.min(e.maxRadius,e.radius+780*dt);
-      for(const target of state.enemies){if(!(target.alive&&!target.transparent)||e.hitIds.has(target.id))continue;const d=distance(target,e),a=Math.atan2(target.y-e.y,target.x-e.x),delta=Math.atan2(Math.sin(a-e.angle),Math.cos(a-e.angle));if(d>e.radius+enemyCollisionRadius(target)||Math.abs(delta)>Math.PI/3)continue;e.hitIds.add(target.id);damageEnemy(target,e.damage,true,{charge:.7,hit:{from:e,to:target,radius:8}});}
+      for(const target of state.enemies){if(!targetable(target)||e.hitIds.has(target.id))continue;const d=distance(target,e),a=Math.atan2(target.y-e.y,target.x-e.x),delta=Math.atan2(Math.sin(a-e.angle),Math.cos(a-e.angle));if(enemyGap(target,e,e)>e.radius||Math.abs(delta)>Math.PI/3)continue;e.hitIds.add(target.id);damageEnemy(target,e.damage,true,{charge:.7,hit:{from:e,to:target,radius:8}});}
       return e.age<.95;
     }
     return false;
   }
   function chooseDroneTarget(e){
     // e.x / e.y は発動元の位置。再照準もドローン位置ではなく、この位置から遠い敵を優先する。
-    e.target=livingEnemiesByDistance(e).reverse().find(t=>!e.visited.has(t.id));if(!e.target)return false;
+    e.target=friendshipVisualTargets(e).reverse().find(t=>!e.visited.has(t.id));if(!e.target)return false;
     e.visited.add(e.target.id);e.phase='travel';e.travel=0;e.fired=0;e.wait=0;for(const d of e.drones){d.from={x:d.x,y:d.y};d.trail=[];}return true;
   }
   function updateAdvanced(e,dt){
     if(e.type==='vibration'){
       if(!e.targets){e.targets=state.units.filter(u=>distance(u,e)<=e.radius+u.r).map(u=>{const dx=u.x-e.x,dy=u.y-e.y,d=Math.hypot(dx,dy);damageTeam(e.damage,u.x,u.y,u);return{u,dx:d>.001?dx/d:0,dy:d>.001?dy/d:1};});if(state.phase==='gameover')return false;ring(e.x,e.y,e.color,e.radius,.5);}
       const progress=Math.min(1,e.age/.4),delta=progress-e.progress;e.progress=progress;
-      for(const {u,dx,dy} of e.targets){const steps=Math.max(1,Math.ceil(e.push*delta/5));for(let i=0;i<steps;i++){const before={x:u.x,y:u.y};u.x=clamp(u.x+dx*e.push*delta/steps,FIELD.left+u.r,FIELD.right-u.r);u.y=clamp(u.y+dy*e.push*delta/steps,FIELD.top+u.r,FIELD.bottom-u.r);applyBlocks(u);if(state.enemies.some(t=>(t.alive&&!t.transparent)&&distance(t,u)<enemyCollisionRadius(t)+u.r)){u.x=before.x;u.y=before.y;break;}}u.vx=0;u.vy=0;}
+      for(const {u,dx,dy} of e.targets){const steps=Math.max(1,Math.ceil(e.push*delta/5));for(let i=0;i<steps;i++){const before={x:u.x,y:u.y};u.x=clamp(u.x+dx*e.push*delta/steps,FIELD.left+u.r,FIELD.right-u.r);u.y=clamp(u.y+dy*e.push*delta/steps,FIELD.top+u.r,FIELD.bottom-u.r);applyBlocks(u);if(state.enemies.some(t=>targetable(t)&&enemyGap(t,u,u)<u.r)){u.x=before.x;u.y=before.y;break;}}u.vx=0;u.vy=0;}
       return e.age<.5;
     }
     if(e.type==='machinegun'||e.type==='saw'){
       const saw=e.type==='saw';e.wait-=dt;
-      while(e.wait<=0&&e.emitted<e.count){const target=livingEnemiesByDistance(e)[0];if(!target){e.emitted=e.count;break;}const a=Math.atan2(target.y-e.y,target.x-e.x),speed=saw?250:1050;e.bullets.push({x:e.x,y:e.y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life:saw?3:1.5,hits:new Map()});e.emitted++;e.wait+=saw?.14:.035;}
+      while(e.wait<=0&&e.emitted<e.count){const target=friendshipVisualTargets(e)[0];if(!target){if(!e.emitted&&!e.bullets.length)showFriendshipActivation(e.x,e.y,e.color,FRIENDSHIP_KINDS[e.type].label);e.emitted=e.count;break;}const a=Math.atan2(target.y-e.y,target.x-e.x),speed=saw?250:1050;e.bullets.push({x:e.x,y:e.y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life:saw?3:1.5,hits:new Map()});e.emitted++;e.wait+=saw?.14:.035;}
       e.bullets=e.bullets.filter(b=>{const from={x:b.x,y:b.y};b.x+=b.vx*dt;b.y+=b.vy*dt;b.life-=dt;let first=null,nearest=Infinity;
-        for(const target of state.enemies){if(!(target.alive&&!target.transparent))continue;const at=segmentCircleHit(from,b,target,enemyCollisionRadius(target)+(saw?17:4));if(at===null)continue;if(saw){if(e.age-(b.hits.get(target.id)??-10)>=.08){b.hits.set(target.id,e.age);damageEnemy(target,e.damage,true,{charge:.2,hit:{from,to:b,radius:17}});}}else if(at<nearest){nearest=at;first=target;}}
+        for(const target of state.enemies){if(!targetable(target))continue;const at=segmentCircleHit(from,b,target,enemyCollisionRadius(target)+(saw?17:4));if(at===null)continue;if(saw){if(e.age-(b.hits.get(target.id)??-10)>=.08){b.hits.set(target.id,e.age);damageEnemy(target,e.damage,true,{charge:.2,hit:{from,to:b,radius:17}});}}else if(at<nearest){nearest=at;first=target;}}
         if(first){damageEnemy(first,e.damage,true,{charge:.2,hit:{x:from.x+(b.x-from.x)*nearest,y:from.y+(b.y-from.y)*nearest,radius:4}});return false;}
         return b.life>0&&b.x>=FIELD.left-20&&b.x<=FIELD.right+20&&b.y>=FIELD.top-20&&b.y<=FIELD.bottom+20;});return e.emitted<e.count||e.bullets.length>0;
     }
     if(e.type==='drones'){
-      if(!e.target)return false;
-      if(!(e.target.alive&&!e.target.transparent)&&e.phase==='travel'){if(e.stage>=1)return false;e.stage++;if(!chooseDroneTarget(e))return false;}
+      if(!e.target){if(!e.stage&&!e.fired)showFriendshipActivation(e.x,e.y,e.color,FRIENDSHIP_KINDS.drones.label);return false;}
+      if(!targetable(e.target)&&e.phase==='travel'){if(e.stage>=1)return false;e.stage++;if(!chooseDroneTarget(e))return false;}
       if(e.phase==='travel'){
         e.travel=Math.min(1,e.travel+dt/DRONE_TRAVEL_DURATION);const t=e.travel,smooth=t*t*(3-2*t);
         e.drones.forEach((d,i)=>{const a=-Math.PI/2+i*TAU/e.count,end={x:clamp(e.target.x+Math.cos(a)*95,FIELD.left+12,FIELD.right-12),y:clamp(e.target.y+Math.sin(a)*95,FIELD.top+12,FIELD.bottom-12)};const swirl=Math.sin(Math.PI*t)*(60+18*i);d.x=d.from.x+(end.x-d.from.x)*smooth+Math.cos(a+t*TAU)*swirl;d.y=d.from.y+(end.y-d.from.y)*smooth+Math.sin(a+t*TAU)*swirl;d.trail.push({x:d.x,y:d.y});if(d.trail.length>9)d.trail.shift();});
@@ -392,7 +409,7 @@
       if(state.phase!=='moving'||state.unitStopped||!e.route.length)return false;
       let remaining=1100*dt,coincident=0;
       while(remaining>0){const dest=e.route[e.index],d=distance(e,dest);if(d<.001){e.index=(e.index+1)%e.route.length;e.hitIds.clear();if(++coincident>=e.route.length)break;continue;}coincident=0;const from={x:e.x,y:e.y},travel=Math.min(d,remaining);e.x+=(dest.x-e.x)/d*travel;e.y+=(dest.y-e.y)/d*travel;remaining-=travel;
-        for(const target of state.enemies)if((target.alive&&!target.transparent)&&!e.hitIds.has(target.id)&&segmentDistance(target,from,e)<=enemyCollisionRadius(target)+20){e.hitIds.add(target.id);damageEnemy(target,e.damage,true,{charge:.7,hit:{from,to:e,radius:20}});}
+        for(const target of state.enemies)if(targetable(target)&&!e.hitIds.has(target.id)&&enemyGap(target,from,e)<=20){e.hitIds.add(target.id);damageEnemy(target,e.damage,true,{charge:.7,hit:{from,to:e,radius:20}});}
         e.trail.push({x:e.x,y:e.y});if(e.trail.length>15)e.trail.shift();if(travel>=d){e.index=(e.index+1)%e.route.length;e.hitIds.clear();}
       }
       return true;
@@ -401,13 +418,19 @@
   }
   function updateEffects(dt) {
     if (!state.effects.length) return;
+    if(!state.enemies.some(enemy=>enemy.alive)){
+      if(state.friendshipCleanupTimer===null)state.friendshipCleanupTimer=0;
+      else state.friendshipCleanupTimer+=dt;
+    }
     const keep = [];
     const updating=state.effects;state.effects=[];
     for (const effect of updating) {
       let alive = true;
       effect.age += dt;
       withDamageOwner(effect.side==='ally'?state.units[effect.ownerId]:null,()=>{
-      if(EXPANSION_COMBOS.includes(effect.type))alive=updateExpansionFriendship(effect,dt);
+      if(effect.type==='friendshipActivation'||effect.type==='killerFx')alive=effect.age<effect.life;
+      else if(NEW_COMBOS.includes(effect.type))alive=updateNewFriendship(effect,dt);
+      else if(EXPANSION_COMBOS.includes(effect.type))alive=updateExpansionFriendship(effect,dt);
       else if (effect.type === 'wind') alive = updateWind(effect,dt);
       else if (effect.type === 'reflectBeam') alive = updateReflect(effect,dt);
       else if(['machinegun','saw','drones','relation','vibration'].includes(effect.type))alive=updateAdvanced(effect,dt);
@@ -417,16 +440,45 @@
       else if (effect.type === 'energyBall') alive = updateEnergyBall(effect,dt);
       else if (effect.type === 'meteor') alive = updateMeteor(effect, dt);
       else if (effect.type === 'spread') alive = updateSpread(effect, dt);
+      else if (effect.type === 'laserGen') alive = updateLaserGen(effect, dt);
       else if (effect.type === 'laser') alive = updateLaser(effect, dt);
       else if (effect.type === 'homing') alive = updateHoming(effect, dt);
       else if (effect.type === 'explosion') alive = updateExplosion(effect, dt);
       });
       if (state.phase === 'gameover') break;
-      if (alive) keep.push(effect);
+      if(alive)keep.push(effect);
     }
-    if (state.phase !== 'gameover') state.effects = keep.concat(state.effects);
+    if (state.phase !== 'gameover') {
+      const effects=keep.concat(state.effects);
+      state.effects=state.friendshipCleanupTimer!==null&&state.friendshipCleanupTimer>=.5
+        ?effects.filter(effect=>effect.side!=='ally')
+        :effects;
+    }
   }
 
+  // レーザージェネレーター：溜めのあと、全基が壁に垂直なレーザーを一斉に発射（3回）。
+  // 太さぶんの帯に体が触れた敵にダメージ。帯が弱点に触れれば弱点ダメージ。反射／貫通制限の軽減は受けない。
+  function updateLaserGen(e, dt) {
+    e.flash = Math.max(0, e.flash - dt * 2.2);
+    if (e.fired >= LASER_GENERATOR.volleys) return e.flash > 0;
+    e.wait -= dt;
+    if (e.wait > 0) return true;
+    e.wait += e.interval;
+    e.fired++;
+    e.flash = 1;
+    state.shake = Math.max(state.shake, 3 + e.level);
+    tone(520 - e.fired * 60, .28, 'sawtooth', .03, 0, 150);
+    for (const g of e.gens) {
+      const { from, to } = laserBeam(g);
+      for (const enemy of state.enemies) {
+        if (!targetable(enemy)) continue;
+        if (segmentDistance(enemy, from, to) < enemy.r * .9 + e.thickness / 2) {
+          damageEnemy(enemy, e.damage, true, { charge: 1.2, laserGenerator: true, hit: { from, to, radius: e.thickness / 2 } });
+        }
+      }
+    }
+    return true;
+  }
   function updateLaser(effect, dt) {
     effect.flash = Math.max(0, effect.flash - dt * 5);
     if (effect.hitsLeft <= 0) return effect.flash > 0;
@@ -440,7 +492,7 @@
     const reach = effect.width * 0.5;
     if (effect.side === 'ally') {
       state.enemies.forEach(enemy => {
-        if ((enemy.alive&&!enemy.transparent) && distanceToRay(enemy.x, enemy.y, effect.x, effect.y, effect.dx, effect.dy) < enemy.r * 0.9 + reach) {
+        if (targetable(enemy) && distanceToRay(enemy.x, enemy.y, effect.x, effect.y, effect.dx, effect.dy) < enemy.r * 0.9 + reach) {
           damageEnemy(enemy, effect.damage, true, { charge: 1.5, hit: { from: effect, to: { x: effect.ex, y: effect.ey }, radius: reach } });
         }
       });
@@ -461,7 +513,7 @@
     }
     effect.life -= dt;
     if (effect.life <= 0) return false;
-    if (effect.side === 'ally' && (!effect.target || !(effect.target.alive&&!effect.target.transparent))) {
+    if (effect.side === 'ally' && (!effect.target || (!effect.visualOnly && !targetable(effect.target)))) {
       effect.target = livingEnemiesByDistance(effect)[0];
       if (!effect.target) return false;
     }
@@ -501,7 +553,7 @@
     effect.entries.forEach(entry => {
       if (effect.tick > entry.hits) return;
       if (effect.side === 'ally') {
-        if ((entry.target.alive&&!entry.target.transparent)) damageEnemy(entry.target, effect.damage, true, { charge: 1.2, hit: { x: effect.x, y: effect.y, radius: effect.radius } });
+        if (targetable(entry.target)) damageEnemy(entry.target, effect.damage, true, { charge: 1.2, hit: { x: effect.x, y: effect.y, radius: effect.radius } });
       } else damageTeam(effect.damage, entry.target.x, entry.target.y);
     });
     return true;
@@ -527,14 +579,32 @@
     logAttack('ally', f.kind);
     if(f.kind==='copy'){if(!copied&&trigger.friendship.kind!=='copy')fireFriendship(ally,trigger.friendship,trigger,true);return;}
     if(f.kind==='speedUp'){if(!state.unitStopped&&state.phase==='moving'){const v=Math.hypot(trigger.vx,trigger.vy);if(v>.01){trigger.vx*=2;trigger.vy*=2;trigger.boostTime=Math.max(trigger.boostTime||0,.7);ring(trigger.x,trigger.y,ally.color,80,.5);}}return;}
-    const targets = livingEnemiesByDistance(ally);
-    if (!targets.length&&f.kind!=='weakPierce') return;
+    if(f.kind==='atkUp'){ // 攻撃力アップ：触れた手番キャラのパワーを1.2倍（直殴り）。そのショットの間だけ有効、重ねがけは乗算。
+      if(!state.unitStopped&&state.phase==='moving'){
+        state.atkUp=(state.atkUp||1)*ATK_UP_MULTIPLIER;
+        ring(trigger.x,trigger.y,ally.color,80,.5);burst(trigger.x,trigger.y,'#2a9a56',14,160);
+        floatingText(trigger.x,trigger.y-54,'ATK ×'+(Math.round(state.atkUp*100)/100),'#2a9a56',16);
+      }
+      return;
+    }
+    if(f.kind==='bubblyGift'){ // バブリーギフト：手番キャラをバブリー状態にする（そのターンのみ）
+      if(!state.unitStopped&&state.phase==='moving'){
+        trigger.bubblyGift=true;ring(trigger.x,trigger.y,'#7fd8ff',80,.5);burst(trigger.x,trigger.y,'#8ddcf5',14,160);
+        floatingText(trigger.x,trigger.y-54,'BUBBLY','#3aa7d8',16);
+      }
+      return;
+    }
+    const targets = friendshipVisualTargets(ally);
+    if (!targets.length&&f.kind!=='weakPierce') {
+      showFriendshipActivation(ally.x,ally.y,ally.color,kind.label);
+      return;
+    }
     const damage = f.power * (ally.atk / 1000) * (state.skillShot ? 1.7 : 1) * (ally.battleStyle === 'artillery' ? 2 : 1);
     const mover=trigger;
     const direction=Math.hypot(mover.vx,mover.vy)>.01?{vx:mover.vx,vy:mover.vy}:state.shotDirection||{vx:0,vy:-1};
     const carrier=mover;
     const aimed={...mover,...direction};
-    if(spawnExpansionFriendship(ally,f,carrier,damage))return;
+    if(spawnExpansionFriendship(ally,f,carrier,damage)||spawnNewFriendship(ally,f,carrier,damage))return;
     if(f.kind==='machinegun'||f.kind==='saw')queueEffect({type:f.kind,side:'ally',x:ally.x,y:ally.y,count:f.count,emitted:0,wait:0,bullets:[],damage,color:ally.color,age:0});
     else if(f.kind==='drones'){
       const e={type:'drones',side:'ally',x:ally.x,y:ally.y,damage,color:ally.color,count:f.count,shotInterval:DRONE_BARRAGE_DURATION/(f.count*2-1),drones:Array.from({length:f.count},()=>({x:ally.x,y:ally.y,from:{x:ally.x,y:ally.y},shots:0,trail:[]})),stage:0,visited:new Set(),phase:'travel',travel:0,fired:0,wait:0,age:0};chooseDroneTarget(e);queueEffect(e);
@@ -564,7 +634,7 @@
 
   // 敵の攻撃
   function enemyAttack(enemy, attack) {
-    if (!(enemy.alive&&!enemy.transparent) || state.phase !== 'enemy') return;
+    if (!enemy.alive || state.phase !== 'enemy') return; // 透明な敵・剣持ち敵も攻撃する
     attack.remaining = attack.interval;
     const spec = { ...ENEMY_ATTACKS[attack.kind], ...attack };
     const base = enemy.boss ? 1150 : 370 + state.wave * 70;

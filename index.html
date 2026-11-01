@@ -14,6 +14,7 @@
   <script src="js/enemy-gimmicks.js" defer></script>
   <script src="js/battle.js" defer></script>
   <script src="js/attacks.js" defer></script>
+  <script src="js/friendship-ext.js" defer></script>
   <script src="js/controls.js" defer></script>
   <script src="js/simulation.js" defer></script>
   <script src="js/rendering.js" defer></script>
@@ -115,9 +116,25 @@
             <button class="outline-button wide-button" id="stage-formation" type="button">編成を変更</button>
           </section>
           <button class="primary-button" id="stage-start" type="button">出撃 <span>↗</span></button>
+          <button class="outline-button wide-button" id="stage-settings-open" type="button">ステージ設定</button>
         </aside>
       </div>
     </section>
+    <dialog class="stage-settings-dialog" id="stage-settings-dialog" aria-labelledby="stage-settings-title">
+      <div class="stage-settings-card">
+        <div class="section-label"><h2 id="stage-settings-title">ステージ設定</h2><button class="stage-settings-close" id="stage-settings-close" type="button" aria-label="設定を閉じる">×</button></div>
+        <p class="stage-settings-section">全ステージ共通</p>
+        <label class="stage-setting-option"><span><strong>無敵</strong><small>被ダメージなし。スコアは獲得できません。</small></span><input id="stage-setting-invincible" type="checkbox"></label>
+        <label class="stage-setting-option"><span><strong>編成キャラのパワー＋3000</strong><small>攻撃力を上げます。このステージではスコアを獲得できません。</small></span><input id="stage-setting-power" type="checkbox"></label>
+        <label class="stage-setting-option"><span><strong>レーザージェネレーター</strong><small>既定倍率を使用。指定ステージでは設定無効。有効時はスコア対象外。</small></span><input id="stage-setting-laser-generator" type="checkbox"></label>
+        <label class="stage-setting-option"><span><strong>キューブ状態</strong><small>キューブ状態が指定されたステージでは設定無効。</small></span><input id="stage-setting-cube" type="checkbox"></label>
+        <label class="stage-setting-option"><span><strong>ハートフルーツ無効</strong><small>ハートフルーツが出現しなくなります。</small></span><input id="stage-setting-heart-fruit" type="checkbox"></label>
+        <p class="stage-settings-section">選択中のステージのみ</p>
+        <p class="stage-settings-current" id="stage-settings-current"></p>
+        <button class="outline-button wide-button" id="stage-score-reset" type="button">このステージのスコアをリセット</button>
+        <p class="stage-settings-status" id="stage-settings-status" aria-live="polite"></p>
+      </div>
+    </dialog>
 
     <!-- 4. BATTLE -->
     <div class="screen battle-screen" id="screen-battle" data-screen="battle" hidden>

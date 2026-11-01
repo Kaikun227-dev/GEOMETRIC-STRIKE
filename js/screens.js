@@ -210,6 +210,13 @@
 
     $('stage-team').innerHTML = team.map(id => { const c = CHAR_BY_ID[id]; return `<span class="stage-team-member" style="${colorVars(c.color)}" title="${c.name}"><span class="roster-avatar">${shapeHTML(c)}</span><span>${c.name}</span></span>`; }).join('');
     setText('stage-team-hp', `HP ${fmt(teamHp(team))}`);
+    const settings = getStageSettings();
+    $('stage-setting-invincible').checked = settings.invincible;
+    $('stage-setting-power').checked = settings.powerBonus;
+    $('stage-setting-laser-generator').checked = settings.laserGenerator;
+    $('stage-setting-cube').checked = settings.cube;
+    $('stage-setting-heart-fruit').checked = settings.heartFruitDisabled;
+    setText('stage-settings-current', `${stage.id}：${stage.name}`);
   }
 
   $('chapter-tabs').addEventListener('click',event=>{const tab=event.target.closest('[data-chapter]');if(tab)selectChapter(tab.dataset.chapter,true);});
@@ -223,6 +230,42 @@
     });
   }
   if ($('stage-start')) $('stage-start').addEventListener('click', () => { unlockAudio(); startBattle(selectedStageId); });
+  if ($('stage-settings-open')) $('stage-settings-open').addEventListener('click', () => {
+    setText('stage-settings-status', '');
+    $('stage-settings-dialog').showModal();
+  });
+  if ($('stage-settings-close')) $('stage-settings-close').addEventListener('click', () => $('stage-settings-dialog').close());
+  if ($('stage-setting-invincible')) $('stage-setting-invincible').addEventListener('change', event => {
+    const saved = setStageSetting('invincible', event.target.checked);
+    if (!saved) event.target.checked = getStageSettings().invincible;
+    setText('stage-settings-status', saved ? '' : '設定を保存できませんでした。ブラウザーの保存領域を確認してください。');
+  });
+  if ($('stage-setting-power')) $('stage-setting-power').addEventListener('change', event => {
+    const saved = setStageSetting('powerBonus', event.target.checked);
+    if (!saved) event.target.checked = getStageSettings().powerBonus;
+    setText('stage-settings-status', saved ? '' : '設定を保存できませんでした。ブラウザーの保存領域を確認してください。');
+  });
+  for (const [id, key] of [
+    ['stage-setting-laser-generator', 'laserGenerator'],
+    ['stage-setting-cube', 'cube'],
+    ['stage-setting-heart-fruit', 'heartFruitDisabled'],
+  ]) {
+    const checkbox = $(id);
+    if (checkbox) checkbox.addEventListener('change', event => {
+      const saved = setStageSetting(key, event.target.checked);
+      if (!saved) event.target.checked = getStageSettings()[key];
+      setText('stage-settings-status', saved ? '' : '設定を保存できませんでした。ブラウザーの保存領域を確認してください。');
+    });
+  }
+  if ($('stage-score-reset')) $('stage-score-reset').addEventListener('click', () => {
+    const stage = STAGE_BY_ID[selectedStageId];
+    if (resetBestScore(stage.id)) {
+      renderStageSelect();
+      setText('stage-settings-status', `${stage.id}のベストスコアをリセットしました。`);
+    } else {
+      setText('stage-settings-status', 'スコアをリセットできませんでした。ブラウザーの保存領域を確認してください。');
+    }
+  });
   if ($('stage-formation')) $('stage-formation').addEventListener('click', () => { formationReturn = 'stage'; showScreen('formation'); });
   if ($('stage-back')) $('stage-back').addEventListener('click', () => showScreen('title'));
   if ($('title-start')) $('title-start').addEventListener('click', () => { unlockAudio(); showScreen('stage'); });

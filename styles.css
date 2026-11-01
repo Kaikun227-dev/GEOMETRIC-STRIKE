@@ -120,6 +120,20 @@ body:not([data-screen="battle"]) .page-footer{padding-top:34px}
 .stage-side{display:flex;flex-direction:column;gap:16px}
 .stage-side .panel-block+.panel-block{margin-top:0}
 .stage-side .primary-button{margin-top:0}
+.stage-side>#stage-settings-open{margin-top:-8px}
+.stage-settings-dialog{width:min(440px,calc(100vw - 32px));padding:0;border:1px solid #e0e5ec;border-radius:12px;background:#fff;color:var(--ink);box-shadow:0 20px 70px #1c2a3c30}
+.stage-settings-dialog::backdrop{background:#202b3d66;backdrop-filter:blur(2px)}
+.stage-settings-card{padding:24px}
+.stage-settings-card .section-label{font-size:12px}
+.stage-settings-close{width:30px;height:30px;border-radius:7px;background:#f3f5f8;color:#738095;font-size:22px;line-height:1}
+.stage-settings-section{margin:22px 0 8px;color:#8d95a4;font-size:10px;font-weight:700;letter-spacing:.7px}
+.stage-setting-option{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.stage-setting-option>span{display:flex;flex-direction:column;gap:4px}
+.stage-setting-option strong{font-size:12px}
+.stage-setting-option small{font-size:10px;line-height:1.6;color:#818b9b}
+.stage-setting-option input{width:19px;height:19px;accent-color:var(--cyan);flex:0 0 auto}
+.stage-settings-current{margin-bottom:10px;font-size:12px;font-weight:700}
+.stage-settings-status{min-height:18px;margin-top:10px;color:#477b69;font-size:11px;line-height:1.6}
 .stage-detail-name{font-size:18px;font-weight:800;letter-spacing:.8px;margin-bottom:14px}
 .stage-waves{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .stage-waves li{display:flex;align-items:center;gap:12px;font-size:12px;color:#5f6b7c;padding:9px 12px;background:#f7f9fb;border-radius:7px}
@@ -205,4 +219,42 @@ body:not([data-screen="battle"]) .page-footer{padding-top:34px}
 .shape-ridge{clip-path:polygon(0.0% 100.0%,22.5% 45.0%,35.0% 62.5%,55.0% 0.0%,75.0% 40.0%,85.0% 55.0%,100.0% 100.0%)}
 .shape-heptagon,.shape-drop,.shape-octastar,.shape-ridge{background:var(--c);border:0;transform:none;border-radius:0}
 
-.stage-gimmicks .gimmick-red{color:#d23f3f;font-weight:700}.stage-gimmicks .gimmick-blue{color:#2f6fd1;font-weight:700}.stage-gimmicks .gimmick-gray{color:inherit}.stage-gimmicks .gimmick-sep{color:#9aa6b4}
+.stage-gimmicks .gimmick-red{color:#d23f3f;font-weight:700}.stage-gimmicks .gimmick-blue{color:#2f6fd1;font-weight:700}.stage-gimmicks .gimmick-green{color:#2a9a56;font-weight:700}.stage-gimmicks .gimmick-gray{color:inherit}.stage-gimmicks .gimmick-sep{color:#9aa6b4}
+
+.shape-xstar{clip-path:polygon(85.3% 14.7%,71.0% 50.0%,85.3% 85.3%,50.0% 71.0%,14.7% 85.3%,29.0% 50.0%,14.7% 14.7%,50.0% 29.0%)}
+.shape-newmoon{clip-path:polygon(14.4% 4.7%,26.3% 0.9%,38.8% 0.1%,51.0% 2.5%,62.3% 7.9%,72.0% 15.8%,79.3% 25.9%,84.0% 37.6%,85.5% 50.0%,84.0% 62.4%,79.3% 74.0%,72.0% 84.2%,62.3% 92.2%,51.0% 97.5%,38.8% 99.9%,26.3% 99.2%,14.4% 95.3%,22.4% 93.5%,29.9% 90.1%,36.7% 85.7%,42.6% 80.0%,47.3% 73.4%,50.9% 66.0%,53.0% 58.1%,53.8% 50.0%,53.0% 41.9%,50.9% 34.0%,47.3% 26.6%,42.6% 20.1%,36.7% 14.4%,29.9% 9.8%,22.4% 6.6%)}
+.shape-cog{clip-path:polygon(50.0% 0.0%,62.1% 12.9%,79.4% 9.5%,81.5% 27.1%,97.5% 34.6%,89.0% 50.0%,97.5% 65.5%,81.5% 72.9%,79.4% 90.5%,62.1% 87.1%,50.0% 100.0%,38.0% 87.1%,20.6% 90.5%,18.4% 72.9%,2.5% 65.5%,11.0% 50.0%,2.5% 34.6%,18.4% 27.1%,20.6% 9.5%,38.0% 12.9%)}
+.shape-tiara{clip-path:polygon(0.0% 5.0%,22.5% 50.0%,50.0% 0.0%,77.5% 50.0%,100.0% 5.0%,89.0% 95.0%,11.0% 95.0%)}
+.shape-xstar,.shape-newmoon,.shape-cog,.shape-tiara{background:var(--c);border:0;transform:none;border-radius:0}
+
+.shape-pulsar{clip-path:polygon(50% 0,59% 41%,100% 50%,59% 59%,50% 100%,41% 59%,0 50%,41% 41%)}
+.shape-rhomboid{clip-path:polygon(22.5% 10%,100% 10%,77.5% 90%,0 90%)}
+.shape-trident{clip-path:polygon(0 15%,19% 15%,19% 47.5%,40% 47.5%,40% 0,60% 0,60% 47.5%,81% 47.5%,81% 15%,100% 15%,100% 57.5%,62.5% 65%,62.5% 100%,37.5% 100%,37.5% 65%,0 57.5%)}
+.shape-cascade{clip-path:polygon(0 0,32.5% 0,32.5% 25%,60% 25%,60% 50%,87.5% 50%,87.5% 75%,100% 75%,100% 100%,0 100%)}
+.shape-pulsar,.shape-rhomboid,.shape-trident,.shape-cascade{background:var(--c);border:0;transform:none;border-radius:0}
+
+/* 新キャラ4体（フィッション・ボライド・アセント・ドッペル） */
+.shape-fission{clip-path:polygon(37.5% 100.0%,37.5% 55.0%,0.0% 22.5%,15.0% 0.0%,50.0% 32.5%,85.0% 0.0%,100.0% 22.5%,62.5% 55.0%,62.5% 100.0%)}
+.shape-bolide{clip-path:polygon(0.0% 0.0%,55.0% 12.5%,92.5% 27.5%,100.0% 62.5%,77.5% 92.5%,45.0% 100.0%,20.0% 77.5%,40.0% 57.5%,22.5% 40.0%)}
+.shape-upchevron{clip-path:polygon(50.0% 0.0%,100.0% 55.0%,100.0% 77.5%,50.0% 27.5%,0.0% 77.5%,0.0% 55.0%)}
+.shape-doppel{clip-path:polygon(0.0% 0.0%,70.0% 0.0%,70.0% 30.0%,100.0% 30.0%,100.0% 100.0%,30.0% 100.0%,30.0% 70.0%,0.0% 70.0%)}
+.shape-fission,.shape-bolide,.shape-upchevron,.shape-doppel{background:var(--c);border:0;transform:none;border-radius:0}
+
+/* 新キャラ4体（スペクトラ・キャロム・ヴァンガード・セラフ） */
+.shape-spectra{clip-path:polygon(50.0% 0.0%,58.0% 20.1%,75.0% 6.7%,71.9% 28.1%,93.3% 25.0%,80.0% 42.0%,100.0% 50.0%,80.0% 58.0%,93.3% 75.0%,71.9% 71.9%,75.0% 93.3%,58.0% 80.0%,50.0% 100.0%,42.0% 80.0%,25.0% 93.3%,28.1% 71.9%,6.7% 75.0%,20.1% 58.0%,0.0% 50.0%,20.1% 42.0%,6.7% 25.0%,28.1% 28.1%,25.0% 6.7%,42.0% 20.1%)}
+.shape-carom{clip-path:polygon(0.0% 0.0%,100.0% 0.0%,100.0% 30.0%,37.5% 70.0%,100.0% 70.0%,100.0% 100.0%,0.0% 100.0%,0.0% 70.0%,62.5% 30.0%,0.0% 30.0%)}
+.shape-vanguard{clip-path:polygon(0.0% 100.0%,0.0% 40.0%,25.0% 40.0%,25.0% 20.0%,40.0% 20.0%,40.0% 0.0%,60.0% 0.0%,60.0% 20.0%,75.0% 20.0%,75.0% 40.0%,100.0% 40.0%,100.0% 100.0%)}
+.shape-seraph{clip-path:polygon(50.0% 0.0%,62.5% 27.5%,100.0% 12.5%,87.5% 55.0%,65.0% 55.0%,65.0% 100.0%,35.0% 100.0%,35.0% 55.0%,12.5% 55.0%,0.0% 12.5%,37.5% 27.5%)}
+.shape-spectra,.shape-carom,.shape-vanguard,.shape-seraph{background:var(--c);border:0;transform:none;border-radius:0}
+
+/* 新キャラ2体（レイザー・ファントム） */
+.shape-razor{clip-path:polygon(0.0% 100.0%,0.0% 40.0%,25.0% 5.0%,25.0% 40.0%,50.0% 5.0%,50.0% 40.0%,75.0% 5.0%,75.0% 40.0%,100.0% 5.0%,100.0% 100.0%)}
+.shape-phantom{clip-path:polygon(50.0% 0.0%,85.0% 15.0%,100.0% 50.0%,92.5% 100.0%,77.5% 77.5%,64.0% 100.0%,50.0% 77.5%,36.0% 100.0%,22.5% 77.5%,7.5% 100.0%,0.0% 50.0%,15.0% 15.0%)}
+.shape-razor,.shape-phantom{background:var(--c);border:0;transform:none;border-radius:0}
+
+/* 新キャラ4体（トレッド・フィズ・チェイサー・ブロッサム） */
+.shape-tread{clip-path:polygon(50.0% 0.0%,64.9% 14.0%,85.3% 14.7%,86.1% 35.1%,100.0% 50.0%,86.1% 64.9%,85.3% 85.3%,64.9% 86.1%,50.0% 100.0%,35.1% 86.1%,14.7% 85.3%,14.0% 64.9%,0.0% 50.0%,14.0% 35.1%,14.7% 14.7%,35.1% 14.0%)}
+.shape-fizz{clip-path:polygon(100.0% 50.0%,97.9% 58.5%,92.3% 65.4%,84.7% 70.0%,76.8% 72.5%,70.2% 74.0%,65.0% 76.0%,60.7% 79.5%,56.1% 84.5%,50.0% 90.0%,42.2% 94.3%,33.4% 95.8%,25.0% 93.3%,18.7% 87.3%,15.6% 79.0%,15.4% 70.0%,17.1% 61.9%,19.1% 55.5%,20.0% 50.0%,19.1% 44.5%,17.1% 38.0%,15.4% 30.0%,15.6% 21.1%,18.7% 12.7%,25.0% 6.7%,33.4% 4.2%,42.2% 5.7%,50.0% 10.0%,56.1% 15.6%,60.7% 20.6%,65.0% 24.0%,70.2% 26.0%,76.8% 27.5%,84.7% 30.0%,92.3% 34.6%,97.9% 41.5%)}
+.shape-chaser{clip-path:polygon(50.0% 0.0%,95.0% 95.0%,50.0% 72.5%,5.0% 95.0%)}
+.shape-blossom{clip-path:polygon(50.0% 5.0%,54.8% 4.3%,59.2% 7.0%,62.3% 12.1%,64.3% 17.8%,65.1% 23.8%,64.7% 29.8%,70.2% 27.5%,76.2% 26.4%,82.2% 26.6%,88.1% 28.0%,92.0% 31.4%,92.8% 36.1%,94.9% 40.4%,93.8% 45.4%,89.9% 50.0%,85.0% 53.7%,79.6% 56.3%,73.8% 57.8%,77.6% 62.3%,80.5% 67.6%,82.2% 73.4%,82.7% 79.5%,80.7% 84.1%,76.4% 86.4%,73.0% 89.8%,67.9% 90.2%,62.3% 87.9%,57.4% 84.5%,53.1% 80.1%,50.0% 75.0%,46.9% 80.1%,42.6% 84.5%,37.7% 87.9%,32.1% 90.2%,27.0% 89.8%,23.5% 86.4%,19.3% 84.1%,17.3% 79.5%,17.8% 73.4%,19.5% 67.6%,22.3% 62.3%,26.2% 57.8%,20.4% 56.3%,15.0% 53.7%,10.1% 50.0%,6.2% 45.4%,5.1% 40.4%,7.2% 36.1%,8.1% 31.4%,11.9% 28.0%,17.8% 26.6%,23.8% 26.4%,29.8% 27.5%,35.3% 29.8%,34.9% 23.8%,35.7% 17.8%,37.7% 12.1%,40.8% 7.0%,45.2% 4.3%)}
+.shape-tread,.shape-fizz,.shape-chaser,.shape-blossom{background:var(--c);border:0;transform:none;border-radius:0}

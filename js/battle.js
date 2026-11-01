@@ -7,6 +7,71 @@
   const TEAM_KEY = 'geometric-strike-team-v1';
   const LEGACY_BEST_KEY = 'geometric-strike-best-v1';
   const bestKey = id => `geometric-strike-best-v2-${id}`;
+  const CHAPTER_EIGHT_BEST_RESET_KEY = 'geometric-strike-migration-reset-best-8-1-8-2-v1';
+  const STAGE_SETTINGS_KEY = 'geometric-strike-stage-settings-v1';
+
+  function loadStageSettings() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STAGE_SETTINGS_KEY));
+      return {
+        invincible: saved?.invincible === true,
+        powerBonus: saved?.powerBonus === true,
+        laserGenerator: saved?.laserGenerator === true,
+        cube: saved?.cube === true,
+        heartFruitDisabled: saved?.heartFruitDisabled === true,
+      };
+    } catch (error) {
+      console.error('ステージ設定を読み込めませんでした。', error);
+      return { invincible: false, powerBonus: false, laserGenerator: false, cube: false, heartFruitDisabled: false };
+    }
+  }
+  const stageSettings = loadStageSettings();
+  function getStageSettings() { return { ...stageSettings }; }
+  function setStageSetting(key, enabled) {
+    if (!['invincible', 'powerBonus', 'laserGenerator', 'cube', 'heartFruitDisabled'].includes(key) || typeof enabled !== 'boolean') return false;
+    const previous = stageSettings[key];
+    stageSettings[key] = enabled;
+    try {
+      localStorage.setItem(STAGE_SETTINGS_KEY, JSON.stringify(stageSettings));
+      return true;
+    } catch (error) {
+      stageSettings[key] = previous;
+      console.error('ステージ設定を保存できませんでした。', error);
+      return false;
+    }
+  }
+  function stageHasLaserGenerator() {
+    const stage = state?.stage || currentStage;
+    const waves = state?.waves || stage.waves;
+    return !!(stage.laserMultipliers || waves.some(wave => wave.laserMultipliers));
+  }
+  function commonLaserGeneratorActive() { return stageSettings.laserGenerator && !stageHasLaserGenerator(); }
+  function scoreDisabled() { return stageSettings.invincible || stageSettings.powerBonus || commonLaserGeneratorActive(); }
+  function heartFruitDisabled() { return stageSettings.heartFruitDisabled; }
+
+  function resetChapterEightIntroBestOnce() {
+    try {
+      if (localStorage.getItem(CHAPTER_EIGHT_BEST_RESET_KEY) === 'done') return;
+      localStorage.removeItem(bestKey('8-1'));
+      localStorage.removeItem(bestKey('8-2'));
+      localStorage.setItem(CHAPTER_EIGHT_BEST_RESET_KEY, 'done');
+    } catch (error) {
+      console.error('8-1/8-2のベストスコアをリセットできませんでした。', error);
+    }
+  }
+  resetChapterEightIntroBestOnce();
+
+  function resetBestScore(stageId) {
+    try {
+      localStorage.removeItem(bestKey(stageId));
+      if (stageId === STAGES[0].id) localStorage.removeItem(LEGACY_BEST_KEY);
+      if (currentStage.id === stageId) best = 0;
+      return true;
+    } catch (error) {
+      console.error(`${stageId}のベストスコアをリセットできませんでした。`, error);
+      return false;
+    }
+  }
 
   function loadBest(stageId) {
     try {
@@ -54,7 +119,7 @@
     const positions = FORMATION_POSITIONS[team.length] || FORMATION_POSITIONS[MAX_TEAM];
     return team.map((charId, i) => {
       const c = CHAR_BY_ID[charId];
-      return { ...c, id: i, charId, x: positions[i][0], y: positions[i][1], r: UNIT_RADIUS, vx: 0, vy: 0, photons: 0 };
+      return { ...c, atk: c.atk + (stageSettings.powerBonus ? 3000 : 0), id: i, charId, x: positions[i][0], y: positions[i][1], r: UNIT_RADIUS, vx: 0, vy: 0, photons: 0 };
     });
   }
 
@@ -69,14 +134,14 @@
     const maxHp = units.reduce((sum, unit) => sum + unit.hp, 0);
     best = loadBest(currentStage.id);
     state = {
-      phase: 'ready', paused: false, stage: currentStage, waves: currentStage.waves, wave: 0, turn: 1,
+      phase: 'ready', paused: false, stage: currentStage, waves: currentStage.waves, wave: 0, turn: 1, waveTurn: 1,
       hp: maxHp, maxHp, score: 0,
       activeUnit: 0, units, enemies: makeEnemies(currentStage, 0),
       clock: 0, shotCount: 0, combo: 0, maxCombo: 0, skillCharge: 35, skillArmed: false,
       skillShot: false, aiming: null, keyboardAngle: -Math.PI / 2, keyboardPower: 0.8,
       keyboardAimUntil: 0, phaseTimer: 0, attackQueue: [], friendship: new Set(),
       particles: [], rings: [], floats: [], beams: [], trail: [], effects: [], attackLog: [], shake: 0,
-      unitStopped: false, moveTime: 0,
+      unitStopped: false, moveTime: 0, friendshipCleanupTimer: null,
       notice: { title: 'WAVE 01', sub: currentStage.waves[0].name, remaining: 2.1, max: 2.1 },
       comboTime: 0, intro: true, skillFlash: 0,
     };
@@ -189,6 +254,7 @@
   }
 
   function rememberBest() {
+    if (scoreDisabled()) return;
     if (state.score > best) {
       best = state.score;
       try { localStorage.setItem(bestKey(state.stage.id), String(best)); } catch (_) {}
@@ -287,6 +353,9 @@
     state.effects.push(effect);
     return effect;
   }
+  function showFriendshipActivation(x,y,color,label) {
+    queueEffect({type:'friendshipActivation',side:'ally',x,y,color,label,age:0,life:.55});
+  }
   function powerAreaValue(area){const wave=state.waves[state.wave];return area.multiplier??wave.powerAreaMultiplier??state.stage.powerAreaMultiplier??4;}
   function powerAreaMultiplier(unit){if(!unit)return 1;const a=(state.waves[state.wave].gimmicks?.powerAreas||[]).find(a=>unit.x>=a.x&&unit.x<=a.x+a.w&&unit.y>=a.y&&unit.y<=a.y+a.h);return a?powerAreaValue(a):1;}
   // 触れた味方の数に応じて手番キャラの攻撃力アップ：0人=1倍、1人=4倍、2人=8倍、3人以上=30倍
@@ -298,17 +367,37 @@
     if(!unit)return false;
     return (state.waves[state.wave].gimmicks?.powerAreas||[]).some(a=>unit.x>=a.x&&unit.x<=a.x+a.w&&unit.y>=a.y&&unit.y<=a.y+a.h);
   }
+  // キラー系アビリティ：重力バリアを持つ敵／そのショットで最初に触れた敵へのダメージ倍率（直殴り・友情コンボの両方に乗る）。
+  function killerMultiplier(owner,enemy){
+    let mult=1,kind=null;
+    for(const id of owner?.abilities||[]){
+      const t=KILLER_TIERS[id];if(!t)continue;
+      if(t.kind==='all'){mult*=t.mult;kind='all';}
+      else if(t.kind==='gravity'&&enemy.gravity){mult*=t.mult;if(kind!=='all')kind='gravity';}
+      else if(t.kind==='first'&&state.firstTouchId!=null&&state.firstTouchId===enemy.id){mult*=t.mult;if(kind!=='all')kind='first';}
+    }
+    return {mult,kind};
+  }
+  function killerEffect(enemy,k,friendship){
+    const color=k.kind==='gravity'?'#6a5fd6':k.kind==='all'?ALL_KILLER_COLORS[1]:'#e8553a';
+    if(friendship){if((enemy.killerFxAt||-9)>state.clock-.25)return;enemy.killerFxAt=state.clock;if(k.kind==='all')for(const c of ALL_KILLER_COLORS)burst(enemy.x,enemy.y,c,3,150);else burst(enemy.x,enemy.y,color,8,150);return;}
+    floatingText(enemy.x,enemy.y-enemy.r-58,(k.kind==='gravity'?'GRAVITY KILLER':k.kind==='all'?'ALL KILLER':'FIRST KILLER')+' ×'+(Math.round(k.mult*100)/100),color,15);
+    ring(enemy.x,enemy.y,color,enemy.r+46,.4);if(k.kind==='all'){ALL_KILLER_COLORS.forEach((c,i)=>{ring(enemy.x,enemy.y,c,enemy.r+30+i*14,.35+i*.06);burst(enemy.x,enemy.y,c,6,230);});}else burst(enemy.x,enemy.y,color,16,230);state.shake=Math.max(state.shake,5);
+    queueEffect({type:'killerFx',side:'ally',x:enemy.x,y:enemy.y,r:enemy.r,kind:k.kind,color,age:0,life:.5});
+  }
   function damageEnemy(enemy, amount, friendship = false, options = {}) {
-    if (!enemy.alive||enemy.transparent) return;
+    if (!enemy.alive||enemy.transparent||enemy.sword) return; // 剣持ち敵はダメージを受けない（他の敵が全滅すると撤退）
     const owner=options.owner||state.damageOwner||(!friendship?state.units[state.activeUnit]:null);
     const weak=hitsWeak(enemy,options.hit)&&(!enemy.weakPoint?.internal||friendship||owner&&isPiercing(owner));
     const multiplier=enemyWeakMultiplier(enemy);
-    const damage=Math.round(amount*powerAreaMultiplier(owner)*touchPowerMultiplier(owner)*(friendship?powerSwitchMultiplier():1)*(weak?(options.weakBonusOnly?multiplier-1:multiplier):1)*(enemy.defenseMultiplier||1)*(enemy.switchArmor&&!state.powerSwitchActive?enemy.switchArmor:1)*enemyRestrictionMultiplier(enemy,owner,friendship)*(friendship?1:enemy.armor??1));
+    const killer=killerMultiplier(owner,enemy);
+    const damage=Math.round(amount*killer.mult*powerAreaMultiplier(owner)*touchPowerMultiplier(owner)*(state.swordBoost||1)*(friendship?powerSwitchMultiplier():1)*(weak?(options.weakBonusOnly?multiplier-1:multiplier):1)*(enemy.defenseMultiplier||1)*(enemy.switchArmor&&!state.powerSwitchActive?enemy.switchArmor:1)*(options.laserGenerator?1:enemyRestrictionMultiplier(enemy,owner,friendship))*(friendship?1:enemy.armor??1));
     if (weak) { floatingText(enemy.x, enemy.y - enemy.r - 38, 'WEAK ×'+multiplier, '#c79816', 15); ring(weakPosition(enemy).x, weakPosition(enemy).y, '#e1b327', 36, .3); }
+    if(killer.mult>1)killerEffect(enemy,killer,friendship);
     const actualDamage = Math.min(enemy.hp, damage);
     enemy.hp = Math.max(0, enemy.hp - damage);
     enemy.flash = 0.15;
-    state.score += actualDamage;
+    if (!scoreDisabled()) state.score += actualDamage;
     state.combo++;
     state.maxCombo = Math.max(state.maxCombo, state.combo);
     state.comboTime = 1.7;
@@ -319,7 +408,7 @@
     if (enemy.hp <= 0) {
       enemy.alive = false;
       if(enemy.boss&&state.waves[state.wave].bossPhase===1){state.retreatGhost={x:enemy.x,y:enemy.y,r:enemy.r,sides:enemy.sides,tint:enemy.tint,age:0};floatingText(enemy.x,enemy.y-enemy.r-58,'ボスが撤退！','#618a95',18);}
-      state.score += enemy.boss ? 5000 : 1000;
+      if (!scoreDisabled()) state.score += enemy.boss ? 5000 : 1000;
       chargeSkill(enemy.boss ? 15 : 7);
       burst(enemy.x, enemy.y, '#ef8277', enemy.boss ? 42 : 22, enemy.boss ? 260 : 170);
       ring(enemy.x, enemy.y, '#ed9b91', enemy.boss ? 140 : 75, 0.65);
@@ -327,18 +416,28 @@
       tone(150, 0.22, 'triangle', 0.04, 0, 45);
       rememberBest();
       resolveEnemyDefeat(enemy);
+      if(enemy.boss&&state.waves[state.wave].bossPhase){
+        for(const minion of state.enemies){
+          if(!minion.alive||minion.boss||minion.midBoss)continue;
+          minion.alive=false;minion.hp=0;
+          if(!scoreDisabled())state.score+=1000;
+          chargeSkill(7);
+        }
+      }
     }
     if(enemy.alive&&damage>0&&enemy.counterEffects?.length&&!enemy.counterResolving&&enemy.counterUsedTurn!==state.turn){
       enemy.counterUsedTurn=state.turn;enemy.counterResolving=true;floatingText(enemy.x,enemy.y-enemy.r-55,'COUNTER','#598cc4',14);
       try{for(const effect of enemy.counterEffects)applyEnemyEffect(effect,enemy);}finally{enemy.counterResolving=false;}
     }
     resolveRetreats();
+    if(!state.enemies.some(e=>e.alive))state.friendshipCleanupTimer=0;
     if((weak&&!friendship)||(!enemy.alive&&enemy.weakPoint?.routeId))advanceWeakPoint(enemy);
   }
 
   // Enemy attacks always damage the shared team HP.
   function damageTeam(amount, x, y, target = state.units.find(u => Math.hypot(u.x-x,u.y-y) < 1)) {
     if (['gameover', 'victory'].includes(state.phase)) return;
+    if (stageSettings.invincible) return;
     const damage = Math.max(1, Math.round(amount * (target?.battleStyle === 'balance' ? .8 : 1)));
     state.hp = Math.max(0, state.hp - damage);
     ring(x, y, '#eaa294', 65, 0.5);
