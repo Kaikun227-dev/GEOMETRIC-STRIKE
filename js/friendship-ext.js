@@ -2,7 +2,7 @@
 // 新友情コンボ：クロスバウンドボム / アブソリュートクロスレイ / カウンターリング / ショットガン。
 // 発射は spawnNewFriendship（attacks.js の emitFriendship から呼ぶ）、更新は updateNewFriendship、描画は drawNewFriendship。
 // attacks.js の後、controls.js の前に読み込む。
-const NEW_COMBOS=['crossBomb','absoluteCross','counterRing','shotgun','shockSplit','wayLaser','pierceHoming','shinePillar','wheel','sakuraBurst','cornerMissile'];
+const NEW_COMBOS=['sakuraNova','sonicCannon','crossBomb','absoluteCross','counterRing','shotgun','shockSplit','wayLaser','pierceHoming','shinePillar','wheel','sakuraBurst','cornerMissile'];
 const CROSS_BOMB_STEP=150,CROSS_BOMB_HOP=.34;
 // アブソリュートクロスレイ：出だしはゆっくり、その後に急加速（速度 = 初速 + 加速度×経過時間²、上限 speed）。
 const ABSOLUTE_RAY_START_SPEED=200,ABSOLUTE_RAY_ACCEL=16000;
@@ -50,7 +50,11 @@ function pointOnBeam(b,s){
 function spawnNewFriendship(ally,f,carrier,damage){
   if(!NEW_COMBOS.includes(f.kind))return false;
   const base={side:'ally',x:ally.x,y:ally.y,damage,color:ally.color,age:0};
-  if(f.kind==='crossBomb'){
+  if(f.kind==='sakuraNova'){
+    queueEffect({...base,type:'sakuraNova',bursts:[],emitted:0,wait:0,phase:'nova'});
+  }else if(f.kind==='sonicCannon'){
+    queueEffect({...base,type:'sonicCannon',charge:0,ticks:0,wait:0,phase:'charge',angle:0,width:40,range:260});
+  }else if(f.kind==='crossBomb'){
     const m=Math.SQRT1_2,bombs=[[1,1],[1,-1],[-1,1],[-1,-1]].map(([sx,sy])=>({dx:sx*m,dy:sy*m,hop:0,t:0,from:{x:ally.x,y:ally.y},to:{x:ally.x+sx*m*CROSS_BOMB_STEP,y:ally.y+sy*m*CROSS_BOMB_STEP}}));
     queueEffect({...base,type:'crossBomb',bombs,bounces:Math.max(1,f.count??3),radius:f.radius??105,maxHits:f.maxHits??2});
   }else if(f.kind==='absoluteCross'){
@@ -127,6 +131,15 @@ const wheelSpeed=a=>WHEEL_SPEED_MULT*(390+710)*((a.speed*dashMultiplier(a))/100)
 
 function updateNewFriendship(e,dt){
   const pool=livingTargets();
+  if(e.type==='sonicCannon')return updateSonicCannon(e,dt);
+  if(e.type==='sakuraNova'){
+    e.wait-=dt;
+    if(e.emitted<9&&e.wait<=0){const first=e.emitted===0;e.bursts.push({x:first?e.x:FIELD.left+Math.random()*(FIELD.right-FIELD.left),y:first?e.y:FIELD.top+Math.random()*(FIELD.bottom-FIELD.top),k:1,radius:first?280:150,damage:e.damage,age:0,hit:false,rot:Math.random()*TAU});e.emitted++;e.wait+=.15;}
+    // Reuse the original sakura hit geometry and burst lifetime without its contact counter/finale.
+    updateNewFriendship({...e,type:'sakuraBurst',phase:'end'},dt);
+    e.bursts=e.bursts.filter(b=>b.age<SAKURA_BURST_LIFE);
+    return e.emitted<9||e.bursts.length>0;
+  }
   if(e.type==='crossBomb'){
     for(const b of e.bombs){
       if(b.done)continue;b.t+=dt/CROSS_BOMB_HOP;
@@ -348,6 +361,7 @@ function updateNewFriendship(e,dt){
 }
 
 function drawNewFriendship(e){
+  if(e.type==='sonicCannon'){drawSonicCannon(e);return;}
   ctx.save();ctx.strokeStyle=e.color;ctx.fillStyle=e.color;ctx.lineCap='round';
   if(e.type==='crossBomb')for(const b of e.bombs){
     if(b.done)continue;const t=clamp(b.t,0,1),x=b.from.x+(b.to.x-b.from.x)*t,y=b.from.y+(b.to.y-b.from.y)*t-Math.sin(t*Math.PI)*70;
@@ -380,7 +394,7 @@ function drawNewFriendship(e){
     ctx.lineWidth=2.5;for(let i=0;i<6;i++){const a=i*TAU/6;ctx.beginPath();ctx.moveTo(Math.cos(a)*w.r*.2,Math.sin(a)*w.r*.2);ctx.lineTo(Math.cos(a)*w.r*.92,Math.sin(a)*w.r*.92);ctx.stroke();}
     ctx.fillStyle=e.color;ctx.beginPath();ctx.arc(0,0,w.r*.2,0,TAU);ctx.fill();ctx.restore();
   }
-  else if(e.type==='sakuraBurst'){
+  else if(e.type==='sakuraBurst'||e.type==='sakuraNova'){
     const seg=TAU/5;
     // 発動キャラの桜のカウンター（花びらが敵に触れるたびに1枚ずつ染まる）
     if(e.phase==='count'){
@@ -451,4 +465,58 @@ function drawNewFriendship(e){
     ctx.globalAlpha=1;ctx.beginPath();ctx.arc(b.x,b.y,4,0,TAU);ctx.fill();
   }
   ctx.restore();
+}
+
+// Poison: refresh, never stack. Enemy DOT runs after the player shot; ally DOT after enemy attacks.
+function applyPoison(target,ally=false){
+  if(!target||(!ally&&(!target.alive||target.sword||target.transparent))||(ally&&stageSettings.invincible))return;
+  target.poisonTurns=2;floatingText(target.x,target.y-target.r-28,'毒 2T','#9954c5',13);ring(target.x,target.y,'#a66bd6',target.r+15,.4);
+}
+function tickEnemyPoison(){
+  for(const e of state.enemies){if(!e.alive||!(e.poisonTurns>0))continue;
+    damageEnemy(e,Math.max(1,Math.round(e.maxHp*.01)),false,{poisonTick:true,charge:0});e.poisonTurns--;
+  }
+}
+function tickAllyPoison(){
+  for(const u of state.units){if(!(u.poisonTurns>0))continue;u.poisonTurns--;damageTeam(200,u.x,u.y,u,{poisonTick:true});if(state.phase==='gameover')break;}
+}
+function spawnPoisonAttack(side,source,f,damage){
+  const o={...f,damage,color:'#a561d4',poison:true};
+  if(f.kind==='poisonSpread')spawnSpread(side,source,o);
+  else if(f.kind==='poisonMeteor')spawnMeteor(side,source,o);
+  else queueEffect({type:'dropBomb',side,x:source.x,y:source.y,poison:true,bombs:[{x:FIELD.left+Math.random()*(FIELD.right-FIELD.left),y:FIELD.top+Math.random()*(FIELD.bottom-FIELD.top),delay:0,elapsed:0}],radius:f.radius??240,maxHits:f.maxHits??3,damage,color:o.color,age:0});
+}
+function updateSonicCannon(e,dt){
+  if(e.phase==='charge'){
+    if(state.phase==='moving'&&!state.unitStopped){e.charge=Math.min(8,e.charge+dt);return true;}
+    e.phase='fire';const p=e.charge/8;e.width=40+120*p;e.range=260+640*p;e.power=1+3*p;
+  }
+  e.wait-=dt;
+  if(e.ticks<16&&e.wait<=0){
+    const target=livingEnemiesByDistance(e)[0];if(!target)return false;
+    e.angle=Math.atan2(target.y-e.y,target.x-e.x);e.to={x:e.x+Math.cos(e.angle)*e.range,y:e.y+Math.sin(e.angle)*e.range};
+    damageAlongSegment(e,e.to,e.width,e.damage*e.power,.25);e.ticks++;e.wait+=.11;e.flash=1;
+    state.shake=Math.max(state.shake,2+e.charge*.6);tone(180+e.ticks*18,.08,'sawtooth',.025);
+  }
+  e.flash=Math.max(0,(e.flash||0)-dt*4);return e.ticks<16||e.flash>0;
+}
+function drawSonicCannon(e){
+  ctx.save();ctx.translate(e.x,e.y);const p=e.charge/8;
+  if(e.phase==='fire')ctx.rotate(e.angle);
+  ctx.strokeStyle=e.color;ctx.fillStyle='#183947';ctx.lineWidth=3;ctx.shadowColor=e.color;ctx.shadowBlur=18;
+  // Horn body and concentric sound fronts, with a bright core and broad translucent beam.
+  ctx.beginPath();ctx.moveTo(-20,-12);ctx.lineTo(18,-24);ctx.lineTo(18,24);ctx.lineTo(-20,12);ctx.closePath();ctx.fill();ctx.stroke();
+  if(e.phase==='charge'){
+    ctx.beginPath();ctx.arc(0,0,36,-Math.PI/2,-Math.PI/2+TAU*p);ctx.stroke();ctx.shadowBlur=0;ctx.fillStyle=e.color;ctx.font='bold 12px Arial';ctx.textAlign='center';ctx.fillText(p>=1?'SONIC MAX':e.charge.toFixed(1)+' / 8s',0,-46);
+  }else{
+    ctx.globalAlpha=.15+.15*(e.flash||0);ctx.fillStyle=e.color;ctx.fillRect(18,-e.width/2,e.range-18,e.width);
+    ctx.globalAlpha=.85;ctx.strokeStyle='#e6ffff';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(20,0);ctx.lineTo(e.range,0);ctx.stroke();
+    for(let i=0;i<12;i++){const x=25+((i/12+(e.age*2)%1)%1)*(e.range-25),r=e.width*(.35+.25*x/e.range);ctx.globalAlpha=(1-x/e.range)*.8;ctx.lineWidth=3+4*p;ctx.strokeStyle=i%2?e.color:'#ffffff';ctx.beginPath();ctx.ellipse(x,0,8+16*p,r,0,0,TAU);ctx.stroke();}
+  }
+  ctx.restore();
+}
+function drawPoisonStatus(x,y,r,turns){
+  if(!(turns>0))return;ctx.save();ctx.fillStyle='#a85ad0';ctx.strokeStyle='#e5bbff';ctx.lineWidth=1.5;
+  for(let i=0;i<3;i++){const a=(state.clock||0)*1.6+i*TAU/3;ctx.beginPath();ctx.arc(x+Math.cos(a)*(r+6),y+Math.sin(a)*(r+6)-8,3+i,0,TAU);ctx.fill();ctx.stroke();}
+  ctx.font='bold 11px Arial';ctx.textAlign='center';ctx.fillText('毒 '+turns+'T',x,y+r+16);ctx.restore();
 }

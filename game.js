@@ -27,7 +27,7 @@
       effects: state.effects.map(({ type, side }) => ({ type, side })),
       attackLog: state.attackLog.map(entry => ({ ...entry })),
       units: state.units.map(({ id, charId, name, shotType, battleStyle, x, y, r, vx, vy }) => ({ id, charId, name, shotType, battleStyle, x, y, r, vx, vy })),
-      enemies: state.enemies.map(e => ({ id: e.id, x:e.x, y:e.y, r:e.r, hp:e.hp, maxHp:e.maxHp, countdown:e.countdown, alive:e.alive, boss:!!e.boss, weakPoint:weakPosition(e), attacks:e.attacks.map(a=>({kind:a.kind,remaining:a.remaining,interval:a.interval})) })),
+      enemies: state.enemies.map(e => ({ poisonTurns:e.poisonTurns||0, id: e.id, x:e.x, y:e.y, r:e.r, hp:e.hp, maxHp:e.maxHp, countdown:e.countdown, alive:e.alive, boss:!!e.boss, weakPoint:weakPosition(e), attacks:e.attacks.map(a=>({kind:a.kind,remaining:a.remaining,interval:a.interval})) })),
     }),
     showScreen, startBattle, predictTrajectory, reflectVelocity,
   });

@@ -161,7 +161,16 @@
     {id:'chaser',name:'CHASER',kana:'チェイサー',shape:'chaser',color:'#6f8fe8',type:'反射 / スピード',hp:3800,atk:1040,speed:400,
       friendship:{kind:'pierceHoming',power:260,count:12}},
     {id:'blossom',name:'BLOSSOM',kana:'ブロッサム',shape:'blossom',color:'#ff7aa8',type:'貫通 / 砲撃',hp:4300,atk:1080,speed:340,
-      friendship:{kind:'sakuraBurst',power:390,radius:120}}
+      friendship:{kind:'sakuraNova',power:410}},
+    {id:'sonata',name:'SONATA',kana:'ソナタ',shape:'fan',color:'#48bcd6',type:'貫通 / 砲撃',hp:4200,atk:1100,speed:330,
+      friendship:{kind:'sonicCannon',power:54}},
+    {id:'belladonna',name:'BELLADONNA',kana:'ベラドンナ',shape:'crescent',color:'#a52963',type:'反射 / スピード',hp:3900,atk:1050,speed:410,
+      friendship:{kind:'poisonMeteor',power:210,count:8}},
+    {id:'miasma',name:'MIASMA',kana:'ミアズマ',shape:'hexagon',color:'#a8916c',type:'反射 / バランス',hp:4500,atk:1130,speed:340,
+      friendship:{kind:'homing',power:250,count:18}},
+    {id:'hemlock',name:'HEMLOCK',kana:'ヘムロック',shape:'shuriken',color:'#6234a8',type:'貫通 / 砲撃',hp:4100,atk:1080,speed:335,
+      friendship:{kind:'poisonBomb',power:480,radius:240,maxHits:3}}
+
   );
   for(const c of CHARACTERS)c.shotType=c.type.startsWith('貫通')?'pierce':'reflect';
   const isPiercing=unit=>unit.shotType==='pierce';
@@ -231,7 +240,11 @@
     tread:{kind:'eruption',power:480,radius:155},
     fizz:{kind:'bubblyGift',power:0},
     chaser:{kind:'wheel',power:380},
-    blossom:{kind:'cornerMissile',power:480,radius:190,maxHits:3}
+    blossom:{kind:'sakuraBurst',power:390,radius:120},
+    sonata:{kind:'cornerMissile',power:480,radius:220,maxHits:3},
+    belladonna:{kind:'bubblyGift',power:0},
+    miasma:{kind:'poisonSpread',power:130,ways:16,volleys:3},
+    hemlock:{kind:'slash',power:205}
   };
   for(const c of CHARACTERS)c.secondary=SECONDARIES[c.id];
   const BATTLE_STYLES = {
@@ -241,7 +254,7 @@
     artillery: '自身の友情コンボの威力が2倍。'
   };
   for (const c of CHARACTERS) c.battleStyle = c.type.includes('バランス') ? 'balance' : c.type.includes('スピード') ? 'speed' : c.type.includes('パワー') ? 'power' : 'artillery';
-  const ABILITIES={asw:['アンチ減速壁','減速壁による減速を無効化。'],antiWind:['アンチウィンド','引き寄せ・吹き出しウィンドによる強制移動を無効化。'],double:['友情コンボ×2','1ショットで主・副友情をそれぞれ2回まで発動。'],heal:['回復','移動中に味方に触れるとHP300回復。各味方につき1ショット1回。'],ab:['アンチブロック','ブロックをすり抜ける。'],adw:['アンチダメージウォール','ダメージウォールを無効化。'],aw:['アンチワープ','ワープ転送を無効化。'],agb:['アンチ重力バリア','重力バリアの減速を無効化。'],ms:['マインスイーパー','触れた地雷を安全に除去する。'],pm:['フォトンマスター','各エリア開始時にフォトンを4個獲得。'],regen:['リジェネ','毎ターン開始時、チームHPを300回復。'],
+  const ABILITIES={adl:['アンチダメージライン','ダメージラインに触れてもダメージを受けない。'],asw:['アンチ減速壁','減速壁による減速を無効化。'],antiWind:['アンチウィンド','引き寄せ・吹き出しウィンドによる強制移動を無効化。'],double:['友情コンボ×2','1ショットで主・副友情をそれぞれ2回まで発動。'],heal:['回復','移動中に味方に触れるとHP300回復。各味方につき1ショット1回。'],ab:['アンチブロック','ブロックをすり抜ける。'],adw:['アンチダメージウォール','ダメージウォールを無効化。'],aw:['アンチワープ','ワープ転送を無効化。'],agb:['アンチ重力バリア','重力バリアの減速を無効化。'],ms:['マインスイーパー','触れた地雷を安全に除去する。'],pm:['フォトンマスター','各エリア開始時にフォトンを4個獲得。'],regen:['リジェネ','毎ターン開始時、チームHPを300回復。'],
     gk:['重力バリアキラー','重力バリアを持つ敵へ与えるダメージが1.5倍。'],
     gkM:['重力バリアキラーM','重力バリアを持つ敵へ与えるダメージが2倍。'],
     gkL:['重力バリアキラーL','重力バリアを持つ敵へ与えるダメージが2.5倍。'],
@@ -261,7 +274,7 @@
     dashL:['ダッシュL','スピードが2.5倍。'],
     dashEL:['ダッシュEL','スピードが3倍。'],
     bubblyMode:['バブリーモード','各エリア開始時から8ターンの間バブリー状態になる。バブリー状態は減速率が25%緩和される。']};
-  const KILLER_TIERS={ak:{kind:'all',mult:1.5},akM:{kind:'all',mult:2},akL:{kind:'all',mult:2.5},akEL:{kind:'all',mult:3},gk:{kind:'gravity',mult:1.5},gkM:{kind:'gravity',mult:2},gkL:{kind:'gravity',mult:2.5},gkEL:{kind:'gravity',mult:3},fk:{kind:'first',mult:1.5},fkM:{kind:'first',mult:2},fkL:{kind:'first',mult:2.5},fkEL:{kind:'first',mult:3}};
+  const KILLER_TIERS={pk:{kind:"poison",mult:1.5},pkM:{kind:"poison",mult:2},pkL:{kind:"poison",mult:2.5},pkEL:{kind:"poison",mult:3},ak:{kind:'all',mult:1.5},akM:{kind:'all',mult:2},akL:{kind:'all',mult:2.5},akEL:{kind:'all',mult:3},gk:{kind:'gravity',mult:1.5},gkM:{kind:'gravity',mult:2},gkL:{kind:'gravity',mult:2.5},gkEL:{kind:'gravity',mult:3},fk:{kind:'first',mult:1.5},fkM:{kind:'first',mult:2},fkL:{kind:'first',mult:2.5},fkEL:{kind:'first',mult:3}};
   const WALL_BOOST_TABLE=[1.1,1.2,1.5,2.0],DRAIN_HEAL=100;
   const ALL_KILLER_COLORS=['#46b4ff','#a46bff','#ff74c4']; // オールキラーのエフェクト色（青・紫・ピンク）
   const DASH_TIERS={dash:1.5,dashM:2,dashL:2.5,dashEL:3};
@@ -272,29 +285,29 @@
   const bubblyRelax=(u,retention)=>isBubbly(u)?1-(1-retention)*(1-BUBBLY_RELIEF):retention;
   const abilitySets = {
     nova: ['adw', 'agb'],
-    axis: ['agb', 'ms'],
+    axis: ['agb', 'ms','fk'],
     prism: ['adw', 'aw'],
     burst: ['agb','aw','regen'],
     galaxy: ['agb', 'aw'],
     gold: ['ms','pm','double'],
     lumen: ['adw', 'agb'],
     crux: ['aw', 'ms','wb'],
-    volt: ['agb', 'pm'],
+    volt: ['agb', 'antiWind','pm'],
     orbit: ['aw', 'ms','fk'],
     lance: ['adw', 'ab'],
     iris: ['agb', 'aw','gk'],
     ripple: ['agb','ab', 'regen'],
     comet: ['adw', 'ms'],
     pyre: ['adw', 'ab','dash'],
-    arc: ['agb', 'aw'],
-    echo: ['adw', 'pm'],
+    arc: ['agb', 'aw','adl'],
+    echo: ['adw','asw','pm'],
     zephyr: ['aw', 'ms'],
     salvo: ['adw', 'agb','gk'],
     vesper: ['aw','ab','regen'],
-    cobalt: ['ms', 'ab'],
-    ribbon: ['agb', 'heal'],
-    aegis: ['ms', 'heal'],
-    shard: ['aw', 'ab'],
+    cobalt: ['ms', 'ab', 'fk'],
+    ribbon: ['agb', 'adl','heal'],
+    aegis: ['adw','ms', 'heal'],
+    shard: ['sagb','aw', 'ab'],
     anchor:['antiWind','ab','pm'],
     kite:['adw','antiWind'],
     suture:['adw','ab','heal'],
@@ -305,7 +318,7 @@
     helix:['agb','antiWind','regen'],
     saber:['ms','antiWind','fk'],
     tesla:['aw','antiWind','heal'],
-    facet:['adw','double'],
+    facet:['adw','saw','double'],
     aster:['adw','antiWind','pm'],
     nimbus:['adw','asw','pm'],
     seam:['aw','asw','heal'],
@@ -314,30 +327,46 @@
     dynamo:['agb','asw','regen'],
     magma:['ms','asw','ab'],
     fuse:['adw','asw'],
-    eclipse:['agb','antiWind','ab'],
-    rotor:['adw','aw'],
+    eclipse:['agb','santiWind','ab','ak'],
+    rotor:['adw','aw','adl'],
     rampage:['aw','asw','pm'],
-    pulsar:['ms','asw'],
+    pulsar:['ms','sasw'],
     mimic:['adw','agb','heal'],
-    neptune:['agb','asw'],
+    neptune:['agb','asw','pa'],
     cascade:['agb','ab','double'],
-    fission:['adw','ms','asw'],
+    fission:['adw','sms','sasw','bubblyMode'],
     bolide:['antiWind','asw','regen'],
     ascent:['adw','antiWind'],
-    doppel:['asw','ab','dash'],
+    doppel:['asw','ab','fk'],
     spectra:['agb','ab','gk'],
     carom:['antiWind','ab','wb'],
     vanguard:['agb','aw','fk'],
     seraph:['agb','ms','drain'],
     razor:['aw','asw','ab','wb'],
-    phantom:['agb','asw','gkM'],
-    tread:['adw','asw','fk','dashM','bubblyMode'],
+    phantom:['sagb','asw','adl','gkM'],
+    tread:['sadw','asw','fkM','dashM','bubblyMode'],
     fizz:['ms','antiWind','ab','dash'],
     chaser:['aw','antiWind','regen'],
-    blossom:['adw','agb','ms','ak','wb','bubblyMode']
+    sonata:['saw','antiWind','ab','pkM','pa'],
+    belladonna:['aw','asw','heal','wb'],
+    miasma:['sagb','santiWind','adl'],
+    hemlock:['adw','santiWind','adl','pk'],
+    blossom:['adw','sagb','ms','akM','bubblyMode']
   };
   for(const c of CHARACTERS)c.abilities=abilitySets[c.id];
-  const hasAbility=(u,id)=>u.abilities?.includes(id);
+  const SUPER_ANTI={adw:'sadw',agb:'sagb',aw:'saw',ms:'sms',antiWind:'santiWind',asw:'sasw'};
+const hasAbility=(u,id)=>!!(u?.abilities?.includes(id)||(SUPER_ANTI[id]&&u?.abilities?.includes(SUPER_ANTI[id])));
+const powerAuraMultiplier=u=>state.maxHp>0&&state.hp>=state.maxHp*.8?(hasAbility(u,'paM')?2:hasAbility(u,'pa')?1.5:1):1;
+const effectiveAttack=u=>u.atk+(u.superWallAttack||0);
+Object.assign(ABILITIES,{
+pk:['毒キラー','毒状態の敵に与ダメージ1.5倍。'],pkM:['毒キラーM','毒状態の敵に与ダメージ2倍。'],pkL:['毒キラーL','毒状態の敵に与ダメージ2.5倍。'],pkEL:['毒キラーEL','毒状態の敵に与ダメージ3倍。'],
+pa:['パワーオーラ','HP80%以上で与ダメージ1.5倍。'],paM:['パワーオーラM','HP80%以上で与ダメージ2倍。'],
+sadw:['超アンチダメージウォール','ダメージウォール無効。接触で1ショット1回、攻撃力+200。'],
+sagb:['超アンチ重力バリア','重力バリア無効。接触で1ショット1回加速。'],
+saw:['超アンチワープ','ワープ無効。接触で1ショット1回HP1500回復。'],
+sms:['超マインスイーパー','地雷を安全に回収し、攻撃力相当の爆発を起こす。'],
+santiWind:['超アンチウィンド','風の移動を無効化。風を受けると自身のショット終了までスピード1.5倍。'],
+sasw:['超アンチ減速壁','減速壁無効。接触で1ショット1回加速。']});
   const abilityNames=u=>u.abilities.map(id=>ABILITIES[id][0]).join(' / ');
   const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map(c => [c.id, c]));
   const DEFAULT_TEAM = ['nova', 'axis', 'prism', 'burst'];
@@ -368,7 +397,7 @@
     absoluteCross:{name:'アブソリュートクロスレイ',label:'ABSOLUTE CROSS RAY',describe:()=>'画面上の全ての敵へ、湾曲する2本のレーザーを交差させるように放つ。複数いる場合はそれぞれの敵へ放つ。'},
     counterRing:{name:'カウンターリング',label:'COUNTER RING',describe:f=>'発動後、手番キャラが壁に触れるたびにカウント+1（最大'+(f.count??16)+'回）。手番キャラが止まると、カウント数だけ画面外から大きなリングが高速でランダムな敵へ突進し、経路上の敵にダメージを与える。'},
     shotgun:{name:'ショットガン',label:'SHOTGUN',describe:f=>'近くの敵へ向けて、狭い扇形に'+f.ways+'wayの貫通弾を'+f.volleys+'回放つ。'},
-    sakuraBurst:{name:'サクラバースト',label:'SAKURA BURST',describe:f=>'発動キャラが桜の花のカウンターを出し、手番キャラが敵に触れるたび（最大5回）、当たった所に桜型の爆発を起こす。爆発は回ごとに大きく強くなり、5回目で1.5倍。手番キャラの停止後に5回全て発動していたら、画面全体に花びらが舞い、全ての敵へ威力の3倍のダメージ。'},
+    sakuraBurst:{name:'サクラバースト・オメガ',label:'SAKURA BURST',describe:f=>'発動キャラが桜の花のカウンターを出し、手番キャラが敵に触れるたび（最大5回）、当たった所に桜型の爆発を起こす。爆発は回ごとに大きく強くなり、5回目で1.5倍。手番キャラの停止後に5回全て発動していたら、画面全体に花びらが舞い、全ての敵へ威力の3倍のダメージ。'},
     cornerMissile:{name:'コーナーウォールミサイル',label:'CORNER MISSILE',describe:()=>'画面の4隅に向けてウォールミサイルを放つ。壁に当たると広範囲に爆発し、味方の友情も誘発。'},
     bubblyGift:{name:'バブリーギフト',label:'BUBBLY GIFT',describe:()=>'手番のキャラをバブリー状態にする（そのターンのみ）。減速率が25%緩和される。'},
     wheel:{name:'ホイール',label:'WHEEL',describe:()=>'近くの敵へホイールを1つ放つ。撃種は発動キャラに依存し、壁で反射・敵に触れると減速などキャラと同じ挙動。ブロックやコンテナは貫通。初速は発動キャラの2倍。'},
@@ -389,11 +418,21 @@
     homing: { name: 'ホーミング', label: 'HOMING', describe: f => `敵に向かってホーミング弾を${f.count}発放つ。` },
     explosion: { name: '爆発', label: 'EXPLOSION', describe: f => `周囲に爆発を起こす。中心に近い敵ほど多段ヒット（最大${f.maxHits}回）。` },
   };
-  const friendshipTitle=f=>{const name=FRIENDSHIP_KINDS[f.kind].name;if(f.kind==='wayLaser')return f.count+'方向レーザー';if(['reflectLaser','reflectCross'].includes(f.kind))return name+'（'+f.bounces+'）';if(['sniper','homing','meteor','pierce','dropBomb','splitShot','machinegun','drones','satellites','involute','crossBomb','counterRing','shockSplit','pierceHoming'].includes(f.kind))return name+'（'+(f.count??5)+'）';if(f.kind==='spread'||f.kind==='shotgun')return name+'（'+f.ways+'×'+f.volleys+'）';return name;};
+  Object.assign(FRIENDSHIP_KINDS,{
+sakuraNova:{name:'サクラバースト・ノヴァ',label:'SAKURA NOVA',describe:()=> '自身で半径280の桜型爆発、その後0.15秒間隔でランダムな位置に半径150の桜型爆発を8回。'},
+sonicCannon:{name:'音波砲',label:'SONIC CANNON',describe:()=> '手番キャラが停止するまでチャージ（8秒で最大）。近い敵へ強大な音波を16回放つ。チャージで威力と範囲が増加。'},
+poisonSpread:{name:'毒拡散弾',label:'POISON SPREAD',describe:f=>f.ways+'方向へ毒弾を'+f.volleys+'回発射。命中で2ターンの毒。'},
+poisonMeteor:{name:'毒メテオ',label:'POISON METEOR',describe:f=>'ランダムな敵へ毒のメテオを'+f.count+'個落とす。命中で2ターンの毒。'},
+poisonBomb:{name:'ドロップポイズンボム',label:'POISON BOMB',describe:()=> 'ランダムな位置へ毒のボムを1個投下。半径240の爆風で2ターンの毒。'}});
+  const friendshipTitle=f=>{const name=FRIENDSHIP_KINDS[f.kind].name;if(f.kind==='poisonSpread')return name+'（'+f.ways+'×'+f.volleys+'）';if(f.kind==='poisonMeteor')return name+'（'+f.count+'）';if(f.kind==='wayLaser')return f.count+'方向レーザー';if(['reflectLaser','reflectCross'].includes(f.kind))return name+'（'+f.bounces+'）';if(['sniper','homing','meteor','pierce','dropBomb','splitShot','machinegun','drones','satellites','involute','crossBomb','counterRing','shockSplit','pierceHoming'].includes(f.kind))return name+'（'+(f.count??5)+'）';if(f.kind==='spread'||f.kind==='shotgun')return name+'（'+f.ways+'×'+f.volleys+'）';return name;};
 
   // 敵の攻撃。mult は基本ダメージ（ウェーブごとに上昇）に対する倍率。
   // 敵データ側の attacks: [{ kind, ...上書き }] で個別に調整できます。
   const ENEMY_ATTACKS = {
+    poisonSpread:{mult:.15,ways:12,volleys:2},poisonMeteor:{mult:.22,count:3},poisonBomb:{mult:.2,count:1,radius:240,maxHits:2},
+    wayLaser:{mult:.16,count:8,hits:2,width:30},
+    reflectCross:{mult:.14,bounces:1},
+    dropBomb:{mult:.22,count:3,radius:95,maxHits:2},
     revive:{mult:0},effect:{mult:0},
     vibration:{mult:.65,radius:190,push:95},
     reflectLaser:{mult:.22,bounces:2},pierce:{mult:.3,count:3},

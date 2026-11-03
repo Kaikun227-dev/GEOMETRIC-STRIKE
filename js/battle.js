@@ -332,16 +332,19 @@
     if(enemy.weakPoint.internal){const w=enemy.weakPoint,d=Math.min(w.offset||0,Math.max(0,enemy.r-w.radius-3));return {x:enemy.x+Math.cos(w.angle||0)*d,y:enemy.y+Math.sin(w.angle||0)*d,r:w.radius};}
     return { x: enemy.x + Math.cos(enemy.weakPoint.angle) * enemy.r * .84, y: enemy.y + Math.sin(enemy.weakPoint.angle) * enemy.r * .84, r: enemy.weakPoint.radius };
   }
+  function weakPositions(enemy){
+    if(!enemy.weakPoint)return [];
+    const angles=enemy.weakPoint.angles;
+    return angles?.length?angles.map(angle=>weakPosition({...enemy,weakPoint:{...enemy.weakPoint,angle}})):[weakPosition(enemy)];
+  }
   function segmentDistance(p, a, b) {
     const dx = b.x-a.x, dy=b.y-a.y;
     const t = clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy || 1),0,1);
     return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);
   }
   function hitsWeak(enemy, hit) {
-    const weak = weakPosition(enemy);
-    if (!weak || !hit) return false;
-    if (hit.from && hit.to) return segmentDistance(weak, hit.from, hit.to) <= weak.r + (hit.radius || 0);
-    return distance(weak, hit) <= weak.r + (hit.radius || 0);
+    if(!hit)return false;
+    return weakPositions(enemy).some(weak=>hit.from&&hit.to?segmentDistance(weak,hit.from,hit.to)<=weak.r+(hit.radius||0):distance(weak,hit)<=weak.r+(hit.radius||0));
   }
   function withDamageOwner(owner, action) {
     const previous=state.damageOwner;
@@ -373,39 +376,55 @@
     for(const id of owner?.abilities||[]){
       const t=KILLER_TIERS[id];if(!t)continue;
       if(t.kind==='all'){mult*=t.mult;kind='all';}
+      else if(t.kind==='poison'&&enemy.poisonTurns>0){mult*=t.mult;kind='poison';}
       else if(t.kind==='gravity'&&enemy.gravity){mult*=t.mult;if(kind!=='all')kind='gravity';}
       else if(t.kind==='first'&&state.firstTouchId!=null&&state.firstTouchId===enemy.id){mult*=t.mult;if(kind!=='all')kind='first';}
     }
     return {mult,kind};
   }
   function killerEffect(enemy,k,friendship){
-    const color=k.kind==='gravity'?'#6a5fd6':k.kind==='all'?ALL_KILLER_COLORS[1]:'#e8553a';
+    const color=k.kind==='poison'?'#a65bd3':k.kind==='gravity'?'#6a5fd6':k.kind==='all'?ALL_KILLER_COLORS[1]:'#e8553a';
     if(friendship){if((enemy.killerFxAt||-9)>state.clock-.25)return;enemy.killerFxAt=state.clock;if(k.kind==='all')for(const c of ALL_KILLER_COLORS)burst(enemy.x,enemy.y,c,3,150);else burst(enemy.x,enemy.y,color,8,150);return;}
-    floatingText(enemy.x,enemy.y-enemy.r-58,(k.kind==='gravity'?'GRAVITY KILLER':k.kind==='all'?'ALL KILLER':'FIRST KILLER')+' ×'+(Math.round(k.mult*100)/100),color,15);
+    floatingText(enemy.x,enemy.y-enemy.r-58,(k.kind==='poison'?'POISON KILLER':k.kind==='gravity'?'GRAVITY KILLER':k.kind==='all'?'ALL KILLER':'FIRST KILLER')+' ×'+(Math.round(k.mult*100)/100),color,15);
     ring(enemy.x,enemy.y,color,enemy.r+46,.4);if(k.kind==='all'){ALL_KILLER_COLORS.forEach((c,i)=>{ring(enemy.x,enemy.y,c,enemy.r+30+i*14,.35+i*.06);burst(enemy.x,enemy.y,c,6,230);});}else burst(enemy.x,enemy.y,color,16,230);state.shake=Math.max(state.shake,5);
     queueEffect({type:'killerFx',side:'ally',x:enemy.x,y:enemy.y,r:enemy.r,kind:k.kind,color,age:0,life:.5});
   }
   function damageEnemy(enemy, amount, friendship = false, options = {}) {
-    if (!enemy.alive||enemy.transparent||enemy.sword) return; // 剣持ち敵はダメージを受けない（他の敵が全滅すると撤退）
+    if (!enemy.alive||(enemy.transparent&&!options.poisonTick)||enemy.sword) return; // 剣持ち敵はダメージを受けない（他の敵が全滅すると撤退）
+    // HP共有で他の敵から反映されたダメージ（sharedFrom）：倍率・弱点・キラーは再計算せず、受けたダメージ量をそのまま受ける。
+    const shared=!!options.sharedFrom||!!options.poisonTick;
     const owner=options.owner||state.damageOwner||(!friendship?state.units[state.activeUnit]:null);
-    const weak=hitsWeak(enemy,options.hit)&&(!enemy.weakPoint?.internal||friendship||owner&&isPiercing(owner));
+    const weak=!shared&&hitsWeak(enemy,options.hit)&&(!enemy.weakPoint?.internal||friendship||owner&&isPiercing(owner));
     const multiplier=enemyWeakMultiplier(enemy);
-    const killer=killerMultiplier(owner,enemy);
-    const damage=Math.round(amount*killer.mult*powerAreaMultiplier(owner)*touchPowerMultiplier(owner)*(state.swordBoost||1)*(friendship?powerSwitchMultiplier():1)*(weak?(options.weakBonusOnly?multiplier-1:multiplier):1)*(enemy.defenseMultiplier||1)*(enemy.switchArmor&&!state.powerSwitchActive?enemy.switchArmor:1)*(options.laserGenerator?1:enemyRestrictionMultiplier(enemy,owner,friendship))*(friendship?1:enemy.armor??1));
+    const killer=shared?{mult:1,kind:null}:killerMultiplier(owner,enemy);
+    const damage=shared?Math.max(0,Math.round(amount)):Math.round(amount*powerAuraMultiplier(owner)*killer.mult*powerAreaMultiplier(owner)*touchPowerMultiplier(owner)*(state.swordBoost||1)*(friendship?powerSwitchMultiplier():1)*(weak?(options.weakBonusOnly?multiplier-1:multiplier):1)*(enemy.defenseMultiplier||1)*(enemy.switchArmor&&!state.powerSwitchActive?enemy.switchArmor:1)*(options.laserGenerator?1:enemyRestrictionMultiplier(enemy,owner,friendship))*(friendship?1:enemy.armor??1));
     if (weak) { floatingText(enemy.x, enemy.y - enemy.r - 38, 'WEAK ×'+multiplier, '#c79816', 15); ring(weakPosition(enemy).x, weakPosition(enemy).y, '#e1b327', 36, .3); }
     if(killer.mult>1)killerEffect(enemy,killer,friendship);
     const actualDamage = Math.min(enemy.hp, damage);
     enemy.hp = Math.max(0, enemy.hp - damage);
     enemy.flash = 0.15;
-    if (!scoreDisabled()) state.score += actualDamage;
-    state.combo++;
-    state.maxCombo = Math.max(state.maxCombo, state.combo);
-    state.comboTime = 1.7;
-    chargeSkill(options.charge !== undefined ? options.charge : friendship ? 4 : 3.5);
-    floatingText(enemy.x + (Math.random() - 0.5) * 28, enemy.y - enemy.r - 10, String(damage), friendship ? '#269e86' : '#dc776c', friendship ? 19 : 22);
-    burst(enemy.x, enemy.y, friendship ? '#65c6ae' : '#ee9187', 7, 95);
-    tone(250 + Math.min(state.combo, 12) * 36, 0.085, 'triangle', 0.025, 0, 170);
-    if (enemy.hp <= 0) {
+    if (!scoreDisabled()&&!enemy.hpShare?.length) state.score += actualDamage; // HP共有元の得点は、反映先の敵が受けたダメージ分に含める（二重加算しない）
+    if(shared){
+      floatingText(enemy.x + (Math.random() - 0.5) * 28, enemy.y - enemy.r - 10, (options.poisonTick?'毒 −':'')+String(damage), options.poisonTick?'#a65bd3':'#6f8f3f', 20);
+      ring(enemy.x,enemy.y,'#7fae4f',enemy.r+22,.35);burst(enemy.x, enemy.y, '#9cc46a', 6, 90);
+    }else{
+      state.combo++;
+      state.maxCombo = Math.max(state.maxCombo, state.combo);
+      state.comboTime = 1.7;
+      chargeSkill(options.charge !== undefined ? options.charge : friendship ? 4 : 3.5);
+      floatingText(enemy.x + (Math.random() - 0.5) * 28, enemy.y - enemy.r - 10, String(damage), friendship ? '#269e86' : '#dc776c', friendship ? 19 : 22);
+      burst(enemy.x, enemy.y, friendship ? '#65c6ae' : '#ee9187', 7, 95);
+      tone(250 + Math.min(state.combo, 12) * 36, 0.085, 'triangle', 0.025, 0, 170);
+    }
+    // HP共有：この敵が受けたダメージを、hpShare に指定した敵にも反映する（一方向。相手側が共有を持たなければ反映されない）。
+    if(!options.poisonTick&&damage>0&&enemy.hpShare?.length){
+      const visited=options.shareVisited||new Set();visited.add(enemy.id);
+      for(const target of selectEffectTargets(enemy.hpShare)){
+        if(visited.has(target.id)||!target.alive)continue;
+        damageEnemy(target,damage,friendship,{...options,sharedFrom:enemy.id,shareVisited:visited,charge:0});
+      }
+    }
+    if (enemy.hp <= 0 && enemy.alive) { // HP共有の反映中に撤退済みなら、二重に撃破処理しない
       enemy.alive = false;
       if(enemy.boss&&state.waves[state.wave].bossPhase===1){state.retreatGhost={x:enemy.x,y:enemy.y,r:enemy.r,sides:enemy.sides,tint:enemy.tint,age:0};floatingText(enemy.x,enemy.y-enemy.r-58,'ボスが撤退！','#618a95',18);}
       if (!scoreDisabled()) state.score += enemy.boss ? 5000 : 1000;
@@ -418,14 +437,14 @@
       resolveEnemyDefeat(enemy);
       if(enemy.boss&&state.waves[state.wave].bossPhase){
         for(const minion of state.enemies){
-          if(!minion.alive||minion.boss||minion.midBoss)continue;
+          if(!minion.alive||minion.boss||minion.midBoss||minion.retreatWhenShareDead)continue;
           minion.alive=false;minion.hp=0;
           if(!scoreDisabled())state.score+=1000;
           chargeSkill(7);
         }
       }
     }
-    if(enemy.alive&&damage>0&&enemy.counterEffects?.length&&!enemy.counterResolving&&enemy.counterUsedTurn!==state.turn){
+    if(!options.poisonTick&&enemy.alive&&damage>0&&enemy.counterEffects?.length&&!enemy.counterResolving&&enemy.counterUsedTurn!==state.turn){
       enemy.counterUsedTurn=state.turn;enemy.counterResolving=true;floatingText(enemy.x,enemy.y-enemy.r-55,'COUNTER','#598cc4',14);
       try{for(const effect of enemy.counterEffects)applyEnemyEffect(effect,enemy);}finally{enemy.counterResolving=false;}
     }
@@ -435,10 +454,10 @@
   }
 
   // Enemy attacks always damage the shared team HP.
-  function damageTeam(amount, x, y, target = state.units.find(u => Math.hypot(u.x-x,u.y-y) < 1)) {
+  function damageTeam(amount, x, y, target = state.units.find(u => Math.hypot(u.x-x,u.y-y) < 1), options = {}) {
     if (['gameover', 'victory'].includes(state.phase)) return;
     if (stageSettings.invincible) return;
-    const damage = Math.max(1, Math.round(amount * (target?.battleStyle === 'balance' ? .8 : 1)));
+    const damage = Math.max(1, Math.round(amount * (!options.poisonTick&&target?.battleStyle === 'balance' ? .8 : 1)));
     state.hp = Math.max(0, state.hp - damage);
     ring(x, y, '#eaa294', 65, 0.5);
     burst(x, y, '#ec998f', 8, 140);

@@ -80,7 +80,7 @@
     }).filter(entry => entry.hits > 0);
     const maxTick = Math.max(1, ...entries.map(entry => entry.hits));
     queueEffect({
-      type: 'explosion', side, x: center.x, y: center.y, radius: o.radius, damage: o.damage, color: o.color,
+      type: 'explosion', side, poison:!!o.poison, x: center.x, y: center.y, radius: o.radius, damage: o.damage, color: o.color,
       entries, tick: 0, maxTick, wait: 0.14, interval: 0.13, pulse: 0, age: 0,
     });
   }
@@ -88,7 +88,7 @@
   // Meteor targets are selected afresh from living targets for each sequential drop.
   const METEOR = Object.freeze({ fall: .25, gap: .055, visualRadius: 24, hitRadius: 38 });
   function spawnMeteor(side, source, o) {
-    queueEffect({ type: 'meteor', side, x:source.x, y:source.y, left:o.count, damage:o.damage, color:o.color, wait:0, impact:null, age:0 });
+    queueEffect({ type: 'meteor', side, x:source.x, y:source.y, left:o.count, poison:!!o.poison, damage:o.damage, color:o.color, wait:0, impact:null, age:0 });
   }
   function updateMeteor(effect, dt) {
     const pool = effect.side === 'ally' ? state.enemies.filter(e=>targetable(e)) : state.units;
@@ -113,13 +113,14 @@
     const p=effect.impact, radius=METEOR.hitRadius;
     if (effect.side==='ally') damageEnemy(effect.target,effect.damage,true,{charge:1.5,hit:{...p,radius}});
     else damageTeam(effect.damage,effect.target.x,effect.target.y,effect.target);
+    if(effect.poison&&!effect.visualOnly)applyPoison(effect.target,effect.side==='enemy');
     ring(p.x,p.y,effect.color,radius,.45);burst(p.x,p.y,effect.color,16,150);
     tone(95,.18,'triangle',.035,0,38);
     effect.left--;effect.impact=null;effect.wait=METEOR.gap;
     return effect.left>0;
   }
   function spawnSpread(side, source, o) {
-    queueEffect({type:'spread',side,x:source.x,y:source.y,ways:o.ways,volleys:o.volleys,emitted:0,wait:0,bullets:[],damage:o.damage,color:o.color,age:0});
+    queueEffect({type:'spread',side,x:source.x,y:source.y,ways:o.ways,volleys:o.volleys,emitted:0,wait:0,bullets:[],poison:!!o.poison,damage:o.damage,color:o.color,age:0});
   }
   function segmentCircleHit(a,b,center,radius) {
     const dx=b.x-a.x,dy=b.y-a.y,fx=a.x-center.x,fy=a.y-center.y;
@@ -152,6 +153,7 @@
         const hit={x:from.x+(bullet.x-from.x)*nearest,y:from.y+(bullet.y-from.y)*nearest,radius:5};
         if(effect.side==='ally')damageEnemy(target,effect.damage,true,{charge:.35,hit});
         else damageTeam(effect.damage,target.x,target.y,target);
+        if(effect.poison)applyPoison(target,effect.side==='enemy');
         burst(hit.x,hit.y,effect.color,3,60);
       }else if(bullet.life>0&&bullet.x>=FIELD.left&&bullet.x<=FIELD.right&&bullet.y>=FIELD.top&&bullet.y<=FIELD.bottom)remaining.push(bullet);
       if(state.phase==='gameover')return false;
@@ -359,7 +361,7 @@
       e.radius=Math.min(e.maxRadius,e.radius+65*dt);return true;
     }
     if(e.type==='dropBomb'){
-      e.bombs=e.bombs.filter(b=>{if(b.delay>0){b.delay-=dt;return true;}b.elapsed+=dt;if(b.elapsed<.55)return true;spawnExplosion('ally',b,state.enemies.filter(t=>targetable(t)),{radius:e.radius,maxHits:e.maxHits,damage:e.damage,color:e.color});return false;});return e.bombs.length>0;
+      e.bombs=e.bombs.filter(b=>{if(b.delay>0){b.delay-=dt;return true;}b.elapsed+=dt;if(b.elapsed<.55)return true;spawnExplosion(e.side,b,e.side==='enemy'?state.units:state.enemies.filter(t=>targetable(t)),{radius:e.radius,maxHits:e.maxHits,damage:e.damage,color:e.color,poison:e.poison});return false;});return e.bombs.length>0;
     }
     if(e.type==='eruption'){
       e.wait-=dt;if(e.wait<=0&&e.ticks<6){e.wait+=.15;e.ticks++;for(const target of state.enemies)if(targetable(target)&&enemyGap(target,e,e)<=e.radius)damageEnemy(target,e.damage,true,{charge:.5,hit:{x:e.x,y:e.y,radius:e.radius}});}
@@ -555,6 +557,7 @@
       if (effect.side === 'ally') {
         if (targetable(entry.target)) damageEnemy(entry.target, effect.damage, true, { charge: 1.2, hit: { x: effect.x, y: effect.y, radius: effect.radius } });
       } else damageTeam(effect.damage, entry.target.x, entry.target.y);
+      if(effect.poison)applyPoison(entry.target,effect.side==='enemy');
     });
     return true;
   }
@@ -594,12 +597,13 @@
       }
       return;
     }
+    if(['poisonSpread','poisonMeteor','poisonBomb'].includes(f.kind)){spawnPoisonAttack('ally',ally,f,f.power*(effectiveAttack(ally)/1000)*(state.skillShot?1.7:1)*(ally.battleStyle==='artillery'?2:1));return;}
     const targets = friendshipVisualTargets(ally);
     if (!targets.length&&f.kind!=='weakPierce') {
       showFriendshipActivation(ally.x,ally.y,ally.color,kind.label);
       return;
     }
-    const damage = f.power * (ally.atk / 1000) * (state.skillShot ? 1.7 : 1) * (ally.battleStyle === 'artillery' ? 2 : 1);
+    const damage = f.power * (effectiveAttack(ally) / 1000) * (state.skillShot ? 1.7 : 1) * (ally.battleStyle === 'artillery' ? 2 : 1);
     const mover=trigger;
     const direction=Math.hypot(mover.vx,mover.vy)>.01?{vx:mover.vx,vy:mover.vy}:state.shotDirection||{vx:0,vy:-1};
     const carrier=mover;
@@ -644,8 +648,9 @@
     logAttack('enemy', attack.kind);
     floatingText(enemy.x, enemy.y - enemy.r - 26, FRIENDSHIP_KINDS[attack.kind].label, '#c65e55', 12);
     state.shake = Math.max(state.shake, enemy.boss ? 8 : 3);
-    if(attack.kind==='move')moveEnemy(enemy,attack);
-    else if(attack.kind==='revive')applyEnemyEffect({type:'revive',targets:spec.targets,hpRatio:spec.hpRatio,limit:spec.limit},enemy);
+    if(['poisonSpread','poisonMeteor','poisonBomb'].includes(attack.kind))spawnPoisonAttack('enemy',enemy,spec,damage);
+    else if(attack.kind==='move')moveEnemy(enemy,attack);
+    else if(attack.kind==='revive')applyEnemyEffect({type:'revive',targets:spec.targets,hpRatio:spec.hpRatio,limit:spec.limit,skipRestricted:spec.skipRestricted},enemy);
     else if(attack.kind==='effect')for(const effect of spec.effects||[])applyEnemyEffect(effect,enemy);
     else if(attack.kind==='mines'||attack.kind==='photons')scatterPickups(attack.kind==='mines'?'mine':'photon',spec.count,spec.wall);
     else if(attack.kind==='plusLaser'||attack.kind==='crossLaser'){
@@ -653,6 +658,14 @@
       for(let i=0;i<4;i++){const angle=offset+i*Math.PI/2;spawnLaser('enemy',enemy,{x:enemy.x+Math.cos(angle),y:enemy.y+Math.sin(angle)},{hits:spec.hits,damage,color,width:36});}
     }    else if(attack.kind==='vibration')queueEffect({type:'vibration',side:'enemy',x:enemy.x,y:enemy.y,radius:spec.radius,push:spec.push,damage,color,age:0,targets:null,progress:0});
     else if(attack.kind==='reflectLaser')spawnReflect(enemy,{vx:target.x-enemy.x,vy:target.y-enemy.y},{bounces:spec.bounces,damage,side:'enemy',color});
+    else if(attack.kind==='reflectCross')spawnReflect(enemy,{vx:1,vy:1},{bounces:spec.bounces,damage,side:'enemy',color},true);
+    else if(attack.kind==='wayLaser'){
+      for(let i=0;i<spec.count;i++){const a=-Math.PI/2+i*TAU/spec.count;spawnLaser('enemy',enemy,{x:enemy.x+Math.cos(a),y:enemy.y+Math.sin(a)},{hits:spec.hits,damage,color,width:spec.width});}
+    }
+    else if(attack.kind==='dropBomb'){
+      const targets=[...state.units].sort((a,b)=>distance(a,enemy)-distance(b,enemy));
+      queueEffect({type:'dropBomb',side:'enemy',x:enemy.x,y:enemy.y,bombs:Array.from({length:spec.count},(_,i)=>({x:targets[i%targets.length].x,y:targets[i%targets.length].y,delay:i*.18,elapsed:0})),radius:spec.radius,maxHits:spec.maxHits,damage,color,age:0});
+    }
     else if(attack.kind==='pierce')spawnPiercing('enemy',enemy,{count:spec.count,damage,color});
     else if (attack.kind === 'meteor') spawnMeteor('enemy', enemy, { count: spec.count, damage, color });
     else if (attack.kind === 'spread') spawnSpread('enemy', enemy, { ways: spec.ways, volleys: spec.volleys, damage, color });

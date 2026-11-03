@@ -4,7 +4,13 @@
   // ---------------------------------------------------------------------------
   // SIMULATION
   // ---------------------------------------------------------------------------
+  function superOnce(unit,id,action){
+if(state.phase!=='moving'||state.unitStopped||unit!==state.units[state.activeUnit]||!hasAbility(unit,id))return;
+unit.superUsed??=new Set();if(unit.superUsed.has(id))return;unit.superUsed.add(id);action();
+}
+function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56e8bb',85,.45);floatingText(unit.x,unit.y-45,'SUPER SPEED','#36ab89',13);}
   function setupArea(){
+    for(const u of state.units){u.superWallAttack=0;u.superUsed=new Set();}
     const g=state.waves[state.wave].gimmicks||{};
     state.heartPanels=(g.hearts||[]).map((p,i)=>({...p,id:p.id||'heart-'+i}));
     state.heartFruits=[];state.heartFruitSeq=0;
@@ -51,7 +57,7 @@
     if(!effect.targets){
       w.active=true;effect.elapsed=0;
       effect.targets=state.units.filter(u=>distance(u,w)<=w.radius).map(u=>{
-        if(hasAbility(u,'antiWind')){floatingText(u.x,u.y-42,'ANTI WIND','#438f99',11);return null;}
+        if(hasAbility(u,'santiWind')){u.superWind=true;ring(u.x,u.y,'#65e8ce',65,.5);floatingText(u.x,u.y-58,'SPEED ×1.5','#36ab89',13);}if(hasAbility(u,'antiWind')){floatingText(u.x,u.y-42,'ANTI WIND','#438f99',11);return null;}
         const dx=u.x-w.x,dy=u.y-w.y,d=Math.hypot(dx,dy),sign=w.mode==='pull'?-1:1;
         return {u,dx:(d>.001?dx/d:0)*sign,dy:(d>.001?dy/d:1)*sign,limit:w.mode==='pull'?Math.min(w.force??145,Math.max(0,d-30)):w.force??145,moved:0,stopped:false};
       }).filter(Boolean);
@@ -187,7 +193,26 @@
       tone(660,.12,'sine',.035,0,880);tone(880,.16,'sine',.03,.08,1100);
     }
   }
+  function activeLineColor(lines){
+    return state.waveTurn%2===0 && lines.some(line=>line.color==='gold') ? 'gold' : 'silver';
+  }
+  function applyDamageLines(unit){
+    const lines=state.waves[state.wave].gimmicks?.damageLines;
+    if(!lines?.length || hasAbility(unit,'adl'))return;
+    const color=activeLineColor(lines);
+    unit.lineContacts??=new Set();
+    for(const line of lines){
+      const touching=line.color===color && segmentDistance(unit,line.a,line.b)<=unit.r+3;
+      if(!touching){unit.lineContacts.delete(line);continue;}
+      if(unit.lineContacts.has(line))continue;
+      unit.lineContacts.add(line);
+      damageTeam(line.damage??1000,unit.x,unit.y,unit);
+      if(state.phase==='gameover')return;
+    }
+  }
   function applyGimmicks(unit,dt){
+    applyDamageLines(unit);
+    if(state.phase==='gameover')return;
     applyHeartPanels(unit);
     applyHeartFruits(unit);
     applySwordPanels(unit);
@@ -195,6 +220,7 @@
     applyTransPanels(unit);
     applyPowerSwitches(unit);
     unit.boostTime=Math.max(0,(unit.boostTime||0)-dt);
+    if(state.enemies.some(e=>e.alive&&!e.transparent&&e.gravity&&distance(unit,e)<e.gravity+unit.r))superOnce(unit,'sagb',()=>superAccelerate(unit));
     const inGravity=!hasAbility(unit,'agb')&&state.enemies.some(e=>e.alive&&!e.transparent&&e.gravity&&distance(unit,e)<e.gravity+unit.r);
     if(inGravity){const drag=unit.inGravity?Math.exp(-2.8*dt):.48;unit.vx*=drag;unit.vy*=drag;if(!unit.inGravity)floatingText(unit.x,unit.y-40,'GRAVITY','#6574be',12);}
     unit.inGravity=inGravity;
@@ -202,7 +228,7 @@
       if(p.taken||distance(unit,p)>unit.r+12)continue;
       if(p.kind==='photon'&&unit.photons>=4)continue;
       p.taken=true;
-      if(p.kind==='mine'&&hasAbility(unit,'ms')){ring(p.x,p.y,'#6ba6a0',35,.25);floatingText(p.x,p.y-25,'MINE CLEAR','#5a8f89',11);}
+      if(p.kind==='mine'&&hasAbility(unit,'ms')){if(hasAbility(unit,'sms')){ring(p.x,p.y,'#ffb94f',150,.5);burst(p.x,p.y,'#ffb94f',24,190);for(const enemy of state.enemies)if(enemy.alive&&distance(p,enemy)<=150+enemy.r)damageEnemy(enemy,effectiveAttack(unit),true,{owner:unit,hit:{x:p.x,y:p.y,radius:150}});}ring(p.x,p.y,'#6ba6a0',35,.25);floatingText(p.x,p.y-25,'MINE CLEAR','#5a8f89',11);}
       else if(p.kind==='photon'){unit.photons=Math.min(4,(unit.photons||0)+1);ring(p.x,p.y,'#d3a128',45,.3);floatingText(p.x,p.y-25,'PHOTON '+unit.photons+'/4','#b88a16',12);}
       else {ring(p.x,p.y,'#e56565',85,.4);burst(p.x,p.y,'#e56565',20,180);damageTeam((p.damage||1000),unit.x,unit.y,unit);if(state.phase==='gameover')break;}
     }
@@ -214,6 +240,7 @@
     (g.boosts||[]).forEach((p,i)=>{if(panelTouch(unit,p)&&!state.boostPanelsUsed.has(i)){
       state.boostPanelsUsed.add(i);const speed=Math.hypot(unit.vx,unit.vy)||1;const boosted=speed*2;unit.vx*=2;unit.vy*=2;unit.boostTime=1.1;ring(p.x,p.y,'#35bf86',100,.5);burst(p.x,p.y,'#35bf86',18,240);floatingText(p.x,p.y-35,'BOOST '+Math.round(boosted),'#249a69',16);
     }});
+    for(const pair of g.warps||[])if([pair.a,pair.b].some(p=>distance(unit,p)<=pair.r))superOnce(unit,'saw',()=>{const heal=Math.min(1500,state.maxHp-state.hp);state.hp+=heal;ring(unit.x,unit.y,'#45d99b',70,.5);floatingText(unit.x,unit.y-40,'HEAL +'+heal,'#35b981',14);});
     if(state.warpCooldown>0||hasAbility(unit,'aw'))return;
     for(const pair of g.warps||[]){
       for(const [entry,exit] of [[pair.a,pair.b],[pair.b,pair.a]]){
@@ -363,7 +390,7 @@
     if(!state.enemies.some(e=>e.alive))return;
     const unit=state.units[state.activeUnit],level=gens.length,info=laserLevelInfo(level);
     queueEffect({type:'laserGen',side:'ally',ownerId:unit.id,gens:gens.map(g=>({...g})),level,mult:info.mult,thickness:info.thickness,
-      damage:Math.round(unit.atk*(state.atkUp||1)*wallBoostMultiplier(unit)*info.mult*LASER_GENERATOR.damagePerPower),color:unit.color,fired:0,wait:LASER_GENERATOR.chargeDelay,interval:LASER_GENERATOR.interval,flash:0});
+      damage:Math.round(effectiveAttack(unit)*(state.atkUp||1)*wallBoostMultiplier(unit)*info.mult*LASER_GENERATOR.damagePerPower),color:unit.color,fired:0,wait:LASER_GENERATOR.chargeDelay,interval:LASER_GENERATOR.interval,flash:0});
     floatingText(310,FIELD.top+64,'LASER Lv.'+level+' ×'+info.mult+' ×'+LASER_GENERATOR.volleys,'#d6702a',17);
     tone(300,.35,'sawtooth',.03,0,900);
   }
@@ -390,19 +417,22 @@
       const on=w.side==='left'?unit.x<=FIELD.left+unit.r+.01:w.side==='right'?unit.x>=FIELD.right-unit.r-.01:w.side==='top'?unit.y<=FIELD.top+unit.r+.01:unit.y>=FIELD.bottom-unit.r-.01;
       const key=unit.id+':'+w.side;
       if(!on||pos<w.start||pos>w.end){state.slowWallContacts.delete(key);continue;}
+      superOnce(unit,'sasw',()=>superAccelerate(unit));
       if(hasAbility(unit,'asw')||state.slowWallContacts.has(key))continue;
       state.slowWallContacts.set(key,true);{const rr=bubblyRelax(unit,w.retention??.35);unit.vx*=rr;unit.vy*=rr;}
       floatingText(unit.x,unit.y-38,'SLOW WALL','#478fcc',12);
     }
   }
   function applyDamageWalls(unit){
-    if(hasAbility(unit,'adw'))return;
+    
     const walls=state.waves[state.wave].gimmicks?.walls||[];
     if(!state.hazardContacts)state.hazardContacts={};
     for(const w of walls){
       const vertical=w.side==='left'||w.side==='right',position=vertical?unit.y:unit.x;
       const onWall=w.side==='left'?unit.x<=FIELD.left+unit.r+.01:w.side==='right'?unit.x>=FIELD.right-unit.r-.01:w.side==='top'?unit.y<=FIELD.top+unit.r+.01:unit.y>=FIELD.bottom-unit.r-.01;
       if(onWall&&position>=w.start&&position<=w.end&&state.clock-(state.hazardContacts[unit.id+':'+w.side]??-100)>.18){
+        superOnce(unit,'sadw',()=>{unit.superWallAttack=200;floatingText(unit.x,unit.y-45,'ATK +200','#ed8b39',14);});
+        if(hasAbility(unit,'adw'))continue;
         state.hazardContacts[unit.id+':'+w.side]=state.clock;damageTeam(w.damage,unit.x,unit.y,unit);if(state.phase==='gameover')return;
       }
     }
@@ -467,7 +497,7 @@
     let styleMultiplier=unit.battleStyle==='balance'?1.2:1;
     if(unit.battleStyle==='power'&&!state.powerHitUsed){state.powerHitUsed=true;styleMultiplier=2;floatingText(unit.x,unit.y-38,'POWER ×2',unit.color,14);}
     const switchMultiplier=powerSwitchMultiplier();
-    return baseDamage*(unit.atk/1000)*(state.skillShot?2.4:1)*styleMultiplier*(1+(state.swordBonus||0))*(state.atkUp||1)*wallBoostMultiplier(unit)*switchMultiplier*consumePhoton(unit);
+    return baseDamage*(effectiveAttack(unit)/1000)*(state.skillShot?2.4:1)*styleMultiplier*(1+(state.swordBonus||0))*(state.atkUp||1)*wallBoostMultiplier(unit)*switchMultiplier*consumePhoton(unit);
   }
   // キューブ状態：手番以外の味方は正方形の当たり判定を持つ（移動中の味方は反射し、友情は接触で発動）。
   function cubeActive(){return !!(state.waves[state.wave].cube??state.stage.cube??stageSettings.cube);}
@@ -545,13 +575,13 @@
           if(!contact){
             onEnemyTouch(unit,enemy);
             const retention=contactRetention(unit,enemy);unit.vx*=retention;unit.vy*=retention;
-            if(enemy.sword){touchSwordEnemy(unit,enemy);unit.enemyContacts.set(enemy.id,{amount:0,weak:true});continue;}
+            if(enemy.sword){touchSwordEnemy(unit,enemy);unit.enemyContacts.set(enemy.id,{amount:0,weak:swordWeakHit(enemy,hit),sword:true});continue;}
             const amount=directHitDamage(unit);contact={amount,weak: hitsWeak(enemy,hit)};
             unit.enemyContacts.set(enemy.id,contact);
             damageEnemy(enemy,amount,false,{hit,owner:unit});
           }else if(!contact.weak&&hitsWeak(enemy,hit)){
             // Body contact and the later weak-point crossing total x3, without another slowdown/photon.
-            contact.weak=true;damageEnemy(enemy,contact.amount,false,{hit,owner:unit,weakBonusOnly:true,charge:0});
+            contact.weak=true;if(contact.sword)swordWeakHit(enemy,hit);else damageEnemy(enemy,contact.amount,false,{hit,owner:unit,weakBonusOnly:true,charge:0});
           }
           continue;
         }
@@ -561,7 +591,7 @@
           const reflected=reflectVelocity(unit.vx,unit.vy,nx,ny),retention=contactRetention(unit,enemy);
           unit.vx=reflected.x*retention;unit.vy=reflected.y*retention;
           enemy.hitAt=state.clock;state.lastHitEnemyId=enemy.id;onEnemyTouch(unit,enemy);
-          if(enemy.sword)touchSwordEnemy(unit,enemy);
+          if(enemy.sword){touchSwordEnemy(unit,enemy);swordWeakHit(enemy,{x:unit.x,y:unit.y,radius:unit.r});}
           else damageEnemy(enemy,directHitDamage(unit),false,{hit:{x:unit.x,y:unit.y,radius:unit.r},owner:unit});
           state.shake=Math.max(state.shake,state.skillShot?4:1.5);
         }
@@ -586,7 +616,7 @@
     if (Math.hypot(unit.vx, unit.vy) < 64 || state.moveTime > 6.8 || !state.enemies.some(enemy => enemy.alive)) {
       unit.vx = 0;
       unit.vy = 0;
-      state.unitStopped = true;
+      state.unitStopped = true;unit.superWind=false;
       fireLaserGens();
     }
   }

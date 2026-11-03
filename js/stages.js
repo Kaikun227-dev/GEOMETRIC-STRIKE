@@ -739,7 +739,7 @@ const stage84={id:'8-4',name:'光子貯蔵庫と三十倍の弱点',weakMultipli
  waves:photon84.map((a,i)=>{
   const mhp=1500000+i*15000,enemies=(a.m||[]).map(([x,y,t,ang],j)=>({...c8Mob('mob-'+j,i+j,x,y,mhp,{shape:'polygon',sides:4,weakPoint:{angle:ang,radius:15},...(a.grantBoss?{crossSkull:'weak'}:{})}),...c8Opt(0,t)}));
   if(a.boss){const [bx,by,bt,bw]=a.boss;
-   enemies.push({...c8Boss('ルミナス',bx,by,i===3?1000000:10000000,96,'#d6a21f',i===3?[c7Attack('meteor',{count:3,mult:.18}),c7Attack('explosion',{radius:140,mult:.2}),c7Attack('homing',{count:4,mult:.18})]:[c7Attack('crossLaser',{mult:.2}),c7Attack('plusLaser',{mult:.2}),c7Vibe()],{shape:'polygon',sides:4,weakAngles:bw,...(a.grantBoss?{weakEnabled:false}:{})}),...c8Opt(0,bt)});}
+   enemies.push({...c8Boss('ルミナス',bx,by,i===3?1000000:10000000,96,'#d6a21f',i===3?[c7Attack('meteor',{count:3,mult:.18}),c7Attack('explosion',{radius:140,mult:.2}),c7Attack('homing',{count:4,mult:.18})]:[c7Attack('wayLaser',{count:8,mult:.2}),c7Attack('spread',{ways:16,volleys:3,mult:.2}),c7Vibe()],{shape:'polygon',sides:4,weakAngles:bw,...(a.grantBoss?{weakEnabled:false}:{})}),...c8Opt(0,bt)});}
   return {name:a.name,step:a.step,...(a.boss?{bossPhase:i-2}:{}),enemies,...(a.grantBoss?{crossSkulls:[{id:'weak',members:{group:'weak'},effects:[{type:'grantWeak',targets:['boss']}]}]}:{}),
    gimmicks:{slowWalls:['top','right','bottom','left'].map(c6Slow),blocks:(a.blocks||[]).map(b=>block(...b)),containers:c8Containers(a.cont),transPanels:c8Panels(a.p)}};
  })};
@@ -880,3 +880,85 @@ const stage92={id:'9-2',name:'四つの砲台と二十倍の弱点',weakMultipli
    ...(i===3?{crossSkulls:c7WeakGrant('boss',0,{internal:true,radius:12})}:i===4?{crossSkulls:c7WeakGrant('boss',C7P)}:{}),gimmicks:{}};
  })};
 const CHAPTER_NINE=[stage91,stage92];for(const stage of CHAPTER_NINE){STAGES.push(stage);STAGE_BY_ID[stage.id]=stage;}
+
+// 9-3：中ボス中心の弱点攻略。複数の弱点位置はターンごとに交代。
+const c93Attacks=()=>[c7Attack('homing',{count:3,mult:.18}),c7Attack('wayLaser',{count:6,hits:2,mult:.16,countdown:2,interval:3})];
+const c93Mid=(key,x,y,hp,angles,extra={})=>c7Mid(key,x,y,hp,[angles[0]],c93Attacks(),{r:78,shape:'square',sides:4,weakAngles:angles.length>1?angles:null,weakPoint:{angle:angles[0],radius:15},...extra});
+const c93Move=(x,y,turns)=>({kind:'move',to:{x,y},countdown:turns,interval:turns});
+const c93Boss=(x,y,hp,extra={})=>c7Boss('テンペスト',x,y,hp,'#48b3a7',[c7Attack('reflectCross',{bounces:2,mult:.14,countdown:2,interval:3}),c7Attack('dropBomb',{count:3,mult:.22,countdown:3,interval:4}),c7Attack('homing',{count:3,mult:.18})],{r:82,shape:'octagon',sides:8,weakEnabled:false,...extra});
+const damageLine=(x1,y1,x2,y2,color='silver')=>({a:{x:x1,y:y1},b:{x:x2,y:y2},color});
+const lines93=[
+  [damageLine(28,182,592,182)],
+  [damageLine(310,28,310,210),damageLine(310,510,310,700)],
+  [damageLine(475,28,475,210),damageLine(145,465,145,645),damageLine(225,340,390,340,'gold')],
+  [damageLine(28,445,265,675),damageLine(580,28,580,320)],
+  [damageLine(125,145,495,145),damageLine(125,565,495,565),damageLine(190,250,190,425,'gold'),damageLine(430,250,430,425,'gold')]
+];
+const stage93={id:'9-3',name:'双弱点の対角回廊',hint:'ダメージラインに触れるたびにダメージ。金のユニットがあるエリアでは銀→金の順に毎ターン切り替わる。道中は四角い中ボスだけが出現。左右・上下の弱点と移動先を狙おう。ボス1は右上の中ボスを倒すとボスに弱点付与。ボス2は上下の中ボスを両方倒すとボスの上下に弱点が出現する。',waves:[
+ {name:'中央の双弱点',step:'DUAL 1',enemies:[c93Mid('mid',310,350,50000,[0,C7P])],gimmicks:{}},
+ {name:'対角を渡る番人',step:'DUAL 2',enemies:[c93Mid('mid',465,180,80000,[-C7H,C7H],{attacks:[...c93Attacks(),c93Move(155,540,3)]})],gimmicks:{}},
+ {name:'向かい合う双番人',step:'DUAL 3',enemies:[
+ c93Mid('mid-left',145,165,64000,[0],{attacks:[...c93Attacks(),c93Move(145,350,2)]}),
+ c93Mid('mid-right',475,545,64000,[C7P],{attacks:[...c93Attacks(),c93Move(475,350,2)]})],gimmicks:{}},
+ {name:'八角王の対角陣',step:'TEMPEST / 1',bossPhase:1,enemies:[
+ c93Mid('mid',465,180,75000,[C7P],{weakPoint:{angle:C7P,radius:15},weakAngles:[C7P,C7H],crossSkull:'weak'}),
+ c93Boss(155,535,160000,{weakAngles:[0,-C7H]})],crossSkulls:c7WeakGrant('boss',0),gimmicks:{}},
+ {name:'八角王の上下封印',step:'TEMPEST / 2',bossPhase:2,enemies:[
+ c93Mid('mid-top',310,145,90000,[0,C7P],{crossSkull:'weak',attacks:[...c93Attacks(),c93Move(475,145,1)]}),
+ c93Mid('mid-bottom',310,565,90000,[0,C7P],{crossSkull:'weak',attacks:[c7Attack('dropBomb',{count:2,mult:.2,countdown:2,interval:3}),c7Attack('homing',{count:2,mult:.16}),c93Move(145,565,1)]}),
+ c93Boss(310,355,240000,{weakAngles:[-C7H,C7H]})],crossSkulls:c7WeakGrant('boss',-C7H),gimmicks:{}}
+]};
+stage93.waves.forEach((wave,i)=>{wave.gimmicks.damageLines=lines93[i];});
+CHAPTER_NINE.push(stage93);STAGES.push(stage93);STAGE_BY_ID[stage93.id]=stage93;
+
+// ===== 第9章：9-4 二十四倍の共鳴回廊（スライド準拠・道中3＋ボス2の5エリア） =====
+// 座標はスライドを盤面フィールド（28〜592 × 28〜712）へ換算した値（左の盤面 x0:0・幅560〜566、右の盤面 x0:723〜728・幅603〜605、高さ約748）。
+// ギミック：ワープ（3組）・ブロック・反射制限・パワーエリア（24倍）・剣持ち敵（32倍）・蘇生・弱点ヒットで弱点移動・HP共有・加速パネル・弱点倍率アップ（24倍）。
+// 弱点は「移動する弱点の順番」（route）どおりに敵から敵へ渡る。弱点に直接ヒットすると次の番号へ移る。剣持ち敵は倒せないが、弱点に触れるとダメージなしで弱点だけが次へ移る。
+//   route=[キー, 弱点の位置(C=中央、R/D/U/L=右/下/上/左)] の配列。キー：pink-N=通常敵、sword-N=剣持ち敵、share-N=HP共有の敵（緑）、boss=ボス
+// HP共有（hpShare）：緑の敵が受けたダメージ（弱点・パワーエリア・剣の倍率込み）を、指定したボス／中ボスにもそのまま反映する。逆（ボス→緑）は反映しない。
+//   緑の敵は高HPで倒せず、共有先が倒されると撤退する。反射制限（水色）は2ターンごとに互いを蘇生。中ボス・ボスは3ターンごとに倒れた雑魚を全て蘇生（反射制限は蘇生しない）。
+const c94Revive={kind:'revive',targets:'others',limit:99,skipRestricted:true,countdown:3,interval:5};
+const c94Cyan=(key,n,x,y,hp,peers)=>{const e=c7Restrict(key,'reflect',n,x,y,peers,hp);return {...e,attacks:e.attacks.map(a=>a.kind==='revive'?{...a,countdown:2,interval:2}:a)};};
+const c94Share=(key,n,x,y,target)=>c8Mob(key,n,x,y,3000000000,{tint:'#58893a',hpShare:[target],retreatWhenShareDead:true,retreatWhenAlone:true});
+const reson94=[
+ {name:'剣が導く三つの弱点',step:'RESONANCE 1',
+  pa:[[28,28,206,205],[376,28,216,345]],pink:[[538,296],[131,133]],sword:[[208,414]],cyan:[[259,187],[369,355]],
+  route:[['sword-0','C'],['pink-0','C'],['pink-1','C']],
+  warp:[[[61,205],[543,128]],[[95,466],[410,240]],[[303,88],[482,480]]]},
+ {name:'光の帯を渡る五つの弱点',step:'RESONANCE 2',
+  pa:[[232,28,149,684]],pink:[[305,76],[305,666],[383,225],[230,528]],sword:[[305,373]],cyan:[[527,201],[86,553]],
+  route:[['sword-0','C'],['pink-0','C'],['pink-1','C'],['pink-2','L'],['pink-3','R']],
+  warp:[[[233,316],[380,436]],[[380,314],[233,436]],[[307,262],[308,493]]]},
+ {name:'中ボス・共鳴核',step:'RESONANCE 3',
+  pa:[[28,393,564,319]],pink:[[511,654],[405,665],[296,665],[187,665],[76,624]],sword:[[87,256],[530,493]],share:[[223,447],[395,330]],mid:[299,124],
+  blocks:[[133,559,351,45]],boost:[[308,396],[544,584]],
+  route:[['pink-0','C'],['pink-1','C'],['pink-2','C'],['pink-3','C'],['pink-4','C'],['share-0','C'],['share-1','C']],
+  warp:[[[430,65],[145,340]],[[176,65],[78,541]],[[298,238],[536,398]]]},
+ {name:'共鳴王・レゾナ',step:'RESONA / 1',
+  pa:[[28,28,564,133],[28,575,564,137]],pink:[[368,80],[234,639]],sword:[[527,244],[102,474]],cyan:[[383,226],[252,500]],boss:[138,160],move:[466,575],
+  boost:[[310,365]],
+  route:[['pink-0','C'],['pink-1','C'],['boss','D'],['boss','U']],
+  warp:[[[311,292],[369,670]],[[246,74],[311,446]],[[490,105],[129,618]]]},
+ {name:'共鳴王の終端',step:'RESONA / 2',
+  pa:[[458,28,134,265],[28,332,270,290]],pink:[[323,412],[74,576],[535,181]],sword:[[307,193],[296,654]],share:[[113,398],[501,454]],boss:[113,108],
+  boost:[[188,290],[418,568]],
+  route:[['pink-0','L'],['pink-1','R'],['pink-2','D'],['share-0','C'],['share-1','C']],
+  warp:[[[225,404],[548,554]],[[525,78],[72,482]],[[441,303],[300,569]]]}
+];
+const stage94={id:'9-4',name:'二十四倍の共鳴回廊',weakMultiplier:24,powerAreaMultiplier:24,hideGimmicks:['撤退','中ボス','敵移動','一部のボスは弱点なし'],
+ hint:'ワープ・ブロック・反射制限・パワーエリア（24倍）・剣持ち敵（32倍）・蘇生・弱点ヒットで弱点移動・HP共有・加速パネル・弱点倍率アップ（24倍）。弱点は番号順に敵から敵へ移動する。弱点に直接ヒットすると次の番号へ移り、剣持ち敵は倒せないが弱点に触れるだけで弱点が移る。緑の敵は高HPで倒せないが、受けたダメージ（弱点・パワーエリア・剣の倍率込み）が中ボス／ボスにそのまま反映される（逆は反映されない）。ボス2のボスは弱点なしなので、緑の敵を狙おう。水色の反射制限は2ターンごとに互いを蘇生し、中ボス・ボスは3ターンごとに倒れた雑魚を全員蘇生する（反射制限は除く）。',
+ waves:reson94.map((a,i)=>{
+  const hp=10000000+i*2500,keys=(a.cyan||[]).map((_,j)=>'ref-'+j),enemies=[
+   ...a.pink.map(([x,y],j)=>c8Mob('pink-'+j,i+j,x,y,hp)),
+   ...(a.cyan||[]).map(([x,y],j)=>c94Cyan(keys[j],i+j,x,y,120000,keys.filter(k=>k!==keys[j]))),
+   ...(a.share||[]).map(([x,y],j)=>c94Share('share-'+j,i+j,x,y,a.mid?'mid':'boss')),
+   ...a.sword.map(([x,y],j)=>c8Sword('sword-'+j,x,y,32))];
+  if(a.mid)enemies.push(c7Mid('mid',a.mid[0],a.mid[1],60000000,[],[c7Attack('homing',{count:4,mult:.2}),c7Attack('dropBomb',{radius:130,mult:.22}),{...c94Revive}],{r:76,weakPoint:null,weakEnabled:false}));
+  if(i===3)enemies.push(c7Boss('レゾナ',a.boss[0],a.boss[1],120000000,'#d9392f',[c7Attack('reflectCross',{bounces:2,mult:.2}),c7Attack('homing',{count:4,mult:.18}),{...c94Revive},{kind:'move',to:{x:a.move[0],y:a.move[1]},countdown:2,interval:2}],{r:80,weakEnabled:false,routeWeak:true}));
+  if(i===4)enemies.push(c7Boss('レゾナ',a.boss[0],a.boss[1],200000000,'#d9392f',[c7Attack('wayLaser',{count:8,mult:.2}),c7Attack('meteor',{count:3,mult:.18}),{...c94Revive}],{r:80,weakEnabled:false,noWeak:true}));
+  return {name:a.name,step:a.step,...(i>=3?{bossPhase:i-2}:{}),enemies,
+   weakRoutes:[{id:'resonance',positions:a.route.map(([target,ang])=>({target,angle:c9Ang[ang]??0,internal:ang==='C',offset:0,radius:15}))}],
+   gimmicks:{powerAreas:a.pa.map(([x,y,w,h])=>({x,y,w,h})),warps:c7Warps(...a.warp),...(a.blocks?{blocks:a.blocks.map(b=>block(...b))}:{}),...(a.boost?{boosts:c7Boosts(a.boost)}:{})}};
+ })};
+CHAPTER_NINE.push(stage94);STAGES.push(stage94);STAGE_BY_ID[stage94.id]=stage94;

@@ -68,12 +68,14 @@
     setText('formation-note', message || '');
   }
 
-  const rosterFilters={shot:'',ability:'',ability2:'',friendship:''};
-  function filteredCharacters(){return CHARACTERS.filter(c=>(!rosterFilters.shot||c.shotType===rosterFilters.shot)&&(!rosterFilters.ability||c.abilities.includes(rosterFilters.ability))&&(!rosterFilters.ability2||c.abilities.includes(rosterFilters.ability2))&&(!rosterFilters.friendship||[c.friendship,c.secondary].some(f=>f?.kind===rosterFilters.friendship)));}
-  const abilityOptions=[...new Set(CHARACTERS.flatMap(c=>c.abilities))].sort((a,b)=>ABILITIES[a][0].localeCompare(ABILITIES[b][0],'ja')).map(id=>'<option value="'+id+'">'+ABILITIES[id][0]+'</option>').join('');
-  $('filter-ability').innerHTML+=abilityOptions;$('filter-ability2').innerHTML+=abilityOptions;
+  const rosterFilters={shot:'',style:'',ability:'',ability2:'',ability3:'',friendship:''};
+  function filteredCharacters(){return CHARACTERS.filter(c=>(!rosterFilters.shot||c.shotType===rosterFilters.shot)&&(!rosterFilters.style||c.battleStyle===rosterFilters.style)&&(!rosterFilters.ability||hasAbility(c,rosterFilters.ability))&&(!rosterFilters.ability2||hasAbility(c,rosterFilters.ability2))&&(!rosterFilters.ability3||hasAbility(c,rosterFilters.ability3))&&(!rosterFilters.friendship||[c.friendship,c.secondary].some(f=>f?.kind===rosterFilters.friendship)));}
+  const baseAbilityId=id=>Object.keys(SUPER_ANTI).find(base=>SUPER_ANTI[base]===id)||id;
+  const filterAbilityName=id=>SUPER_ANTI[id]?ABILITIES[id][0]+'/'+ABILITIES[SUPER_ANTI[id]][0]:ABILITIES[id][0];
+  const abilityOptions=[...new Set(CHARACTERS.flatMap(c=>c.abilities).map(baseAbilityId))].sort((a,b)=>filterAbilityName(a).localeCompare(filterAbilityName(b),'ja')).map(id=>'<option value="'+id+'">'+filterAbilityName(id)+'</option>').join('');
+  for(const key of ['ability','ability2','ability3'])$('filter-'+key).innerHTML+=abilityOptions;
   $('filter-friendship').innerHTML+=[...new Set(CHARACTERS.flatMap(c=>[c.friendship.kind,c.secondary.kind]))].sort((a,b)=>FRIENDSHIP_KINDS[a].name.localeCompare(FRIENDSHIP_KINDS[b].name,'ja')).map(id=>'<option value="'+id+'">'+FRIENDSHIP_KINDS[id].name+'</option>').join('');
-  for(const key of ['shot','ability','ability2','friendship'])$('filter-'+key).addEventListener('change',event=>{
+  for(const key of Object.keys(rosterFilters))$('filter-'+key).addEventListener('change',event=>{
     rosterFilters[key]=event.target.value;const matches=filteredCharacters();if(matches.length&&!matches.some(c=>c.id===selectedCharId))selectedCharId=matches[0].id;renderFormation();
   });
   $('filter-reset').addEventListener('click',()=>{for(const key of Object.keys(rosterFilters)){rosterFilters[key]='';$('filter-'+key).value='';}renderFormation();});

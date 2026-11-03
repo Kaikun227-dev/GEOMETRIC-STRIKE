@@ -67,7 +67,9 @@
       ring(unit.x, unit.y, unit.color, 250, 0.8);
       tone(140, 0.5, 'sawtooth', 0.035, 0, 740);
     }
-    const speed = (390 + clamp(power, 0, 1) * 710) * (state.skillShot ? 2 : 1) * (unit.speed * dashMultiplier(unit) / 100);
+    unit.lineContacts=new Set();
+    unit.superUsed=new Set();unit.superWallAttack=0;
+    const speed = (390 + clamp(power, 0, 1) * 710) * (state.skillShot ? 2 : 1) * (unit.speed * dashMultiplier(unit) * (unit.superWind?1.5:1) / 100);
     unit.vx = dx / magnitude * speed;
     unit.vy = dy / magnitude * speed;
     state.phase = 'moving';
@@ -124,9 +126,12 @@
     chargeSkill(6);
     rememberBest();
     if (!state.enemies.some(enemy => enemy.alive)) {
+      tickAllyPoison();if(state.phase==='gameover')return;
       clearWave();
       return;
     }
+    tickEnemyPoison();
+    if(!state.enemies.some(e=>e.alive)){tickAllyPoison();if(state.phase!=='gameover')clearWave();return;}
     endOfTurnHeartFruits();
     state.phase = 'enemy';
     state.phaseTimer = 0.48;
@@ -143,6 +148,8 @@
   }
 
   function readyNextTurn() {
+    if(state.phase!=='wave'){tickAllyPoison();if(state.phase==='gameover')return;}
+      for(const u of state.units)u.superWallAttack=0;
     for(const e of state.enemies)if(e.transparent&&!e.stealthManaged){e.transparent=false;allowSpawnExit(e);}
     resetBarriers();state.laserGens=[];
     state.atkUp=1;state.firstTouchId=null;state.wallSides=new Set();for(const u of state.units)u.bubblyGift=false;
