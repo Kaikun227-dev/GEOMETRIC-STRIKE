@@ -69,28 +69,16 @@
     for(const point of [pair.a,pair.b]){
       ctx.save();ctx.translate(point.x,point.y);
       const r=pair.r;
-      const rim=ctx.createLinearGradient(-r,-r,r,r);
-      rim.addColorStop(0,light);rim.addColorStop(.27,color);rim.addColorStop(.48,'#273049');rim.addColorStop(.73,light);rim.addColorStop(1,color);
-      ctx.fillStyle=rim;ctx.strokeStyle=color;ctx.lineWidth=1;
-      polygon(0,0,r,8,Math.PI/8);ctx.fill();ctx.stroke();
-
       // The off-centre throat and shrinking frames suggest a tunnel into the board.
-      const well=ctx.createRadialGradient(-r*.13,r*.1,0,0,0,r*.83);
+      const well=ctx.createRadialGradient(-r*.13,r*.1,0,0,0,r);
       well.addColorStop(0,'#141329');well.addColorStop(.65,'#272941');well.addColorStop(1,color);
-      ctx.fillStyle=well;polygon(0,0,r*.83,8,Math.PI/8);ctx.fill();
+      ctx.fillStyle=well;ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.fill();
       for(let layer=0;layer<3;layer++){
         const depth=(phase+layer/3)%1;
         ctx.globalAlpha=.8*Math.sin(depth*Math.PI);
         ctx.strokeStyle=light;ctx.lineWidth=1.3;
         polygon(-r*.13*depth,r*.1*depth,r*(.76-.58*depth),4,phase*.4+depth*.8);
         ctx.stroke();
-      }
-      ctx.globalAlpha=1;
-      for(let facet=0;facet<4;facet++){
-        const angle=facet*Math.PI/2;
-        ctx.fillStyle=light;
-        polygon(Math.cos(angle)*r*.89,Math.sin(angle)*r*.89,r*.085,4,angle);
-        ctx.fill();
       }
       ctx.restore();
     }
@@ -409,7 +397,7 @@
       ctx.font = '600 10px "Space Grotesk", Arial, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillStyle = '#ca7c71';
-      ctx.fillText((state.waves[state.wave].noWeakPoints||state.stage.noWeakPoints||enemy.noWeak)?'BOSS / 弱点なし':!enemy.weakPoint&&enemy.routeWeak?'BOSS / 弱点は順番に移動':!enemy.weakPoint&&enemy.weakEnabled===false?'BOSS / 弱点は条件を満たすと出現':enemy.internalWeak&&!enemy.weakPoint?'BOSS / 弱点は他の敵へ':'BOSS / '+(enemy.weakPoint?.internal?'内部弱点':'WEAK')+' ×'+enemyWeakMultiplier(enemy),0,r+40);
+      ctx.fillText(((state.waves[state.wave].noWeakPoints??state.stage.noWeakPoints)||enemy.noWeak)?'BOSS / 弱点なし':!enemy.weakPoint&&enemy.routeWeak?'BOSS / 弱点は順番に移動':!enemy.weakPoint&&enemy.weakEnabled===false?'BOSS / 弱点は条件を満たすと出現':enemy.internalWeak&&!enemy.weakPoint?'BOSS / 弱点は他の敵へ':'BOSS / '+(enemy.weakPoint?.internal?'内部弱点':'WEAK')+' ×'+enemyWeakMultiplier(enemy),0,r+40);
     }
     ctx.shadowColor = 'rgba(213, 118, 105, 0.17)';
     ctx.shadowBlur = 15;
@@ -435,6 +423,7 @@
       else{ctx.strokeStyle='#e9edf2';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-r*.55,-r*.55);ctx.lineTo(r*.55,r*.55);ctx.moveTo(r*.55,-r*.55);ctx.lineTo(-r*.55,r*.55);ctx.stroke();for(const a of [0,Math.PI/2,Math.PI,Math.PI*1.5]){ctx.fillStyle='#536476';ctx.beginPath();ctx.arc(Math.cos(a)*r*.78,Math.sin(a)*r*.78,3,0,TAU);ctx.fill();}}
       ctx.fillStyle=enemy.restriction==='reflect'?'#2b7189':'#344653';ctx.font='bold 12px Arial';ctx.textAlign='center';ctx.fillText(enemy.restriction==='reflect'?'反 ×':'貫 ×',0,4);
     }
+    if(enemy.summoner){ctx.fillStyle='#463914';ctx.font='bold 18px sans-serif';ctx.textAlign='center';ctx.fillText('召',0,6);}
     if(enemy.sword){
       ctx.save();ctx.strokeStyle='#8a5a0c';ctx.fillStyle='#fff6d8';ctx.lineWidth=2;ctx.lineJoin='round';
       ctx.beginPath();ctx.moveTo(0,-r*.62);ctx.lineTo(r*.14,-r*.38);ctx.lineTo(r*.11,r*.2);ctx.lineTo(-r*.11,r*.2);ctx.lineTo(-r*.14,-r*.38);ctx.closePath();ctx.fill();ctx.stroke();
@@ -459,7 +448,7 @@
       ctx.fillStyle = attack.remaining <= 1 ? '#fff' : '#b3584d';
       ctx.fillText(String(Math.max(0, attack.remaining)), bx, by);
       ctx.font = '9px Arial'; ctx.fillStyle = '#a9675c';
-      ctx.fillText(({ sniper: '狙撃', laser: '光線', homing: '追尾', explosion: '爆発', meteor: '隕石', spread: '拡散', mines:'地雷', photons:'光子',vibration:'振動',reflectLaser:'反射(2)',pierce:'貫通(3)',revive:'蘇生',move:'移動',effect:'効果',plusLaser:'十字',crossLaser:'クロス',wayLaser:'多方向',reflectCross:'反射クロス',dropBomb:'ボム',poisonSpread:'毒拡散',poisonMeteor:'毒隕石',poisonBomb:'毒ボム' })[attack.kind] || FRIENDSHIP_KINDS[attack.kind]?.name || '攻撃', bx, by-20, 40);
+      ctx.fillText(({ sniper: '狙撃', laser: '光線', homing: '追尾', explosion: '爆発', meteor: '隕石', spread: '拡散', mines:'地雷', photons:'光子',vibration:'振動',reflectLaser:'反射(2)',pierce:'貫通(3)',revive:'蘇生',move:'移動',effect:'効果',plusLaser:'十字',crossLaser:'クロス',wayLaser:attack.count?attack.count+'方向':'多方向',scramble:'スクランブル',reflectCross:'反射クロス',dropBomb:'ボム',poisonSpread:'毒拡散',poisonMeteor:'毒隕石',poisonBomb:'毒ボム' })[attack.kind] || FRIENDSHIP_KINDS[attack.kind]?.name || '攻撃', bx, by-20, 40);
     });
     for (const w of weakPositions(enemy)) {
       const wx=w.x-x, wy=w.y-y;
@@ -483,6 +472,11 @@
   }
 
   const CHARACTER_OUTLINES={
+cirrus:[[-0.15,-0.2],[-0.65,-0.78],[0.15,-1],[0.55,-0.65],[0.2,-0.15],[0.2,-0.15],[0.78,-0.65],[1,0.15],[0.65,0.55],[0.15,0.2],[0.15,0.2],[0.65,0.78],[-0.15,1],[-0.55,0.65],[-0.2,0.15],[-0.2,0.15],[-0.78,0.65],[-1,-0.15],[-0.65,-0.55],[-0.15,-0.2]],
+dartwing:[[0,-1],[1,0.45],[0.38,0.28],[0.2,0.92],[0,0.45],[-0.2,0.92],[-0.38,0.28],[-1,0.45]],
+geode:[[-0.9,-0.35],[-0.4,-0.92],[0.1,-0.55],[0.62,-1],[0.96,0.2],[0.38,0.88],[-0.52,0.7]],
+cadence:[[-0.95,-0.25],[-0.45,-0.25],[-0.05,-1],[0.2,0.25],[0.46,-0.22],[1,-0.22],[0.85,0.14],[0.58,0.14],[0.03,0.95],[-0.2,-0.13],[-0.36,0.14],[-0.95,0.14]],
+mantis:[[-0.94,-0.92],[-0.28,-0.48],[0,-0.68],[0.28,-0.48],[0.94,-0.92],[0.7,0.14],[0.32,-0.05],[0.25,0.55],[0,1],[-0.25,0.55],[-0.32,-0.05],[-0.7,0.14]],
 xstar:[[0.707,-0.707],[0.42,0.0],[0.707,0.707],[0.0,0.42],[-0.707,0.707],[-0.42,0.0],[-0.707,-0.707],[-0.0,-0.42]],
 newmoon:[[-0.713,-0.906],[-0.474,-0.983],[-0.225,-0.998],[0.021,-0.95],[0.247,-0.843],[0.44,-0.684],[0.587,-0.481],[0.679,-0.248],[0.71,0.0],[0.679,0.248],[0.587,0.481],[0.44,0.684],[0.247,0.843],[0.021,0.95],[-0.225,0.998],[-0.474,0.983],[-0.713,0.906],[-0.551,0.869],[-0.402,0.803],[-0.266,0.713],[-0.148,0.599],[-0.053,0.467],[0.018,0.32],[0.061,0.163],[0.075,0.0],[0.061,-0.163],[0.018,-0.32],[-0.053,-0.467],[-0.148,-0.599],[-0.266,-0.713],[-0.402,-0.803],[-0.551,-0.869]],
 cog:[[0.0,-1.0],[0.241,-0.742],[0.588,-0.809],[0.631,-0.458],[0.951,-0.309],[0.78,0.0],[0.951,0.309],[0.631,0.458],[0.588,0.809],[0.241,0.742],[0.0,1.0],[-0.241,0.742],[-0.588,0.809],[-0.631,0.458],[-0.951,0.309],[-0.78,0.0],[-0.951,-0.309],[-0.631,-0.458],[-0.588,-0.809],[-0.241,-0.742]],
@@ -542,6 +536,34 @@ wing:[[-1,0.65],[-0.6,-0.65],[0,0.05],[0.6,-1],[1,-0.8],[0.6,0.35],[0,1]],
     sixstar:Array.from({length:12},(_,i)=>{const a=-Math.PI/2+i*Math.PI/6,r=i%2?.5:1;return [Math.cos(a)*r,Math.sin(a)*r];})
   };
   function characterOutline(shape,r){ctx.beginPath();CHARACTER_OUTLINES[shape].forEach(([x,y],i)=>{if(i)ctx.lineTo(x*r,y*r);else ctx.moveTo(x*r,y*r);});ctx.closePath();}
+  function drawAbilityBarrier(unit){
+    const r=unit.r+16,ratio=unit.barrierHp/(hasAbility(unit,'barrierM')?5000:2000),color=unit.color;
+    ctx.save();
+    const shell=ctx.createRadialGradient(-r*.25,-r*.35,r*.15,0,0,r);
+    shell.addColorStop(0,color+'08');shell.addColorStop(.7,color+'24');shell.addColorStop(1,color+'85');
+    ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.fillStyle=shell;ctx.fill();
+    ctx.save();ctx.clip();
+    const cell=10;
+    for(let row=-3;row<=3;row++)for(let col=-3;col<=3;col++){
+      const x=(col+(row%2)*.5)*Math.sqrt(3)*cell,y=row*cell*1.5;
+      const edge=Math.min(1,Math.hypot(x,y)/r);
+      polygon(x,y,cell-.6,6);
+      ctx.fillStyle=color;ctx.globalAlpha=.06+edge*.2;ctx.fill();
+      ctx.strokeStyle='#fff';ctx.globalAlpha=.15+edge*.55;ctx.lineWidth=1;ctx.stroke();
+    }
+    ctx.restore();
+    ctx.strokeStyle=color;ctx.lineWidth=2;ctx.shadowColor=color;ctx.shadowBlur=8;
+    ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.stroke();
+    ctx.shadowBlur=0;ctx.strokeStyle='#ffffffb0';ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(-r*.08,-r*.08,r*.83,-2.5,-1);ctx.stroke();
+    const y=r+5;
+    ctx.fillStyle='#243144';ctx.fillRect(-22,y-4,44,8);
+    ctx.fillStyle=color;ctx.fillRect(-20,y-2,40*ratio,4);
+    ctx.font='bold 9px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.strokeStyle='#243144';ctx.lineWidth=3;ctx.strokeText(String(unit.barrierHp),0,y+12);
+    ctx.fillStyle='#fff';ctx.fillText(String(unit.barrierHp),0,y+12);
+    ctx.restore();
+  }
   function drawUnit(unit) {
     const isActive = unit.id === state.activeUnit;
     const idlePulse = (Math.sin(state.clock * 3) + 1) / 2;
@@ -556,6 +578,7 @@ wing:[[-1,0.65],[-0.6,-0.65],[0,0.05],[0.6,-1],[1,-0.8],[0.6,0.35],[0,1]],
       ctx.shadowBlur=0;ctx.fillStyle='#d88c18';ctx.font='bold 10px Arial';ctx.textAlign='center';ctx.fillText('AURA ×'+powerAuraMultiplier(unit),0,unit.r+25);ctx.restore();
     }
     if(inPowerArea(unit)){ctx.strokeStyle='#d2a335';ctx.lineWidth=3;polygon(0,0,33,6,state.clock*.25);ctx.stroke();ctx.fillStyle='#98701f';ctx.font='bold 11px Arial';ctx.textAlign='center';ctx.fillText('POWER ×'+powerAreaMultiplier(unit),0,-42);}
+    if(unit.barrierHp>0)drawAbilityBarrier(unit);
     if(isActive&&state.phase==='moving'&&touchPowerActive()&&(state.touchedAllies?.size||0)>0){ctx.fillStyle='#2f6fd1';ctx.font='bold 11px Arial';ctx.textAlign='center';ctx.fillText('TOUCH ×'+touchPowerMultiplier(),0,-56);}
     if(isActive&&state.phase==='moving'&&(state.atkUp||1)>1){ctx.fillStyle='#2a9a56';ctx.font='bold 11px Arial';ctx.textAlign='center';ctx.fillText('ATK ×'+(Math.round(state.atkUp*100)/100),0,-70);}
     if(isBubbly(unit)){ // バブリー状態：ユニットの周りを漂う泡
@@ -625,7 +648,7 @@ wing:[[-1,0.65],[-0.6,-0.65],[0,0.05],[0.6,-1],[1,-0.8],[0.6,0.35],[0,1]],
     const magnitude = Math.hypot(aim.dx, aim.dy);
     const dx = aim.dx / magnitude;
     const dy = aim.dy / magnitude;
-    const points = predictTrajectory(unit, { x: dx, y: dy }, 180 + 400 * aim.power);
+    const points = predictTrajectory(unit, { x: dx, y: dy }, 230 + 520 * aim.power);
     ctx.save();
     ctx.strokeStyle = `${unit.color}8c`; ctx.lineWidth = 2.5; ctx.setLineDash([4, 9]); ctx.lineDashOffset = -state.clock * 24;
     ctx.beginPath(); points.forEach((point, i) => i ? ctx.lineTo(point.x, point.y) : ctx.moveTo(point.x, point.y)); ctx.stroke(); ctx.setLineDash([]);
@@ -665,7 +688,19 @@ wing:[[-1,0.65],[-0.6,-0.65],[0,0.05],[0.6,-1],[1,-0.8],[0.6,0.35],[0,1]],
     if(effect.type==='killerFx'){ // キラー系の専用直殴りエフェクト：重力＝バリアを割る二重リングと収束線／ファースト＝交差する二本の斬撃
       const p=clamp(effect.age/effect.life,0,1),R=effect.r+20+p*60;
       ctx.save();ctx.translate(effect.x,effect.y);ctx.strokeStyle=effect.color;ctx.lineCap='round';ctx.globalAlpha=1-p;ctx.shadowColor=effect.color;ctx.shadowBlur=14;
-      if(effect.kind==='gravity'){
+      if(effect.kind==='poison'){
+        // 腐食の泡が命中点から広がり、浮き上がって消える。
+        ctx.lineWidth=1.5;ctx.shadowBlur=5;
+        for(let i=0;i<9;i++){
+          const angle=i*TAU/9+.25,spread=effect.r*(.24+p*(i%2?.85:1.1));
+          const x=Math.cos(angle)*spread,y=Math.sin(angle)*spread-16*p*p;
+          const radius=(3+i%3)*(1+.6*Math.sin(Math.PI*p));
+          ctx.beginPath();ctx.arc(x,y,radius,0,TAU);
+          ctx.fillStyle=i%3?'#9943b8':'#b9dd75';ctx.fill();
+          ctx.strokeStyle='#ecd2ff';ctx.stroke();
+          ctx.fillStyle='#fff';ctx.fillRect(x-radius*.5,y-radius*.55,2,2);
+        }
+      }else if(effect.kind==='gravity'){
         for(let i=0;i<2;i++){ctx.lineWidth=4-i*1.5;ctx.setLineDash([10,8]);ctx.beginPath();ctx.arc(0,0,effect.r*(1.25+i*.3)*(1+p*.5),0,TAU);ctx.stroke();}
         ctx.setLineDash([]);ctx.lineWidth=3;
         for(let i=0;i<8;i++){const a=i*TAU/8+p*1.2;ctx.beginPath();ctx.moveTo(Math.cos(a)*R,Math.sin(a)*R);ctx.lineTo(Math.cos(a)*R*.45,Math.sin(a)*R*.45);ctx.stroke();}
@@ -717,7 +752,7 @@ wing:[[-1,0.65],[-0.6,-0.65],[0,0.05],[0.6,-1],[1,-0.8],[0.6,0.35],[0,1]],
         if(progress<=0)continue;
         const alpha=effect.type==='plasma'?.8:clamp(1-Math.max(0,effect.elapsed-seg.start-seg.duration)/.45,0,1);
         ctx.beginPath();ctx.moveTo(seg.from.x,seg.from.y);ctx.lineTo(seg.from.x+(seg.to.x-seg.from.x)*progress,seg.from.y+(seg.to.y-seg.from.y)*progress);
-        ctx.strokeStyle=effect.color;ctx.globalAlpha=alpha*.22;ctx.lineWidth=effect.width+14;ctx.stroke();
+        ctx.strokeStyle=effect.color;ctx.globalAlpha=alpha*.22;ctx.lineWidth=effect.width+(effect.type==='plasma'?5:14);ctx.stroke();
         ctx.globalAlpha=alpha;ctx.lineWidth=effect.width;ctx.stroke();
         ctx.strokeStyle='#fff';ctx.globalAlpha=alpha*.9;ctx.lineWidth=effect.width*.25;ctx.stroke();
       }

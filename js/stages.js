@@ -714,15 +714,15 @@ const sword83=[
  {name:'剣陣王・クレイヴ',step:'CLAVE / 1',c:[[90,392,1,0],[400,519,0,0]],m:[[524,101,0,95],[90,648,1,95]],s:[[100,94,1,110],[530,652,0,110]],boss:[293,359,1,150],bw:[-2.28,.92],p:[[257,205],[553,379],[171,520]]},
  {name:'剣陣王の終端',step:'CLAVE / 2',c:[[157,184,0,80],[523,469,1,80]],m:[],s:[[532,71,0,110],[83,536,1,110]],boss:[312,409,0,150],bw:[Math.PI/2],blocks:[[206,263,216,55],[204,595,205,117]],p:[[446,168],[114,325],[310,555]]}
 ];
-const stage83={id:'8-3',name:'三十倍の剣と透明の蘇生陣',weakMultiplier:10,hint:'重力バリア・ブロック・反射制限・透明化・透明パネル・剣持ち敵・蘇生・クロスドクロ・撤退・弱点付与・内部弱点・弱点倍率10倍。剣持ち敵に直接触れると、その手番キャラの攻撃力（友情含む）が30倍（1ターン1回）。剣持ち敵は倒せず、他の敵を全滅させると撤退する。透明パネルを踏むと敵の透明／不透明が入れ替わり、その状態は次のターンへ持ち越す。水色の反射制限は3ターンごとに互いを蘇生。道中1以外では、反射制限を全て倒すと他の敵に弱点が付く。',
+const stage83={id:'8-3',name:'三十倍の剣と透明の蘇生陣',directMultiplier:5,weakMultiplier:10,hint:'重力バリア・ブロック・反射制限・透明化・透明パネル・剣持ち敵・蘇生・クロスドクロ・撤退・弱点付与・内部弱点・直殴り倍率アップ（5倍）・弱点倍率10倍。剣持ち敵に直接触れると、その手番キャラの攻撃力（友情含む）が30倍（1ターン1回）。剣持ち敵は倒せず、他の敵を全滅させると撤退する。透明パネルを踏むと敵の透明／不透明が入れ替わり、その状態は次のターンへ持ち越す。水色の反射制限は3ターンごとに互いを蘇生。道中1以外では、反射制限を全て倒すと他の敵に弱点が付く。',
  waves:sword83.map((a,i)=>{
-  const rhp=140000+i*1500,mhp=740000+i*20000,ckeys=a.c.map((_,j)=>'ref-'+j),grant=!!(a.m.length||a.boss);
+  const rhp=700000+i*1500,mhp=4800000+i*20000,ckeys=a.c.map((_,j)=>'ref-'+j),grant=!!(a.m.length||a.boss);
   const cyan=a.c.map(([x,y,t,g],j)=>({...c7Restrict(ckeys[j],'reflect',i+j,x,y,ckeys.filter(k=>k!==ckeys[j]),rhp,grant?{crossSkull:'weak'}:{}),...c8Opt(g,t)}));
   const mobs=a.m.map(([x,y,t,g],j)=>({...c8Mob('mob-'+j,i+j,x,y,mhp),...c8Opt(g,t)}));
   const swords=a.s.map(([x,y,t,g],j)=>({...c8Sword('sword-'+j,x,y,30),...c8Opt(g,t)}));
   const enemies=[...cyan,...mobs,...swords];
   if(a.boss){const [bx,by,bt,bg]=a.boss;
-   enemies.push({...c8Boss('クレイヴ',bx,by,i===3?1200000:1800000,68,'#d9503f',i===3?[c7Attack('crossLaser',{mult:.2}),c7Attack('homing',{count:4,mult:.18}),c7Attack('explosion',{radius:140,mult:.2})]:[c7Attack('plusLaser',{mult:.2}),c7Attack('meteor',{count:3,mult:.18}),c7Vibe()],{shape:'polygon',sides:8,weakEnabled:false,weakAngles:a.bw}),...c8Opt(bg,bt)});}
+   enemies.push({...c8Boss('クレイヴ',bx,by,i===3?12000000:20000000,68,'#d9503f',i===3?[c7Attack('crossLaser',{mult:.2}),c7Attack('homing',{count:4,mult:.18}),c7Attack('explosion',{radius:140,mult:.2})]:[c7Attack('plusLaser',{mult:.2}),c7Attack('meteor',{count:3,mult:.18}),c7Vibe()],{shape:'polygon',sides:8,weakEnabled:false,weakAngles:a.bw}),...c8Opt(bg,bt)});}
   const effects=[...(a.m.length?[{type:'grantWeak',targets:a.m.map((_,j)=>'mob-'+j),internal:true,radius:14}]:[]),...(a.boss?[{type:'grantWeak',targets:['boss']}]:[])];
   return {name:a.name,step:a.step,...(a.boss?{bossPhase:i-2}:{}),enemies,...(grant?{crossSkulls:[{id:'weak',members:{group:'weak'},effects}]}:{}),
    gimmicks:{blocks:(a.blocks||[]).map(b=>block(...b)),transPanels:c8Panels(a.p)}};
@@ -913,12 +913,12 @@ CHAPTER_NINE.push(stage93);STAGES.push(stage93);STAGE_BY_ID[stage93.id]=stage93;
 
 // ===== 第9章：9-4 二十四倍の共鳴回廊（スライド準拠・道中3＋ボス2の5エリア） =====
 // 座標はスライドを盤面フィールド（28〜592 × 28〜712）へ換算した値（左の盤面 x0:0・幅560〜566、右の盤面 x0:723〜728・幅603〜605、高さ約748）。
-// ギミック：ワープ（3組）・ブロック・反射制限・パワーエリア（24倍）・剣持ち敵（32倍）・蘇生・弱点ヒットで弱点移動・HP共有・加速パネル・弱点倍率アップ（24倍）。
+// ギミック：ワープ（3組）・ブロック・反射制限・パワーエリア（18倍）・剣持ち敵（24倍）・蘇生・弱点ヒットで弱点移動・HP共有・加速パネル・弱点倍率アップ（12倍）。
 // 弱点は「移動する弱点の順番」（route）どおりに敵から敵へ渡る。弱点に直接ヒットすると次の番号へ移る。剣持ち敵は倒せないが、弱点に触れるとダメージなしで弱点だけが次へ移る。
 //   route=[キー, 弱点の位置(C=中央、R/D/U/L=右/下/上/左)] の配列。キー：pink-N=通常敵、sword-N=剣持ち敵、share-N=HP共有の敵（緑）、boss=ボス
 // HP共有（hpShare）：緑の敵が受けたダメージ（弱点・パワーエリア・剣の倍率込み）を、指定したボス／中ボスにもそのまま反映する。逆（ボス→緑）は反映しない。
 //   緑の敵は高HPで倒せず、共有先が倒されると撤退する。反射制限（水色）は2ターンごとに互いを蘇生。中ボス・ボスは3ターンごとに倒れた雑魚を全て蘇生（反射制限は蘇生しない）。
-const c94Revive={kind:'revive',targets:'others',limit:99,skipRestricted:true,countdown:3,interval:5};
+const c94Revive={kind:'revive',targets:'others',limit:99,skipRestricted:true,countdown:4,interval:6};
 const c94Cyan=(key,n,x,y,hp,peers)=>{const e=c7Restrict(key,'reflect',n,x,y,peers,hp);return {...e,attacks:e.attacks.map(a=>a.kind==='revive'?{...a,countdown:2,interval:2}:a)};};
 const c94Share=(key,n,x,y,target)=>c8Mob(key,n,x,y,3000000000,{tint:'#58893a',hpShare:[target],retreatWhenShareDead:true,retreatWhenAlone:true});
 const reson94=[
@@ -946,19 +946,128 @@ const reson94=[
   route:[['pink-0','L'],['pink-1','R'],['pink-2','D'],['share-0','C'],['share-1','C']],
   warp:[[[225,404],[548,554]],[[525,78],[72,482]],[[441,303],[300,569]]]}
 ];
-const stage94={id:'9-4',name:'二十四倍の共鳴回廊',weakMultiplier:24,powerAreaMultiplier:24,hideGimmicks:['撤退','中ボス','敵移動','一部のボスは弱点なし'],
- hint:'ワープ・ブロック・反射制限・パワーエリア（24倍）・剣持ち敵（32倍）・蘇生・弱点ヒットで弱点移動・HP共有・加速パネル・弱点倍率アップ（24倍）。弱点は番号順に敵から敵へ移動する。弱点に直接ヒットすると次の番号へ移り、剣持ち敵は倒せないが弱点に触れるだけで弱点が移る。緑の敵は高HPで倒せないが、受けたダメージ（弱点・パワーエリア・剣の倍率込み）が中ボス／ボスにそのまま反映される（逆は反映されない）。ボス2のボスは弱点なしなので、緑の敵を狙おう。水色の反射制限は2ターンごとに互いを蘇生し、中ボス・ボスは3ターンごとに倒れた雑魚を全員蘇生する（反射制限は除く）。',
+const stage94={id:'9-4',name:'二十四倍の共鳴回廊',directMultiplier:20,weakMultiplier:12,powerAreaMultiplier:18,hideGimmicks:['撤退','中ボス','敵移動','一部のボスは弱点なし'],
+ hint:'直殴り倍率アップ（40倍）・ワープ・ブロック・反射制限・パワーエリア（18倍）・剣持ち敵（24倍）・蘇生・弱点ヒットで弱点移動・HP共有・加速パネル・弱点倍率アップ（12倍）。弱点は番号順に敵から敵へ移動する。弱点に直接ヒットすると次の番号へ移り、剣持ち敵は倒せないが弱点に触れるだけで弱点が移る。緑の敵は高HPで倒せないが、受けたダメージ（弱点・パワーエリア・剣の倍率込み）が中ボス／ボスにそのまま反映される（逆は反映されない）。ボス2のボスは弱点なしなので、緑の敵を狙おう。水色の反射制限は2ターンごとに互いを蘇生し、中ボス・ボスは3ターンごとに倒れた雑魚を全員蘇生する（反射制限は除く）。',
  waves:reson94.map((a,i)=>{
-  const hp=10000000+i*2500,keys=(a.cyan||[]).map((_,j)=>'ref-'+j),enemies=[
+  const hp=60000000+i*2500,keys=(a.cyan||[]).map((_,j)=>'ref-'+j),enemies=[
    ...a.pink.map(([x,y],j)=>c8Mob('pink-'+j,i+j,x,y,hp)),
    ...(a.cyan||[]).map(([x,y],j)=>c94Cyan(keys[j],i+j,x,y,120000,keys.filter(k=>k!==keys[j]))),
    ...(a.share||[]).map(([x,y],j)=>c94Share('share-'+j,i+j,x,y,a.mid?'mid':'boss')),
-   ...a.sword.map(([x,y],j)=>c8Sword('sword-'+j,x,y,32))];
-  if(a.mid)enemies.push(c7Mid('mid',a.mid[0],a.mid[1],60000000,[],[c7Attack('homing',{count:4,mult:.2}),c7Attack('dropBomb',{radius:130,mult:.22}),{...c94Revive}],{r:76,weakPoint:null,weakEnabled:false}));
-  if(i===3)enemies.push(c7Boss('レゾナ',a.boss[0],a.boss[1],120000000,'#d9392f',[c7Attack('reflectCross',{bounces:2,mult:.2}),c7Attack('homing',{count:4,mult:.18}),{...c94Revive},{kind:'move',to:{x:a.move[0],y:a.move[1]},countdown:2,interval:2}],{r:80,weakEnabled:false,routeWeak:true}));
-  if(i===4)enemies.push(c7Boss('レゾナ',a.boss[0],a.boss[1],200000000,'#d9392f',[c7Attack('wayLaser',{count:8,mult:.2}),c7Attack('meteor',{count:3,mult:.18}),{...c94Revive}],{r:80,weakEnabled:false,noWeak:true}));
+   ...a.sword.map(([x,y],j)=>c8Sword('sword-'+j,x,y,24))];
+  if(a.mid)enemies.push(c7Mid('mid',a.mid[0],a.mid[1],320000000,[],[c7Attack('homing',{count:4,mult:.2}),c7Attack('dropBomb',{radius:130,mult:.22}),{...c94Revive}],{r:76,weakPoint:null,weakEnabled:false}));
+  if(i===3)enemies.push(c7Boss('レゾナ',a.boss[0],a.boss[1],240000000,'#d9392f',[c7Attack('reflectCross',{bounces:2,mult:.2}),c7Attack('homing',{count:4,mult:.18}),{...c94Revive},{kind:'move',to:{x:a.move[0],y:a.move[1]},countdown:2,interval:2}],{r:80,shape:'polygon',sides:6,weakEnabled:false,routeWeak:true}));
+  if(i===4)enemies.push(c7Boss('レゾナ',a.boss[0],a.boss[1],360000000,'#d9392f',[c7Attack('wayLaser',{count:8,mult:.2}),c7Attack('meteor',{count:3,mult:.18}),{...c94Revive}],{r:80,shape:'polygon',sides:6,weakEnabled:false,noWeak:true}));
   return {name:a.name,step:a.step,...(i>=3?{bossPhase:i-2}:{}),enemies,
    weakRoutes:[{id:'resonance',positions:a.route.map(([target,ang])=>({target,angle:c9Ang[ang]??0,internal:ang==='C',offset:0,radius:15}))}],
    gimmicks:{powerAreas:a.pa.map(([x,y,w,h])=>({x,y,w,h})),warps:c7Warps(...a.warp),...(a.blocks?{blocks:a.blocks.map(b=>block(...b))}:{}),...(a.boost?{boosts:c7Boosts(a.boost)}:{})}};
  })};
 CHAPTER_NINE.push(stage94);STAGES.push(stage94);STAGE_BY_ID[stage94.id]=stage94;
+
+// ===== 第9章：9-5 召喚王の重力陣 =====
+// 雑魚・増援は [x,y,弱点の向き,重力半径]。弱点の向きがある敵は中ボス／ボスとHPを共有する。
+const summon95=[
+ {name:'横線の召喚陣',step:'SUMMON / 1',mid:[506,110,9600000],summoner:[51,96],share:[[283,166,'U'],[374,135,'U',105],[357,220,'D']],pink:[[355,356]],
+  reserve:[[125,501,'L',105],[489,501,'R',105],[300,608,'D']],lines:[[28,321,592,321]]},
+ {name:'双線の狭間',step:'SUMMON / 2',mid:[103,637,12800000,195],summoner:[300,351],share:[[111,134,'U',105],[483,103,'R',105],[511,607,'D',105]],pink:[[107,463],[495,354]],
+  reserve:[[300,269,'D'],[300,432,'U']],lines:[[215,28,215,668],[388,28,388,668]]},
+ {name:'二列の増援',step:'SUMMON / 3',summoner:[310,381],pink:[[359,209],[554,209],[77,541],[264,541]],
+  reserve:[[110,70,null,105],[165,209,null,105],[450,541,null,105],[502,680,null,105]],lines:[[28,206,592,206],[28,539,592,539]]},
+ {name:'四辺の包囲陣',step:'SUMMON / 4',boss:[506,365,14400000],summoner:[395,365],share:[[500,123,'U',105],[129,356,'L',105],[500,610,'D',105]],
+  reserve:[[153,121,'L'],[213,294,'D'],[211,430,'U'],[151,605,'L']],lines:[[35,32,586,32],[35,697,586,697],[35,32,35,697],[586,32,586,697]]},
+ {name:'十字の召喚陣',step:'SUMMON / 5',boss:[307,99,17200000,185],summoner:[307,664],share:[[130,106,'L'],[484,107,'R'],[122,628,'D',105],[489,629,'D',105]],
+  reserve:[[230,304,'R',105],[383,306,'D',105],[236,434,'U',105],[385,435,'L',105]],lines:[[309,28,309,699],[28,373,592,373]]}
+];
+const stage95={id:'9-5',name:'召喚王の重力陣',gimmickOrder:['重力バリア','ダメージライン'],weakMultiplier:24,directMultiplier:30,
+ hint:'直殴りは30倍、弱点は24倍。緑の敵を攻撃するとボスにもダメージが入る。召喚敵は3ターン目に増援を呼んで撤退。ボスと中ボスは3ターンごとに、初期配置のHP共有敵だけを蘇生する。',
+ waves:summon95.map((a,i)=>{
+  const mobs=(points,prefix)=>(points||[]).map(([x,y,side,gravity],j)=>c8Mob(prefix+j,j,x,y,side?2000000:125000,{
+   shape:'square',sides:4,gravity,tint:side?'#58893a':'#ee858b',
+   ...(side?{weakPoint:{angle:c9Ang[side],radius:15},hpShare:[a.mid?'mid':'boss'],retreatWhenShareDead:true}:{})}));
+  const share=mobs(a.share,'share-'),reserves=mobs(a.reserve,'reserve-'),enemies=[...share,...mobs(a.pink,'mob-')];
+  if(a.mid||a.boss){
+   const [x,y,hp,gravity]=a.mid||a.boss,extra={r:72,gravity,weakEnabled:false,weakPoint:null};
+   const attacks=[c7Attack('homing',{count:4}),c7Attack('poisonSpread',{ways:16,volleys:a.mid?2:4,mult:.15,countdown:1,interval:3}),
+    a.mid?c7Attack('wayLaser',{count:6,mult:.16,countdown:3,interval:3}):c7Attack('scramble',{mult:.16,countdown:3,interval:3}),
+    c7Attack('revive',{targets:share.map(e=>e.key),countdown:3,interval:3})];
+   enemies.push(a.mid?c7Mid('mid',x,y,hp,[],attacks,extra):c7Boss('召喚王',x,y,hp,'#cc4949',attacks,{...extra,shape:'square',sides:4}));
+  }
+  enemies.push(c8Mob('summoner',0,...a.summoner,1e9,{summoner:true,r:20,shape:'square',sides:4,tint:'#e1b730',retreatWhenAlone:!!(a.mid||a.boss),
+   attacks:[c7Attack('summon',{keys:reserves.map(e=>e.key),countdown:3,interval:3,retreat:true})]}));
+  return {name:a.name,step:a.step,bossPhase:a.boss?i-2:0,enemies,reserves,gimmicks:{damageLines:a.lines.map(line=>damageLine(...line))}};
+ })};
+CHAPTER_NINE.push(stage95);STAGES.push(stage95);STAGE_BY_ID[stage95.id]=stage95;
+
+// ===== 第9章：9-6 三十六倍の弱点と風の砲台 =====
+// 座標はフィールド座標。pur=蘇生敵、share=HP共有敵、reserve=召喚されるHP共有敵。
+// midHp=各道中の中ボスHP、mid=[x,y,弱点の向き配列]。中央弱点は内部弱点、2方向の弱点は毎ターン交代。
+const gale96=[
+ {name:'斜線を越える砲台',step:'GALE 1',pur:[[103,102],[267,104],[348,382],[513,382]],
+  blocks:[[28,28,155,155],[435,310,157,153]],winds:[[310,650,300]],lines:[[28,482,592,482],[28,427,592,28,'gold']]},
+ {name:'双八角の吹き出し陣',step:'GALE 2',midHp:42000000,pur:[],mid:[[112,364,[-C7H,0]],[508,364,[C7H,C7P]]],
+  blocks:[[275,130,70,65],[275,546,70,65]],winds:[[310,375,300]],
+  lines:[[28,150,275,150],[345,150,592,150],[28,574,275,574],[345,574,592,574],[112,28,112,712,'gold'],[508,28,508,712,'gold'],[310,188,310,520,'gold']]},
+ {name:'召喚される共鳴核',step:'GALE 3',midHp:480000000,mid:[[435,155,[-C7H,0]]],summoner:[530,80],pur:[[225,476],[90,550],[265,644]],share:[[170,156]],
+  reserve:[[435,300],[435,413],[435,527],[435,644]],winds:[[310,310,310]],lines:[[28,28,28,712,'gold'],[580,28,580,712]]},
+ {name:'風砲王・サイクロン',step:'CYCLONE / 1',boss:[310,365],summoner:[533,645],pur:[[310,132],[310,604]],share:[[135,288],[488,450]],
+  reserve:[[485,288],[133,445]],winds:[[310,370,300]],lines:[[211,28,211,680],[407,28,407,680],[142,112,485,583,'gold'],[483,112,144,583,'gold']]},
+ {name:'風砲王の終端',step:'CYCLONE / 2',boss:[112,202],move:[510,574],summoner:[307,78],pur:[[443,297],[308,379],[185,473]],
+  reserve:[[375,202],[510,202],[114,573],[248,573]],blocks:[[217,169,70,65],[326,546,70,65]],winds:[[420,202,300],[220,574,310]],
+  lines:[[28,116,592,116],[28,656,592,656],[28,282,592,282,'gold'],[28,480,592,480,'gold']]}
+];
+const stage96={id:'9-6',name:'三十六倍の弱点と風の砲台',weakMultiplier:36,laserMultipliers:[3,6,12,60],
+ hint:'レーザージェネレーターステージ。レーザー倍率は3／6／12／60倍、弱点36倍。紫の敵は2ターンごとに互いを全蘇生。道中3以降は紫の敵を全て倒すと中ボス／ボスの防御が3倍ダウン。緑の敵は倒せず、受けたダメージを中ボス／ボスに共有する。召喚敵は3ターン後に増援を呼んで撤退。ボス2は2ターンごとに移動。',
+ waves:gale96.map((a,i)=>{
+  const target=a.boss?'boss':'mid-0',keys=a.pur.map((_,j)=>'pur-'+j),enemies=a.pur.map(([x,y],j)=>{
+   const e=c8Mob(keys[j],j,x,y,7000000+i*150000,{tint:'#c79bff',internalWeak:true,weakRadius:15,...(i>=2?{crossSkull:'defense'}:{})});
+   return {...e,attacks:[...e.attacks,c7Attack('revive',{targets:keys.filter(k=>k!==keys[j]),countdown:2,interval:2})]};});
+  const shares=(points,prefix)=>(points||[]).map(([x,y],j)=>c8Mob(prefix+j,j,x,y,300000000000,{tint:'#58893a',internalWeak:true,weakRadius:15,hpShare:[target],retreatWhenShareDead:true,retreatWhenAlone:true}));
+  enemies.push(...shares(a.share,'share-'));const reserves=shares(a.reserve,'reserve-');
+  (a.mid||[]).forEach(([x,y,angles],j)=>enemies.push(c7Mid('mid-'+j,x,y,a.midHp,angles,[c7Attack('homing',{count:4,mult:.18}),c7Attack('wayLaser',{count:6,mult:.16,countdown:3,interval:3})],{r:78,shape:'polygon',sides:8})));
+  if(a.boss)enemies.push(c7Boss('サイクロン',a.boss[0],a.boss[1],i===3?360000000:540000000,'#c94757',
+   [c7Attack('homing',{count:4,mult:.18}),c7Attack('scramble',{mult:.16,countdown:3,interval:3}),...(a.move?[{kind:'move',to:{x:a.move[0],y:a.move[1]},countdown:2,interval:2}]:[])],
+   {r:82,shape:'polygon',sides:8,...(a.move?{internalWeak:true,weakRadius:15}:{weakAngles:[-C7H,C7H]})}));
+  if(a.summoner)enemies.push(c8Mob('summoner',0,...a.summoner,1e9,{summoner:true,r:20,shape:'square',sides:4,tint:'#e1b730',retreatWhenAlone:true,
+   attacks:[c7Attack('summon',{keys:reserves.map(e=>e.key),countdown:3,interval:3,retreat:true})]}));
+  return {name:a.name,step:a.step,...(a.boss?{bossPhase:i-2}:{}),enemies,reserves,
+   ...(i>=2?{crossSkulls:[{id:'defense',members:keys,effects:[{type:'defenseDown',targets:[target],multiplier:3}]}]}:{}),
+   gimmicks:{blocks:(a.blocks||[]).map(b=>block(...b)),winds:a.winds.map(([x,y,r])=>windDevice(x,y,'push',r,145,1)),damageLines:a.lines.map(line=>damageLine(...line))}};
+ })};
+CHAPTER_NINE.push(stage96);STAGES.push(stage96);STAGE_BY_ID[stage96.id]=stage96;
+
+// 第1章EX：各敵のHPは c1ExMid / c1ExBoss の座標の次の数値で指定する。
+const c1ExMid=(key,x,y,hp,angles,kind='laser',extra={})=>c7Mid(key,x,y,hp,[angles[0]],
+ [c7Attack(kind,{count:3,hits:2,mult:.18,countdown:2,interval:3}),c7Attack('spread',{ways:8,volleys:1,mult:.14,countdown:3,interval:3}),...(extra.move?[{kind:'move',...extra.move}]:[])],
+ {r:78,shape:'square',sides:4,weakAngles:angles.length>1?angles:null,weakPoint:{angle:angles[0],radius:15},...(extra.crossSkull?{crossSkull:extra.crossSkull}:{})});
+const c1ExBoss=(x,y,hp,angles)=>c7Boss('テンペスト',x,y,hp,'#48b3a7',
+ [c7Attack('crossLaser',{mult:.16,countdown:2,interval:3}),c7Attack('meteor',{count:2,mult:.18,countdown:3,interval:4}),c7Attack('spread',{ways:8,volleys:2,mult:.12,countdown:4,interval:4})],
+ {r:82,shape:'square',sides:4,weakEnabled:false,weakAngles:angles});
+const stage1EX={id:'1-EX',name:'四角王の対角試練',
+ hint:'メインギミックなし。中ボスの弱点と移動先を狙おう。ボス戦は中ボスを倒すとボスに弱点が現れる。',
+ waves:[
+ {name:'中央の双弱点',step:'DUAL 1',enemies:[c1ExMid('mid',310,350,25000,[0,C7P])],gimmicks:{}},
+ {name:'対角を渡る番人',step:'DUAL 2',enemies:[c1ExMid('mid',465,180,40000,[-C7H,C7H],'laser',{move:{to:{x:155,y:540},countdown:3,interval:3}})],gimmicks:{}},
+ {name:'向かい合う双番人',step:'DUAL 3',enemies:[
+  c1ExMid('mid-left',145,165,20000,[0],'laser',{move:{to:{x:145,y:350},countdown:2,interval:2}}),
+  c1ExMid('mid-right',475,545,20000,[C7P],'pierce',{move:{to:{x:475,y:350},countdown:2,interval:2}})],gimmicks:{}},
+ {name:'四角王の対角陣',step:'TEMPEST / 1',bossPhase:1,enemies:[
+  c1ExMid('mid',465,180,30000,[C7P,C7H],'laser',{crossSkull:'weak'}),
+  c1ExBoss(155,535,60000,[0,-C7H])],crossSkulls:c7WeakGrant('boss',0),gimmicks:{}},
+ {name:'四角王の上下封印',step:'TEMPEST / 2',bossPhase:2,enemies:[
+  c1ExMid('mid-top',310,145,36000,[0,C7P],'laser',{crossSkull:'weak',move:{to:{x:475,y:145},countdown:1,interval:1}}),
+  c1ExMid('mid-bottom',310,565,36000,[0,C7P],'pierce',{crossSkull:'weak',move:{to:{x:145,y:565},countdown:1,interval:1}}),
+  c1ExBoss(310,355,80000,[-C7H,C7H])],crossSkulls:c7WeakGrant('boss',-C7H),gimmicks:{}}
+ ]};
+STAGES.splice(STAGES.findIndex(s=>s.id==='1-6')+1,0,stage1EX);STAGE_BY_ID[stage1EX.id]=stage1EX;
+
+// 難易度は1〜6。nullは未設定。各ステージの数値をここで編集する。
+const STAGE_DIFFICULTIES={
+ '1-1':1,'1-2':1,'1-3':1,'1-4':1,'1-5':1,'1-6':1,'1-EX':2,
+ '2-1':1,'2-2':1,'2-3':1,'2-4':1,'2-5':1,'2-6':2,
+ '3-1':2,'3-2':2,'3-3':2,'3-4':2,'3-5':2,'3-6':3,
+ '4-1':3,'4-2':3,'4-3':3,'4-4':3,'4-5':3,'4-6':3,
+ '5-1':3,'5-2':3,'5-3':3,'5-4':4,'5-5':6,'5-6':3,
+ '6-1':3,'6-2':3,'6-3':4,'6-4':3,'6-5':5,'6-6':4,
+ '7-1':3,'7-2':4,'7-3':3,'7-4':5,'7-5':4,'7-6':6,
+ '8-1':4,'8-2':3,'8-3':5,'8-4':5,'8-5':3,'8-6':6,
+ '9-1':3,'9-2':4,'9-3':3,'9-4':6,'9-5':4,'9-6':5
+};

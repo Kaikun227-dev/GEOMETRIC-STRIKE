@@ -2,7 +2,8 @@
 // 新友情コンボ：クロスバウンドボム / アブソリュートクロスレイ / カウンターリング / ショットガン。
 // 発射は spawnNewFriendship（attacks.js の emitFriendship から呼ぶ）、更新は updateNewFriendship、描画は drawNewFriendship。
 // attacks.js の後、controls.js の前に読み込む。
-const NEW_COMBOS=['sakuraNova','sonicCannon','crossBomb','absoluteCross','counterRing','shotgun','shockSplit','wayLaser','pierceHoming','shinePillar','wheel','sakuraBurst','cornerMissile'];
+const NEW_COMBOS=['heavyCannon','wallSnake','sakuraNova','sonicCannon','crossBomb','absoluteCross','counterRing','shotgun','shockSplit','wayLaser','pierceHoming','shinePillar','wheel','sakuraBurst','cornerMissile'];
+const CANNON_RADIUS=76,WALL_SNAKE_SCALE=3.6,WALL_SNAKE_LENGTH=130*WALL_SNAKE_SCALE,WALL_SNAKE_REACH=29*WALL_SNAKE_SCALE;
 const CROSS_BOMB_STEP=150,CROSS_BOMB_HOP=.34;
 // アブソリュートクロスレイ：出だしはゆっくり、その後に急加速（速度 = 初速 + 加速度×経過時間²、上限 speed）。
 const ABSOLUTE_RAY_START_SPEED=200,ABSOLUTE_RAY_ACCEL=16000;
@@ -50,7 +51,25 @@ function pointOnBeam(b,s){
 function spawnNewFriendship(ally,f,carrier,damage){
   if(!NEW_COMBOS.includes(f.kind))return false;
   const base={side:'ally',x:ally.x,y:ally.y,damage,color:ally.color,age:0};
-  if(f.kind==='sakuraNova'){
+  if(f.kind==='heavyCannon'){
+    const order=[...(state.touchedAllies||[])].indexOf(ally.id)+1;
+    queueEffect({...base,type:f.kind,volleys:2*Math.max(1,order),emitted:0,wait:0,balls:[]});
+  }else if(f.kind==='wallSnake'){
+    const direction=Math.hypot(carrier.vx,carrier.vy)>.01?carrier:state.shotDirection||{vx:0,vy:-1};
+    const angle=Math.atan2(direction.vy,direction.vx);
+    const end=rayEnd(ally.x,ally.y,Math.cos(angle),Math.sin(angle));
+    const {left,right,top,bottom}=FIELD,corners=[{x:left,y:top},{x:right,y:top},{x:right,y:bottom},{x:left,y:bottom}];
+    const gaps=[Math.abs(end.y-top),Math.abs(end.x-right),Math.abs(end.y-bottom),Math.abs(end.x-left)];
+    const edge=gaps.indexOf(Math.min(...gaps)),inset=60;
+    // Follow an inset rectangle so the surfboard and wave stay visible near walls.
+    end.x=clamp(end.x,left+inset,right-inset);end.y=clamp(end.y,top+inset,bottom-inset);
+    for(const corner of corners){corner.x=clamp(corner.x,left+inset,right-inset);corner.y=clamp(corner.y,top+inset,bottom-inset);}
+    const pts=[{x:ally.x,y:ally.y},end];
+    for(let i=1;i<=4;i++)pts.push(corners[(edge+i)%4]);
+    pts.push(end);
+    const cum=[0];for(let i=1;i<pts.length;i++)cum.push(cum[i-1]+distance(pts[i-1],pts[i]));
+    queueEffect({...base,type:f.kind,pts,cum,total:cum[cum.length-1],head:0,contacts:new Set()});
+  }else if(f.kind==='sakuraNova'){
     queueEffect({...base,type:'sakuraNova',bursts:[],emitted:0,wait:0,phase:'nova'});
   }else if(f.kind==='sonicCannon'){
     queueEffect({...base,type:'sonicCannon',charge:0,ticks:0,wait:0,phase:'charge',angle:0,width:40,range:260});
@@ -131,6 +150,43 @@ const wheelSpeed=a=>WHEEL_SPEED_MULT*(390+710)*((a.speed*dashMultiplier(a))/100)
 
 function updateNewFriendship(e,dt){
   const pool=livingTargets();
+  if(e.type==='heavyCannon'){
+    e.wait-=dt;
+    if(e.emitted<e.volleys&&e.wait<=0){
+      const offset=(e.emitted%2)*Math.PI/4;
+      for(let i=0;i<4;i++){
+        const a=offset+i*Math.PI/2,dx=Math.cos(a),dy=Math.sin(a);
+        e.balls.push({x:e.x,y:e.y,dx,dy,hits:new Set()});
+        burst(e.x+dx*26,e.y+dy*26,e.color,8,160);
+      }
+      tone(140,.18,'sawtooth',.045,0,40);ring(e.x,e.y,e.color,58,.22);
+      e.emitted++;e.wait+=.32;
+    }
+    e.balls=e.balls.filter(b=>{
+      const from={x:b.x,y:b.y};b.x+=b.dx*410*dt;b.y+=b.dy*410*dt;
+      for(const enemy of pool)if(!b.hits.has(enemy.id)&&enemyGap(enemy,from,b)<=CANNON_RADIUS){
+        b.hits.add(enemy.id);damageEnemy(enemy,e.damage,true,{hit:{from,to:b,radius:CANNON_RADIUS}});
+      }
+      return b.x>=FIELD.left-CANNON_RADIUS&&b.x<=FIELD.right+CANNON_RADIUS&&b.y>=FIELD.top-CANNON_RADIUS&&b.y<=FIELD.bottom+CANNON_RADIUS;
+    });
+    return e.emitted<e.volleys||e.balls.length>0;
+  }
+  if(e.type==='wallSnake'){
+    const previous=e.head;e.head+=820*dt;
+    const contacts=new Set();
+    for(let i=1;i<e.pts.length;i++){
+      const start=Math.max(0,e.head-WALL_SNAKE_LENGTH,e.cum[i-1]),end=Math.min(e.head,e.cum[i]);
+      if(end<start)continue;
+      const from=pointOnBeam(e,start),to=pointOnBeam(e,end);
+      for(const enemy of pool)if(enemyGap(enemy,from,to)<=WALL_SNAKE_REACH){
+        if(!contacts.has(enemy.id)&&!e.contacts.has(enemy.id))damageEnemy(enemy,e.damage,true,{hit:{from,to,radius:WALL_SNAKE_REACH}});
+        contacts.add(enemy.id);
+      }
+    }
+    e.contacts=contacts;
+    if(previous<e.cum[1]&&e.head>=e.cum[1]){burst(e.pts[1].x,e.pts[1].y,e.color,24,240);tone(320,.17,'sawtooth',.035,0,90);}
+    return e.head<e.total+WALL_SNAKE_LENGTH;
+  }
   if(e.type==='sonicCannon')return updateSonicCannon(e,dt);
   if(e.type==='sakuraNova'){
     e.wait-=dt;
@@ -361,6 +417,52 @@ function updateNewFriendship(e,dt){
 }
 
 function drawNewFriendship(e){
+  if(e.type==='heavyCannon'){
+    ctx.save();
+    for(const b of e.balls){
+      const glow=ctx.createRadialGradient(b.x-CANNON_RADIUS*.35,b.y-CANNON_RADIUS*.42,3,b.x,b.y,CANNON_RADIUS);
+      glow.addColorStop(0,'color-mix(in srgb, '+e.color+' 45%, white)');glow.addColorStop(.6,e.color);glow.addColorStop(1,'color-mix(in srgb, '+e.color+' 75%, black)');
+      ctx.fillStyle=glow;ctx.strokeStyle='color-mix(in srgb, '+e.color+' 55%, black)';ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(b.x,b.y,CANNON_RADIUS,0,TAU);ctx.fill();ctx.stroke();
+      ctx.fillStyle='#ffffffa0';ctx.beginPath();ctx.ellipse(b.x-CANNON_RADIUS*.28,b.y-CANNON_RADIUS*.38,CANNON_RADIUS*.2,CANNON_RADIUS*.09,-.6,0,TAU);ctx.fill();
+    }
+    ctx.restore();return;
+  }
+  if(e.type==='wallSnake'){
+    ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
+    const light='color-mix(in srgb, '+e.color+' 30%, white)';
+    const tail=Math.max(0,e.head-WALL_SNAKE_LENGTH),head=Math.min(e.head,e.total);
+    // 壁の角にも沿う三層の波と、流れる白い泡。
+    for(let layer=0;layer<3;layer++){
+      ctx.beginPath();
+      for(let d=tail;d<=head;d+=8){
+        const p=pointOnBeam(e,d),q=pointOnBeam(e,Math.max(0,d-2)),angle=Math.atan2(p.y-q.y,p.x-q.x);
+        const t=Math.max(0,1-(e.head-d)/WALL_SNAKE_LENGTH),wave=Math.sin(d*.035-e.age*9+layer)*23*t;
+        const x=p.x-Math.sin(angle)*wave,y=p.y+Math.cos(angle)*wave;
+        if(d===tail)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+      }
+      ctx.strokeStyle=layer===2?light:e.color;ctx.globalAlpha=[.18,.5,.85][layer];ctx.lineWidth=[150,85,16][layer];ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+    for(let d=tail;d<head;d+=24){
+      const p=pointOnBeam(e,d),t=Math.max(0,1-(e.head-d)/WALL_SNAKE_LENGTH);
+      ctx.fillStyle=light;ctx.globalAlpha=t*.75;ctx.beginPath();ctx.arc(p.x+Math.sin(d*1.3+e.age*5)*48,p.y+Math.cos(d*.7+e.age*5)*48,2+4*t,0,TAU);ctx.fill();
+    }
+    ctx.globalAlpha=1;
+    if(e.head<=e.total){
+      const p=pointOnBeam(e,head),q=pointOnBeam(e,Math.max(0,head-3));
+      ctx.translate(p.x,p.y);ctx.rotate(Math.atan2(p.y-q.y,p.x-q.x));
+      ctx.scale(1,-1);
+      const wave=ctx.createLinearGradient(0,-70,0,90);wave.addColorStop(0,light);wave.addColorStop(1,e.color);
+      ctx.fillStyle=wave;ctx.beginPath();ctx.moveTo(-115,65);ctx.bezierCurveTo(-50,50,-32,-92,42,-72);ctx.bezierCurveTo(100,-45,68,18,38,1);ctx.bezierCurveTo(85,7,100,70,115,76);ctx.closePath();ctx.fill();
+      ctx.strokeStyle='#ffffffb0';ctx.lineWidth=6;ctx.stroke();
+      ctx.save();ctx.translate(4,16);ctx.rotate(-.25);ctx.fillStyle=light;ctx.strokeStyle=e.color;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(0,0,90,15,0,0,TAU);ctx.fill();ctx.stroke();ctx.restore();
+      const ball=ctx.createRadialGradient(-17,-33,3,0,-15,49);ball.addColorStop(0,'#fff');ball.addColorStop(.35,light);ball.addColorStop(1,e.color);
+      ctx.fillStyle=ball;ctx.strokeStyle=light;ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,-26,49,0,TAU);ctx.fill();ctx.stroke();
+      ctx.strokeStyle='#ffffff90';ctx.lineWidth=7;ctx.beginPath();ctx.ellipse(0,-26,21,47,Math.sin(e.age*6)*.6,0,TAU);ctx.stroke();
+    }
+    ctx.restore();return;
+  }
   if(e.type==='sonicCannon'){drawSonicCannon(e);return;}
   ctx.save();ctx.strokeStyle=e.color;ctx.fillStyle=e.color;ctx.lineCap='round';
   if(e.type==='crossBomb')for(const b of e.bombs){
@@ -488,26 +590,29 @@ function spawnPoisonAttack(side,source,f,damage){
 }
 function updateSonicCannon(e,dt){
   if(e.phase==='charge'){
-    if(state.phase==='moving'&&!state.unitStopped){e.charge=Math.min(8,e.charge+dt);return true;}
-    e.phase='fire';const p=e.charge/8;e.width=40+120*p;e.range=260+640*p;e.power=1+3*p;
+    if(state.phase==='moving'&&!state.unitStopped){e.charge=Math.min(SONIC_CHARGE_SECONDS,e.charge+dt);return true;}
+    e.phase='fire';const p=e.charge/SONIC_CHARGE_SECONDS;e.width=40+120*p;e.power=1+3*p;
+    e.maxTicks=4+Math.round(12*p);
   }
   e.wait-=dt;
-  if(e.ticks<16&&e.wait<=0){
+  if(e.ticks<e.maxTicks&&e.wait<=0){
     const target=livingEnemiesByDistance(e)[0];if(!target)return false;
-    e.angle=Math.atan2(target.y-e.y,target.x-e.x);e.to={x:e.x+Math.cos(e.angle)*e.range,y:e.y+Math.sin(e.angle)*e.range};
+    e.angle=Math.atan2(target.y-e.y,target.x-e.x);
+    e.to=rayEnd(e.x,e.y,Math.cos(e.angle),Math.sin(e.angle));
+    e.range=distance(e,e.to);
     damageAlongSegment(e,e.to,e.width,e.damage*e.power,.25);e.ticks++;e.wait+=.11;e.flash=1;
-    state.shake=Math.max(state.shake,2+e.charge*.6);tone(180+e.ticks*18,.08,'sawtooth',.025);
+    state.shake=Math.max(state.shake,2+4.8*e.charge/SONIC_CHARGE_SECONDS);tone(180+e.ticks*18,.08,'sawtooth',.025);
   }
-  e.flash=Math.max(0,(e.flash||0)-dt*4);return e.ticks<16||e.flash>0;
+  e.flash=Math.max(0,(e.flash||0)-dt*4);return e.ticks<e.maxTicks||e.flash>0;
 }
 function drawSonicCannon(e){
-  ctx.save();ctx.translate(e.x,e.y);const p=e.charge/8;
+  ctx.save();ctx.translate(e.x,e.y);const p=e.charge/SONIC_CHARGE_SECONDS;
   if(e.phase==='fire')ctx.rotate(e.angle);
   ctx.strokeStyle=e.color;ctx.fillStyle='#183947';ctx.lineWidth=3;ctx.shadowColor=e.color;ctx.shadowBlur=18;
   // Horn body and concentric sound fronts, with a bright core and broad translucent beam.
   ctx.beginPath();ctx.moveTo(-20,-12);ctx.lineTo(18,-24);ctx.lineTo(18,24);ctx.lineTo(-20,12);ctx.closePath();ctx.fill();ctx.stroke();
   if(e.phase==='charge'){
-    ctx.beginPath();ctx.arc(0,0,36,-Math.PI/2,-Math.PI/2+TAU*p);ctx.stroke();ctx.shadowBlur=0;ctx.fillStyle=e.color;ctx.font='bold 12px Arial';ctx.textAlign='center';ctx.fillText(p>=1?'SONIC MAX':e.charge.toFixed(1)+' / 8s',0,-46);
+    ctx.beginPath();ctx.arc(0,0,36,-Math.PI/2,-Math.PI/2+TAU*p);ctx.stroke();ctx.shadowBlur=0;ctx.fillStyle=e.color;ctx.font='bold 12px Arial';ctx.textAlign='center';ctx.fillText(p>=1?'SONIC MAX':e.charge.toFixed(1)+' / '+SONIC_CHARGE_SECONDS+'s',0,-46);
   }else{
     ctx.globalAlpha=.15+.15*(e.flash||0);ctx.fillStyle=e.color;ctx.fillRect(18,-e.width/2,e.range-18,e.width);
     ctx.globalAlpha=.85;ctx.strokeStyle='#e6ffff';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(20,0);ctx.lineTo(e.range,0);ctx.stroke();

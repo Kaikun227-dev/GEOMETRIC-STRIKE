@@ -19,6 +19,7 @@
   <script src="js/simulation.js" defer></script>
   <script src="js/rendering.js" defer></script>
   <script src="js/screens.js" defer></script>
+  <script src="js/maker.js" defer></script>
   <script src="game.js" defer></script>
 </head>
 <body data-screen="title">
@@ -51,6 +52,7 @@
         <p class="title-lead">引っぱって、狙って、弾く。<br>円・三角・ひし形・四角の仲間と、<br>反射と連鎖を楽しむアクションゲーム。</p>
         <div class="title-actions">
           <button class="primary-button title-button" id="title-start" type="button">スタート</button>
+          <button class="outline-button" id="title-maker" type="button">ステージメーカー</button>
           <button class="outline-button title-button" id="title-formation" type="button">編成</button>
         </div>
       </div>
@@ -138,6 +140,49 @@
       </div>
     </dialog>
 
+    <section class="screen maker-screen" id="screen-maker" aria-labelledby="maker-heading" hidden>
+      <div class="maker-toolbar">
+        <h2 id="maker-heading" tabindex="-1">ステージメーカー</h2>
+        <button class="outline-button" id="maker-back" type="button">タイトルへ</button>
+      </div>
+      <div class="maker-toolbar">
+        <label>マイステージ <select id="maker-library"></select></label>
+        <button type="button" id="maker-new">新規</button>
+        <label>ステージ名 <input id="maker-name" maxlength="60"></label>
+        <label>味方の共有HP <input id="maker-hp" type="number" min="1" max="9999999" placeholder="編成に従う"></label>
+        <button class="primary-button" type="button" id="maker-save">保存</button>
+      </div>
+      <div class="maker-toolbar">
+        <label>既存ステージ <select id="maker-template"></select></label>
+        <button type="button" id="maker-use-template">複製して編集</button>
+      </div>
+      <div class="maker-toolbar">
+        <label>エリア <select id="maker-wave"></select></label>
+        <button type="button" id="maker-add">追加</button>
+        <button type="button" id="maker-copy">複製</button>
+        <button type="button" id="maker-remove-wave">エリア削除</button>
+        <button class="outline-button" type="button" id="maker-test-area">このエリアを試す</button>
+        <button class="primary-button" type="button" id="maker-test">全エリアを試す</button>
+      </div>
+      <p id="maker-status" role="status"></p>
+      <details class="maker-settings">
+        <summary>エリアのルール・倍率</summary>
+        <div id="maker-rules" class="maker-toolbar"></div>
+      </details>
+      <div class="maker-layout">
+        <div class="maker-palette" id="maker-tools" aria-label="配置ツール"></div>
+        <svg id="maker-board" viewBox="0 0 620 740" role="group" aria-label="ステージ配置盤">
+          <defs><pattern id="maker-grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#d9e2e9"/></pattern></defs>
+          <rect x="28" y="28" width="564" height="684" rx="4" fill="url(#maker-grid)" stroke="#8195a4" stroke-width="2"/>
+          <g id="maker-pieces"></g>
+        </svg>
+        <div class="maker-inspector">
+          <label>配置済みのパーツ <select id="maker-selection"></select></label>
+          <div id="maker-properties"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- 4. BATTLE -->
     <div class="screen battle-screen" id="screen-battle" data-screen="battle" hidden>
     <section class="intro" aria-label="ゲーム紹介">
@@ -152,6 +197,7 @@
           <div class="battle-controls"><button class="icon-button" type="button" id="sound-button" title="効果音の切り替え" aria-label="効果音の切り替え" aria-pressed="false"><svg class="icon"><use href="#i-sound"/></svg></button><span class="control-divider"></span><button class="icon-button" type="button" id="restart-button" title="はじめから" aria-label="はじめから"><svg class="icon"><use href="#i-reset"/></svg></button><button class="icon-button" type="button" id="pause-button" title="一時停止（Esc）" aria-label="一時停止"><svg class="icon"><use href="#i-pause"/></svg></button></div>
         </div>
 
+        <button class="outline-button" id="maker-return" type="button" hidden>編集に戻る</button>
         <div class="arena-stage">
           <span class="field-coordinate coordinate-left" aria-hidden="true">FIELD / 001</span><span class="field-coordinate coordinate-right" aria-hidden="true">REFLECTION IS EVERYTHING</span>
           <div class="arena-wrap"><canvas id="arena" width="620" height="740" tabindex="0" aria-label="バトルフィールド。光っている味方を引っぱり、離して発射。キーボードでは矢印キーで方向を調整し、スペースで発射できます。">このゲームにはCanvas対応のブラウザが必要です。</canvas></div>

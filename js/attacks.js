@@ -307,7 +307,7 @@
     ctx.restore();
   }
 
-  function spawnScramble(source,damage){
+  function spawnScramble(source,damage,side='ally',color=source.color){
     const segments=[];
     for(let i=0;i<10;i++){
       const a=Math.floor(Math.random()*32)*TAU/32;let start=.08+i*.045;
@@ -315,7 +315,7 @@
         const duration=Math.max(.08,distance(seg.from,seg.to)/1400);segments.push({...seg,start,duration,progress:0,hitIds:new Set()});start+=duration;
       }
     }
-    queueEffect({type:'reflectBeam',side:'ally',segments,width:22,damage,color:source.color,elapsed:0,life:Math.max(...segments.map(s=>s.start+s.duration))+.45,fired:false,age:0});
+    queueEffect({type:'reflectBeam',side,segments,width:22,damage,color,elapsed:0,life:Math.max(...segments.map(s=>s.start+s.duration))+.45,fired:false,age:0});
   }
   function spawnWallProjectiles(source,carrier,f,damage){
     const base=Math.atan2(carrier.vy,carrier.vx),count=f.kind==='splitShot'?(f.count??5):3;
@@ -500,7 +500,7 @@
       });
     } else {
       state.units.forEach(unit => {
-        if (distanceToRay(unit.x, unit.y, effect.x, effect.y, effect.dx, effect.dy) < unit.r + reach) damageTeam(effect.damage, unit.x, unit.y);
+        if (distanceToRay(unit.x, unit.y, effect.x, effect.y, effect.dx, effect.dy) < unit.r + reach) damageTeam(effect.damage, unit.x, unit.y, unit);
       });
     }
     return true;
@@ -533,7 +533,7 @@
     if (effect.trail.length > 9) effect.trail.shift();
     if (Math.hypot(target.x - effect.x, target.y - effect.y) < target.r + 7) {
       if (effect.side === 'ally') damageEnemy(target, effect.damage, true, { charge: 1.5, hit: { x: effect.x, y: effect.y, radius: 7 } });
-      else damageTeam(effect.damage, target.x, target.y);
+      else damageTeam(effect.damage, target.x, target.y, target);
       return false;
     }
     return true;
@@ -556,7 +556,7 @@
       if (effect.tick > entry.hits) return;
       if (effect.side === 'ally') {
         if (targetable(entry.target)) damageEnemy(entry.target, effect.damage, true, { charge: 1.2, hit: { x: effect.x, y: effect.y, radius: effect.radius } });
-      } else damageTeam(effect.damage, entry.target.x, entry.target.y);
+      } else damageTeam(effect.damage, entry.target.x, entry.target.y, entry.target);
       if(effect.poison)applyPoison(entry.target,effect.side==='enemy');
     });
     return true;
@@ -581,8 +581,8 @@
     floatingText(ally.x, ally.y - (f===ally.secondary?62:43), (f===ally.secondary?'SUB / ':'')+kind.label, ally.color, f===ally.secondary?10:12);
     logAttack('ally', f.kind);
     if(f.kind==='copy'){if(!copied&&trigger.friendship.kind!=='copy')fireFriendship(ally,trigger.friendship,trigger,true);return;}
-    if(f.kind==='speedUp'){if(!state.unitStopped&&state.phase==='moving'){const v=Math.hypot(trigger.vx,trigger.vy);if(v>.01){trigger.vx*=2;trigger.vy*=2;trigger.boostTime=Math.max(trigger.boostTime||0,.7);ring(trigger.x,trigger.y,ally.color,80,.5);}}return;}
-    if(f.kind==='atkUp'){ // 攻撃力アップ：触れた手番キャラのパワーを1.2倍（直殴り）。そのショットの間だけ有効、重ねがけは乗算。
+    if(f.kind==='speedUp'||f.kind==='atkSpeedUp'){if(!state.unitStopped&&state.phase==='moving'){const v=Math.hypot(trigger.vx,trigger.vy);if(v>.01){trigger.vx*=2;trigger.vy*=2;trigger.boostTime=Math.max(trigger.boostTime||0,.7);ring(trigger.x,trigger.y,ally.color,80,.5);}}if(f.kind==='speedUp')return;}
+    if(f.kind==='atkUp'||f.kind==='atkSpeedUp'){ // 攻撃力アップ：触れた手番キャラのパワーを1.2倍（直殴り）。そのショットの間だけ有効、重ねがけは乗算。
       if(!state.unitStopped&&state.phase==='moving'){
         state.atkUp=(state.atkUp||1)*ATK_UP_MULTIPLIER;
         ring(trigger.x,trigger.y,ally.color,80,.5);burst(trigger.x,trigger.y,'#2a9a56',14,160);
@@ -622,7 +622,7 @@
     else if(f.kind==='splitShot'||f.kind==='trident')spawnWallProjectiles(ally,aimed,f,damage);
     else if(f.kind==='scramble')spawnScramble(ally,damage);
     else if(f.kind==='reflectLaser'||f.kind==='reflectCross')spawnReflect(ally,aimed,{bounces:f.bounces,damage},f.kind==='reflectCross');
-    else if(f.kind==='plasma')queueEffect({type:'plasma',side:'ally',source:ally,carrier,width:16,damage,color:ally.color,wait:0,age:0});
+    else if(f.kind==='plasma')queueEffect({type:'plasma',side:'ally',source:ally,carrier,width:7,damage,color:ally.color,wait:0,age:0});
     else if(f.kind==='energyBall'){
       const magnitude=Math.hypot(aimed.vx,aimed.vy)||1;
       queueEffect({type:'energyBall',side:'ally',x:ally.x,y:ally.y,vx:aimed.vx/magnitude*820,vy:aimed.vy/magnitude*820,r:15,radius:f.radius,maxHits:f.maxHits,damage,color:ally.color,life:2,trail:[],age:0});
@@ -642,7 +642,7 @@
     attack.remaining = attack.interval;
     const spec = { ...ENEMY_ATTACKS[attack.kind], ...attack };
     const base = enemy.boss ? 1150 : 370 + state.wave * 70;
-    const damage = base * spec.mult;
+    const damage = spec.damage ?? base * spec.mult;
     const target = state.units[state.activeUnit];
     const color = '#e88478';
     logAttack('enemy', attack.kind);
@@ -650,6 +650,10 @@
     state.shake = Math.max(state.shake, enemy.boss ? 8 : 3);
     if(['poisonSpread','poisonMeteor','poisonBomb'].includes(attack.kind))spawnPoisonAttack('enemy',enemy,spec,damage);
     else if(attack.kind==='move')moveEnemy(enemy,attack);
+    else if(attack.kind==='summon'){
+      applyEnemyEffect({type:'summon',keys:spec.keys,freshOnly:true},enemy);
+      if(spec.retreat){enemy.alive=false;enemy.hp=0;enemy.retreated=true;floatingText(enemy.x,enemy.y,'撤退','#7c92a8',16);resolveRetreats();}
+    }
     else if(attack.kind==='revive')applyEnemyEffect({type:'revive',targets:spec.targets,hpRatio:spec.hpRatio,limit:spec.limit,skipRestricted:spec.skipRestricted},enemy);
     else if(attack.kind==='effect')for(const effect of spec.effects||[])applyEnemyEffect(effect,enemy);
     else if(attack.kind==='mines'||attack.kind==='photons')scatterPickups(attack.kind==='mines'?'mine':'photon',spec.count,spec.wall);
@@ -657,6 +661,7 @@
       const offset=attack.kind==='crossLaser'?Math.PI/4:0;
       for(let i=0;i<4;i++){const angle=offset+i*Math.PI/2;spawnLaser('enemy',enemy,{x:enemy.x+Math.cos(angle),y:enemy.y+Math.sin(angle)},{hits:spec.hits,damage,color,width:36});}
     }    else if(attack.kind==='vibration')queueEffect({type:'vibration',side:'enemy',x:enemy.x,y:enemy.y,radius:spec.radius,push:spec.push,damage,color,age:0,targets:null,progress:0});
+    else if(attack.kind==='scramble')spawnScramble(enemy,damage,'enemy',color);
     else if(attack.kind==='reflectLaser')spawnReflect(enemy,{vx:target.x-enemy.x,vy:target.y-enemy.y},{bounces:spec.bounces,damage,side:'enemy',color});
     else if(attack.kind==='reflectCross')spawnReflect(enemy,{vx:1,vy:1},{bounces:spec.bounces,damage,side:'enemy',color},true);
     else if(attack.kind==='wayLaser'){
@@ -671,7 +676,7 @@
     else if (attack.kind === 'spread') spawnSpread('enemy', enemy, { ways: spec.ways, volleys: spec.volleys, damage, color });
     else if (attack.kind === 'sniper') {
       state.beams.push({ x1: enemy.x, y1: enemy.y, x2: target.x, y2: target.y, color, life: 0.4, max: 0.4 });
-      damageTeam(damage, target.x, target.y);
+      damageTeam(damage, target.x, target.y, target);
     } else if (attack.kind === 'laser') {
       spawnLaser('enemy', enemy, target, { hits: spec.hits, damage, color, width: 40 });
     } else if (attack.kind === 'homing') {

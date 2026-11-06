@@ -9,7 +9,35 @@
     return { x: vx - 2 * dot * nx, y: vy - 2 * dot * ny };
   }
 
-  function predictTrajectory(origin, direction, length = 460, bounds = { left: FIELD.left + 23, right: FIELD.right - 23, top: FIELD.top + 23, bottom: FIELD.bottom - 23 }) {
+  // Sample the same contour contact used by actual shots, then refine the first impact.
+  function guideEnemyHit(x,y,vx,vy,length,r){
+    let nearest=null;
+    for(const enemy of state.enemies||[]){
+      if(!enemy.alive||enemy.transparent)continue;
+      const probe={x,y,r,vx,vy};
+      let overlapping=!!contactEnemy(probe,enemy),previous=0;
+      for(let t=Math.min(3,length);t<=length&&t>previous;t=Math.min(t+3,length)){
+        probe.x=x+vx*t;probe.y=y+vy*t;
+        const hit=contactEnemy(probe,enemy);
+        if(!hit)overlapping=false;
+        else if(!overlapping&&vx*hit.nx+vy*hit.ny<0){
+          let lo=previous,hi=t,normal=hit;
+          for(let i=0;i<10;i++){
+            const mid=(lo+hi)/2;probe.x=x+vx*mid;probe.y=y+vy*mid;
+            const contact=contactEnemy(probe,enemy);
+            if(contact){hi=mid;normal=contact;}else lo=mid;
+          }
+          if(!nearest||hi<nearest.t)nearest={t:hi,nx:normal.nx,ny:normal.ny};
+          break;
+        }
+        previous=t;
+        if(nearest&&t>=nearest.t)break;
+      }
+    }
+    return nearest;
+  }
+
+  function predictTrajectory(origin, direction, length = 620, bounds = { left: FIELD.left + 23, right: FIELD.right - 23, top: FIELD.top + 23, bottom: FIELD.bottom - 23 }) {
     const magnitude = Math.hypot(direction.x, direction.y);
     if (magnitude < 0.001) return [{ x: origin.x, y: origin.y }];
     let vx = direction.x / magnitude;
@@ -20,7 +48,7 @@
     const points = [{ x, y }];
     // 結界：外にいれば外殻で、中にいれば内側の面で反射する（触れた回数が規定に達した結界はその先で消える）
     const barriers=(state.barriers||[]).filter(b=>!b.broken).map(b=>({b,left:b.left,mode:barrierRelation({x,y,r:UNIT_RADIUS},b)})).filter(o=>o.mode!=='edge');
-    for (let i = 0; i < 3 && remaining > 0.001; i++) {
+    for (let i = 0; i < 8 && remaining > 0.001; i++) {
       const tx = Math.abs(vx) < 0.0001 ? Infinity : (vx > 0 ? bounds.right - x : bounds.left - x) / vx;
       const ty = Math.abs(vy) < 0.0001 ? Infinity : (vy > 0 ? bounds.bottom - y : bounds.top - y) / vy;
       let obstacle=null;
@@ -36,6 +64,10 @@
           if(Math.min(bx,by)<Infinity)hit=bx<=by?{t:Math.max(0,bx),nx:vx>0?-1:1,ny:0}:{t:Math.max(0,by),nx:0,ny:vy>0?-1:1};
         }
         if(hit&&(!obstacle||hit.t<obstacle.t))obstacle={...hit,barrier:o};
+      }
+      if(!isPiercing(state.units[state.activeUnit])){
+        const hit=guideEnemyHit(x,y,vx,vy,Math.min(remaining,tx,ty,obstacle?.t??Infinity),origin.r??UNIT_RADIUS);
+        if(hit&&(!obstacle||hit.t<obstacle.t))obstacle=hit;
       }
       const blockHit=obstacle&&obstacle.t<Math.min(tx,ty);
       const travel = Math.min(remaining, Math.max(0,blockHit?obstacle.t:Math.min(tx, ty)));
@@ -68,7 +100,7 @@
       tone(140, 0.5, 'sawtooth', 0.035, 0, 740);
     }
     unit.lineContacts=new Set();
-    unit.superUsed=new Set();unit.superWallAttack=0;
+    unit.superUsed=new Set();unit.lineStacks=0;unit.superWallAttack=0;
     const speed = (390 + clamp(power, 0, 1) * 710) * (state.skillShot ? 2 : 1) * (unit.speed * dashMultiplier(unit) * (unit.superWind?1.5:1) / 100);
     unit.vx = dx / magnitude * speed;
     unit.vy = dy / magnitude * speed;
@@ -149,7 +181,7 @@
 
   function readyNextTurn() {
     if(state.phase!=='wave'){tickAllyPoison();if(state.phase==='gameover')return;}
-      for(const u of state.units)u.superWallAttack=0;
+      for(const u of state.units){u.weakAttack=0;u.lineStacks=0;u.superWallAttack=0;}
     for(const e of state.enemies)if(e.transparent&&!e.stealthManaged){e.transparent=false;allowSpawnExit(e);}
     resetBarriers();state.laserGens=[];
     state.atkUp=1;state.firstTouchId=null;state.wallSides=new Set();for(const u of state.units)u.bubblyGift=false;
@@ -220,7 +252,7 @@
       stats: `SCORE ${String(state.score).padStart(6, '0')}　/　MAX ${state.maxCombo} HITS　/　${state.shotCount} SHOTS`,
       primary: 'もう一度プレイ', onPrimary: resetGame,
       secondary: 'フィールドを見る', onSecondary: () => { hideOverlay(); updateUI(); },
-      tertiary: 'ステージ選択へ', onTertiary: () => leaveBattle('stage'),
+      tertiary: battleExitLabel(), onTertiary: () => leaveBattle('stage'),
     });
     updateUI();
   }
@@ -261,12 +293,20 @@
   }
 
   function pauseGame() {
+    if (state.stage.maker && !state.paused) {
+      showOverlay({ eyebrow: 'TEST PLAY', title: 'テストプレイ', copy: '編集に戻るか、テストを続けます。', primary: 'ゲームに戻る', onPrimary: resume, secondary: 'はじめから', onSecondary: resetGame, tertiary: battleExitLabel(), onTertiary: () => leaveBattle() });
+      return;
+    }
     if (state.paused) { resume(); return; }
     if (['victory', 'gameover'].includes(state.phase)) {
       showOverlay({ eyebrow: 'ONE MORE STRIKE', title: '新しい軌道を、描こう。', copy: `もう一度、${state.waves.length}つのウェーブに挑戦します。`, primary: 'もう一度プレイ', onPrimary: resetGame, secondary: 'フィールドに戻る', onSecondary: resume, tertiary: 'ステージ選択へ', onTertiary: () => leaveBattle('stage') });
       return;
     }
     showOverlay({ eyebrow: 'TAKE A BREATH', title: 'ひとやすみ。', copy: '次の軌道を思い描こう。準備ができたら、続きをどうぞ。', stats: `STAGE ${state.stage.id}　・　WAVE ${state.wave + 1} / ${state.waves.length}　・　TURN ${state.turn}`, primary: 'ゲームを再開', onPrimary: resume, secondary: 'はじめから', onSecondary: confirmRestart, tertiary: 'ステージ選択へ', onTertiary: confirmQuit });
+  }
+
+  function battleExitLabel() {
+    return state.stage.maker ? '編集に戻る' : 'ステージ選択へ';
   }
 
   function confirmRestart() {

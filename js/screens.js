@@ -4,7 +4,7 @@
   // ---------------------------------------------------------------------------
   // SCREENS: title / formation / stage select / battle
   // ---------------------------------------------------------------------------
-  const SCREEN_NAMES = ['title', 'formation', 'stage', 'battle'];
+  const SCREEN_NAMES = ['title', 'formation', 'stage', 'battle', 'maker'];
 
   function showScreen(name, options = {}) {
     if (!SCREEN_NAMES.includes(name)) return;
@@ -16,7 +16,7 @@
     if (name === 'stage') renderStageSelect();
     if (name === 'battle') resize();
     if (options.focus !== false) {
-      const target = { title: $('title-start'), formation: $('formation-heading'), stage: $('stage-heading'), battle: canvas }[name];
+      const target = { title: $('title-start'), formation: $('formation-heading'), stage: $('stage-heading'), battle: canvas, maker: $('maker-heading') }[name];
       if (target) target.focus({ preventScroll: true });
     }
     if (options.scroll !== false) window.scrollTo(0, 0);
@@ -24,8 +24,12 @@
 
   function startBattle(stageId) {
     if (!team.length) { formationReturn = 'stage'; showScreen('formation'); return; }
-    currentStage = STAGE_BY_ID[stageId] || STAGES[0];
-    selectedStageId = currentStage.id;
+    selectedStageId = (STAGE_BY_ID[stageId] || STAGES[0]).id;
+    playStage(STAGE_BY_ID[selectedStageId]);
+  }
+
+  function playStage(stage) {
+    currentStage = stage;
     previousTime = 0;
     resetGame();
     showScreen('battle', { focus: false });
@@ -35,7 +39,7 @@
   function leaveBattle(destination = 'stage') {
     cancelAim();
     hideOverlay();
-    showScreen(destination);
+    showScreen(currentStage.maker ? 'maker' : destination);
   }
 
   // Re-render a screen but keep keyboard focus on the same control.
@@ -69,10 +73,12 @@
   }
 
   const rosterFilters={shot:'',style:'',ability:'',ability2:'',ability3:'',friendship:''};
-  function filteredCharacters(){return CHARACTERS.filter(c=>(!rosterFilters.shot||c.shotType===rosterFilters.shot)&&(!rosterFilters.style||c.battleStyle===rosterFilters.style)&&(!rosterFilters.ability||hasAbility(c,rosterFilters.ability))&&(!rosterFilters.ability2||hasAbility(c,rosterFilters.ability2))&&(!rosterFilters.ability3||hasAbility(c,rosterFilters.ability3))&&(!rosterFilters.friendship||[c.friendship,c.secondary].some(f=>f?.kind===rosterFilters.friendship)));}
-  const baseAbilityId=id=>Object.keys(SUPER_ANTI).find(base=>SUPER_ANTI[base]===id)||id;
-  const filterAbilityName=id=>SUPER_ANTI[id]?ABILITIES[id][0]+'/'+ABILITIES[SUPER_ANTI[id]][0]:ABILITIES[id][0];
-  const abilityOptions=[...new Set(CHARACTERS.flatMap(c=>c.abilities).map(baseAbilityId))].sort((a,b)=>filterAbilityName(a).localeCompare(filterAbilityName(b),'ja')).map(id=>'<option value="'+id+'">'+filterAbilityName(id)+'</option>').join('');
+  function filteredCharacters(){return CHARACTERS.filter(c=>(!rosterFilters.shot||c.shotType===rosterFilters.shot)&&(!rosterFilters.style||c.battleStyle===rosterFilters.style)&&['ability','ability2','ability3'].every(key=>!rosterFilters[key]||c.abilities.some(id=>baseAbilityId(id)===rosterFilters[key]))&&(!rosterFilters.friendship||[c.friendship,c.secondary].some(f=>f?.kind===rosterFilters.friendship)));}
+  const baseAbilityId=id=>Object.keys(SUPER_ANTI).find(base=>SUPER_ANTI[base]===id)||id.replace(/(EL|M|L)$/,suffix=>ABILITIES[id.slice(0,-suffix.length)]?'':suffix);
+  const filterAbilityName=id=>SUPER_ANTI[id]?ABILITIES[id][0]+'/'+ABILITIES[SUPER_ANTI[id]][0]:[ABILITIES[id][0],...['M','L','EL'].filter(rank=>ABILITIES[id+rank])].join('/');
+  const abilityIds=[...new Set(CHARACTERS.flatMap(c=>c.abilities).map(baseAbilityId))].sort((a,b)=>filterAbilityName(a).localeCompare(filterAbilityName(b),'ja')); 
+  const group=id=>SUPER_ANTI[id]||id==='ab'?'メインギミック':ABILITIES[id][0].includes('キラー')?'キラー':'その他';
+  const abilityOptions=['メインギミック','キラー','その他'].map(label=>'<optgroup label="'+label+'">'+abilityIds.filter(id=>group(id)===label).map(id=>'<option value="'+id+'">'+filterAbilityName(id)+'</option>').join('')+'</optgroup>').join('');
   for(const key of ['ability','ability2','ability3'])$('filter-'+key).innerHTML+=abilityOptions;
   $('filter-friendship').innerHTML+=[...new Set(CHARACTERS.flatMap(c=>[c.friendship.kind,c.secondary.kind]))].sort((a,b)=>FRIENDSHIP_KINDS[a].name.localeCompare(FRIENDSHIP_KINDS[b].name,'ja')).map(id=>'<option value="'+id+'">'+FRIENDSHIP_KINDS[id].name+'</option>').join('');
   for(const key of Object.keys(rosterFilters))$('filter-'+key).addEventListener('change',event=>{
@@ -188,22 +194,26 @@
   }
   // ギミック名は赤（危険）→青（強化）→灰色（その他）の順に、色を付けて表示する。
   const gimmickListHTML=stage=>{const entries=stageGimmickEntries(stage);return entries.length?entries.map(e=>'<span class="gimmick-'+e.tone+'">'+e.name+'</span>').join('<span class="gimmick-sep">・</span>'):'ギミックなし';};
+  function stageDifficultyHTML(stage){
+    const level=STAGE_DIFFICULTIES[stage.id];
+    if(!Number.isInteger(level)||level<1||level>6)return '<span class="stage-difficulty is-unset">難易度未設定</span>';
+    return '<span class="stage-difficulty difficulty-'+level+'" aria-label="難易度 '+level+' / 6">'+ '★'.repeat(level)+'</span>';
+  }
   function renderStageSelect() {
     if (!STAGE_BY_ID[selectedStageId]) selectedStageId = STAGES[0].id;
     const chapter=selectedStageId.split('-')[0];
     const chapters=[...new Set(STAGES.map(s=>s.id.split('-')[0]))];
     $('chapter-tabs').innerHTML=chapters.map(id=>'<button type="button" role="tab" id="chapter-tab-'+id+'" data-chapter="'+id+'" aria-controls="stage-panel" aria-selected="'+(id===chapter)+'" tabindex="'+(id===chapter?0:-1)+'">第'+id+'章</button>').join('');
     $('stage-panel').setAttribute('aria-labelledby','chapter-tab-'+chapter);
-    const bossOf = stage => stage.waves.some(w => w.enemies.some(e => e.boss));
     $('stage-list').innerHTML = STAGES.filter(s=>s.id.split('-')[0]===chapter).map(stage => {
       const selected = stage.id === selectedStageId;
       const bestScore = loadBest(stage.id);
       return `<button type="button" class="stage-card${selected ? ' is-selected' : ''}" role="listitem" data-stage="${stage.id}" aria-pressed="${selected}">
-        <span class="stage-number">${stage.id}</span>
+        <span class="stage-identity"><span class="stage-number">${stage.id}</span>${stageDifficultyHTML(stage)}</span>
         <span class="stage-body"><strong>STAGE ${stage.id}</strong><span class="stage-name">${stage.name}</span>
-        <small>${stage.waves.length}ウェーブ${bossOf(stage) ? '・ボスあり' : ''}</small></span>
+        <small>${stage.waves.length}ウェーブ</small></span>
         <span class="stage-best"><small>BEST</small>${String(bestScore).padStart(6, '0')}</span></button>`;
-    }).join('') + '<div class="stage-card is-coming" role="listitem"><span class="stage-number">…</span><span class="stage-body"><span class="stage-name">次のステージは準備中です</span></span></div>';
+    }).join('');
 
     const stage = STAGE_BY_ID[selectedStageId];
     $('stage-detail').innerHTML = `<div class="section-label"><h3>STAGE ${stage.id}</h3><span class="tag">${stage.waves.length} WAVES</span></div>

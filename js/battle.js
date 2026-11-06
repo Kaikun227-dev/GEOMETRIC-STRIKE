@@ -46,7 +46,7 @@
     return !!(stage.laserMultipliers || waves.some(wave => wave.laserMultipliers));
   }
   function commonLaserGeneratorActive() { return stageSettings.laserGenerator && !stageHasLaserGenerator(); }
-  function scoreDisabled() { return stageSettings.invincible || stageSettings.powerBonus || commonLaserGeneratorActive(); }
+  function scoreDisabled() { return currentStage.maker || stageSettings.invincible || stageSettings.powerBonus || commonLaserGeneratorActive(); }
   function heartFruitDisabled() { return stageSettings.heartFruitDisabled; }
 
   function resetChapterEightIntroBestOnce() {
@@ -131,7 +131,7 @@
     const restoreFocus = !!state && screen === 'battle';
     cancelAim();
     const units = makeUnits();
-    const maxHp = units.reduce((sum, unit) => sum + unit.hp, 0);
+    const maxHp = currentStage.teamHp ?? units.reduce((sum, unit) => sum + unit.hp, 0);
     best = loadBest(currentStage.id);
     state = {
       phase: 'ready', paused: false, stage: currentStage, waves: currentStage.waves, wave: 0, turn: 1, waveTurn: 1,
@@ -164,9 +164,10 @@
 
   // Team / wave panels in the battle sidebar depend on the selected team and stage.
   function renderBattleChrome() {
+    $('maker-return').hidden = !state.stage.maker;
     const tip = document.querySelector('.tip-panel div p:last-child');
     if(tip) tip.textContent = state.stage.hint || '味方の上を通り抜けると友情コンボが発動。ひとつの軌道が、連鎖になる。';
-    setText('stage-label', `STAGE ${state.stage.id}`);
+    setText('stage-label', state.stage.maker ? state.stage.name : `STAGE ${state.stage.id}`);
     setText('wave-count-badge', `${state.waves.length} WAVES`);
     setText('team-count-tag', `${state.units.length} UNITS`);
     setText('progress-range', `01 — ${pad2(state.waves.length)}`);
@@ -390,7 +391,7 @@
     queueEffect({type:'killerFx',side:'ally',x:enemy.x,y:enemy.y,r:enemy.r,kind:k.kind,color,age:0,life:.5});
   }
   function damageEnemy(enemy, amount, friendship = false, options = {}) {
-    if (!enemy.alive||(enemy.transparent&&!options.poisonTick)||enemy.sword) return; // 剣持ち敵はダメージを受けない（他の敵が全滅すると撤退）
+    if (!enemy.alive||(enemy.transparent&&!options.poisonTick)||enemy.sword||enemy.summoner) return; // 剣持ち敵はダメージを受けない（他の敵が全滅すると撤退）
     // HP共有で他の敵から反映されたダメージ（sharedFrom）：倍率・弱点・キラーは再計算せず、受けたダメージ量をそのまま受ける。
     const shared=!!options.sharedFrom||!!options.poisonTick;
     const owner=options.owner||state.damageOwner||(!friendship?state.units[state.activeUnit]:null);
@@ -456,8 +457,15 @@
   // Enemy attacks always damage the shared team HP.
   function damageTeam(amount, x, y, target = state.units.find(u => Math.hypot(u.x-x,u.y-y) < 1), options = {}) {
     if (['gameover', 'victory'].includes(state.phase)) return;
-    if (stageSettings.invincible) return;
+    if (stageSettings.invincible || amount === 0) return;
     const damage = Math.max(1, Math.round(amount * (!options.poisonTick&&target?.battleStyle === 'balance' ? .8 : 1)));
+    if(target?.barrierHp>0){
+      target.barrierHp=Math.max(0,target.barrierHp-damage);
+      if(!target.barrierHp)burst(target.x,target.y,target.color,20,190);
+      ring(target.x,target.y,target.color,target.barrierHp?42:75,.4);
+      floatingText(target.x,target.y-40,target.barrierHp?'バリア '+target.barrierHp:'バリア破壊','#379dbd',14);
+      return;
+    }
     state.hp = Math.max(0, state.hp - damage);
     ring(x, y, '#eaa294', 65, 0.5);
     burst(x, y, '#ec998f', 8, 140);

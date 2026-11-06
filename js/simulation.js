@@ -10,7 +10,7 @@ unit.superUsed??=new Set();if(unit.superUsed.has(id))return;unit.superUsed.add(i
 }
 function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56e8bb',85,.45);floatingText(unit.x,unit.y-45,'SUPER SPEED','#36ab89',13);}
   function setupArea(){
-    for(const u of state.units){u.superWallAttack=0;u.superUsed=new Set();}
+    for(const u of state.units){u.barrierHp=hasAbility(u,'barrierM')?5000:hasAbility(u,'barrier')?2000:0;u.weakAttack=0;u.lineStacks=0;u.superWallAttack=0;u.superUsed=new Set();}
     const g=state.waves[state.wave].gimmicks||{};
     state.heartPanels=(g.hearts||[]).map((p,i)=>({...p,id:p.id||'heart-'+i}));
     state.heartFruits=[];state.heartFruitSeq=0;
@@ -198,7 +198,9 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
   }
   function applyDamageLines(unit){
     const lines=state.waves[state.wave].gimmicks?.damageLines;
-    if(!lines?.length || hasAbility(unit,'adl'))return;
+    if(!lines?.length)return;
+    const superLine=hasAbility(unit,'sadl');
+    if(!superLine && hasAbility(unit,'adl'))return;
     const color=activeLineColor(lines);
     unit.lineContacts??=new Set();
     for(const line of lines){
@@ -206,6 +208,13 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
       if(!touching){unit.lineContacts.delete(line);continue;}
       if(unit.lineContacts.has(line))continue;
       unit.lineContacts.add(line);
+      if(superLine){
+        if((unit.lineStacks||0)<6){
+          unit.lineStacks=(unit.lineStacks||0)+1;
+          floatingText(unit.x,unit.y-45,'ATK +'+50*unit.lineStacks,'#db587c',14);
+        }
+        continue;
+      }
       damageTeam(line.damage??1000,unit.x,unit.y,unit);
       if(state.phase==='gameover')return;
     }
@@ -230,7 +239,7 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
       p.taken=true;
       if(p.kind==='mine'&&hasAbility(unit,'ms')){if(hasAbility(unit,'sms')){ring(p.x,p.y,'#ffb94f',150,.5);burst(p.x,p.y,'#ffb94f',24,190);for(const enemy of state.enemies)if(enemy.alive&&distance(p,enemy)<=150+enemy.r)damageEnemy(enemy,effectiveAttack(unit),true,{owner:unit,hit:{x:p.x,y:p.y,radius:150}});}ring(p.x,p.y,'#6ba6a0',35,.25);floatingText(p.x,p.y-25,'MINE CLEAR','#5a8f89',11);}
       else if(p.kind==='photon'){unit.photons=Math.min(4,(unit.photons||0)+1);ring(p.x,p.y,'#d3a128',45,.3);floatingText(p.x,p.y-25,'PHOTON '+unit.photons+'/4','#b88a16',12);}
-      else {ring(p.x,p.y,'#e56565',85,.4);burst(p.x,p.y,'#e56565',20,180);damageTeam((p.damage||1000),unit.x,unit.y,unit);if(state.phase==='gameover')break;}
+      else {ring(p.x,p.y,'#e56565',85,.4);burst(p.x,p.y,'#e56565',20,180);damageTeam(p.damage??1000,unit.x,unit.y,unit);if(state.phase==='gameover')break;}
     }
     state.pickups=(state.pickups||[]).filter(p=>!p.taken);
     if(state.phase==='gameover')return;
@@ -367,7 +376,7 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
   //   ・威力＝手番キャラの攻撃力×攻撃力アップ×ウォールブースト×ステージ倍率（レベル別）。キラー等の敵別倍率は命中時に適用し、フォトンは適用しない。
   //   ・設置は毎ショット。発射後（または次の手番開始時）に消える。
   // ---------------------------------------------------------------------------
-  const laserStage=()=>!!(state.waves[state.wave].laserMultipliers||state.stage.laserMultipliers||commonLaserGeneratorActive());
+  const laserStage=()=>!!(state.waves[state.wave].laserMultipliers??state.stage.laserMultipliers??commonLaserGeneratorActive());
   function laserMultipliers(){return state.waves[state.wave].laserMultipliers||state.stage.laserMultipliers||LASER_GENERATOR.defaultMultipliers;}
   function laserLevelInfo(level){const m=laserMultipliers(),i=Math.max(1,Math.min(4,level))-1;return {mult:m[Math.min(i,m.length-1)]??1,thickness:LASER_GENERATOR.thickness[i]};}
   function laserBeam(g){
@@ -497,24 +506,21 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
     let styleMultiplier=unit.battleStyle==='balance'?1.2:1;
     if(unit.battleStyle==='power'&&!state.powerHitUsed){state.powerHitUsed=true;styleMultiplier=2;floatingText(unit.x,unit.y-38,'POWER ×2',unit.color,14);}
     const switchMultiplier=powerSwitchMultiplier();
-    return baseDamage*(effectiveAttack(unit)/1000)*(state.skillShot?2.4:1)*styleMultiplier*(1+(state.swordBonus||0))*(state.atkUp||1)*wallBoostMultiplier(unit)*switchMultiplier*consumePhoton(unit);
+    return baseDamage*(state.waves[state.wave].directMultiplier??state.stage.directMultiplier??1)*(effectiveAttack(unit)/1000)*(state.skillShot?2.4:1)*styleMultiplier*(1+(state.swordBonus||0))*(state.atkUp||1)*wallBoostMultiplier(unit)*switchMultiplier*consumePhoton(unit);
   }
   // キューブ状態：手番以外の味方は正方形の当たり判定を持つ（移動中の味方は反射し、友情は接触で発動）。
   function cubeActive(){return !!(state.waves[state.wave].cube??state.stage.cube??stageSettings.cube);}
   const cubeHalf=ally=>ally.r+3;
-  function cubeOverlap(unit,ally){
-    const h=cubeHalf(ally),cx=clamp(unit.x,ally.x-h,ally.x+h),cy=clamp(unit.y,ally.y-h,ally.y+h);
-    return Math.hypot(unit.x-cx,unit.y-cy)<unit.r;
+  // 同じ四角形の衝突結果を味方接触と反射の両方に使う。
+  function cubeContact(unit,ally){
+    const h=cubeHalf(ally);
+    return boxNormal(unit,{x:ally.x-h,y:ally.y-h,w:h*2,h:h*2});
   }
-  // キューブの反射：ブロックと同じ「半径ぶん膨らませた四角形」で判定し、法線は常に面に垂直（角でも斜めに飛ばない）。狙い線（predictTrajectory）とも一致。
-  function cubeBounce(unit,ally){
-    const h=cubeHalf(ally),hit=boxNormal(unit,{x:ally.x-h,y:ally.y-h,w:h*2,h:h*2});
-    if(!hit)return;
+  function cubeBounce(unit,ally,hit){
     unit.x+=hit.nx*hit.push;unit.y+=hit.ny*hit.push;
     const dot=unit.vx*hit.nx+unit.vy*hit.ny;
     if(dot<0){const r=reflectVelocity(unit.vx,unit.vy,hit.nx,hit.ny);unit.vx=r.x*.92;unit.vy=r.y*.92;burst(unit.x,unit.y,ally.color,3,40);tone(520,.04,'sine',.015);}
   }
-  const allyTouching=(unit,ally)=>cubeActive()?cubeOverlap(unit,ally):distance(unit,ally)<unit.r+ally.r;
   function touchAlly(unit,ally){
     state.touchedAllies??=new Set();
     if(state.touchedAllies.has(ally.id))return;
@@ -569,6 +575,7 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
         }
         if (!info) {unit.enemyContacts?.delete(enemy.id);continue;}
         const hit={x:unit.x,y:unit.y,radius:unit.r};
+        if(unit.battleStyle==='power'&&!unit.weakAttack&&hitsWeak(enemy,hit)&&(!enemy.weakPoint?.internal||isPiercing(unit))){unit.weakAttack=150;floatingText(unit.x,unit.y-48,'ATK +150','#df984a',15);}
         if(isPiercing(unit)){
           if(!unit.enemyContacts)unit.enemyContacts=new Map();
           let contact=unit.enemyContacts.get(enemy.id);
@@ -576,12 +583,12 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
             onEnemyTouch(unit,enemy);
             const retention=contactRetention(unit,enemy);unit.vx*=retention;unit.vy*=retention;
             if(enemy.sword){touchSwordEnemy(unit,enemy);unit.enemyContacts.set(enemy.id,{amount:0,weak:swordWeakHit(enemy,hit),sword:true});continue;}
-            const amount=directHitDamage(unit);contact={amount,weak: hitsWeak(enemy,hit)};
+            const amount=directHitDamage(unit);contact={amount,attack:effectiveAttack(unit),weak:hitsWeak(enemy,hit)};
             unit.enemyContacts.set(enemy.id,contact);
             damageEnemy(enemy,amount,false,{hit,owner:unit});
           }else if(!contact.weak&&hitsWeak(enemy,hit)){
             // Body contact and the later weak-point crossing total x3, without another slowdown/photon.
-            contact.weak=true;if(contact.sword)swordWeakHit(enemy,hit);else damageEnemy(enemy,contact.amount,false,{hit,owner:unit,weakBonusOnly:true,charge:0});
+            contact.weak=true;if(contact.sword)swordWeakHit(enemy,hit);else damageEnemy(enemy,contact.amount*(effectiveAttack(unit)/contact.attack),false,{hit,owner:unit,weakBonusOnly:true,charge:0});
           }
           continue;
         }
@@ -596,13 +603,15 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
           state.shake=Math.max(state.shake,state.skillShot?4:1.5);
         }
       }
-      // 味方とは反射せず、重なった瞬間に友情コンボが発動する（貫通）
+      const cubes=cubeActive();
       for (const ally of state.units) {
         if (ally.id === unit.id) continue;
         if(!state.friendshipContacts)state.friendshipContacts=new Set();
-        if(allyTouching(unit,ally)){if(!state.friendshipContacts.has(ally.id)){state.friendshipContacts.add(ally.id);touchAlly(unit,ally);friendshipBlast(ally);if(hasAbility(unit,'heal')){if(!state.healedAllies)state.healedAllies=new Set();if(!state.healedAllies.has(ally.id)){state.healedAllies.add(ally.id);const heal=Math.min(300,state.maxHp-state.hp);state.hp+=heal;if(heal)floatingText(unit.x,unit.y-35,'HEAL +'+heal,'#35b981',13);}}}}else state.friendshipContacts.delete(ally.id);
+        const hit=cubes?cubeContact(unit,ally):null;
+        const touching=cubes?Boolean(hit):distance(unit,ally)<unit.r+ally.r;
+        if(touching){if(!state.friendshipContacts.has(ally.id)){state.friendshipContacts.add(ally.id);touchAlly(unit,ally);friendshipBlast(ally);if(hasAbility(unit,'heal')){if(!state.healedAllies)state.healedAllies=new Set();if(!state.healedAllies.has(ally.id)){state.healedAllies.add(ally.id);const heal=Math.min(300,state.maxHp-state.hp);state.hp+=heal;if(heal)floatingText(unit.x,unit.y-35,'HEAL +'+heal,'#35b981',13);}}}}else state.friendshipContacts.delete(ally.id);
         // キューブ状態：手番以外の味方は正方形の当たり判定を持ち、移動中の味方は反射する（友情は上で発動済み）
-        if(cubeActive())cubeBounce(unit,ally);
+        if(hit)cubeBounce(unit,ally,hit);
       }
       unit.x = clamp(unit.x, FIELD.left + unit.r, FIELD.right - unit.r);
       unit.y = clamp(unit.y, FIELD.top + unit.r, FIELD.bottom - unit.r);
@@ -613,7 +622,7 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
     unit.vy *= friction;
     state.trail.push({ x: unit.x, y: unit.y, life: 0.25, max: 0.25 });
     if(isBubbly(unit)&&Math.random()<.2)burst(unit.x,unit.y,'#8ddcf5',1,40); // バブリー状態の泡
-    if (Math.hypot(unit.vx, unit.vy) < 64 || state.moveTime > 6.8 || !state.enemies.some(enemy => enemy.alive)) {
+    if (Math.hypot(unit.vx, unit.vy) < 64 || (state.moveTime > 6.8 && !state.effects.some(e=>e.type==='sonicCannon' && e.phase==='charge' && e.charge<SONIC_CHARGE_SECONDS)) || !state.enemies.some(enemy => enemy.alive)) {
       unit.vx = 0;
       unit.vy = 0;
       state.unitStopped = true;unit.superWind=false;
@@ -653,7 +662,7 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
       if (!state.unitStopped) updatePhysics(dt);
       updateEffects(dt);
       // 友情コンボの演出（レーザー・ホーミング・爆発）が終わるまで次へ進まない
-      if (state.unitStopped && (!state.effects.length || state.moveTime > 12)) {
+      if (state.unitStopped && (!state.effects.length || (state.moveTime > 12 && !state.effects.some(e=>e.type==='sonicCannon')))) {
         state.effects = [];
         finishShot();
       } else if (state.unitStopped) state.moveTime += dt;

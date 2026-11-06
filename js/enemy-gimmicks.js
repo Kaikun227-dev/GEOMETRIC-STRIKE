@@ -64,7 +64,7 @@ function applyEnemyEffect(effect,source){
   if(effect.type==='photons'){scatterPickups('photon',effect.count??6);return;}
   if(effect.type==='summon'){
     for(const key of effect.keys||[]){
-      const old=state.enemies.find(e=>e.key===key);if(old){if(!old.alive)reviveEnemies([key]);continue;}
+      const old=state.enemies.find(e=>e.key===key);if(old){if(!effect.freshOnly&&!old.alive)reviveEnemies([key]);continue;}
       if(state.enemies.length>=64)continue;
       const def=(state.waves[state.wave].reserves||[]).find(e=>e.key===key);if(!def)continue;
       const e=createEnemyRuntime(def,state.enemies.length,state.wave);state.enemies.push(e);allowSpawnExit(e);
@@ -78,7 +78,7 @@ function applyEnemyEffect(effect,source){
       e.defenseMultiplier=Math.max(e.defenseMultiplier||1,effect.multiplier??2);if(effect.durationTurns)e.defenseExpiresAt=Math.max(e.defenseExpiresAt||0,state.turn+effect.durationTurns+1);
       if(e.alive){ring(e.x,e.y,'#9265b3',e.r+28,.6);floatingText(e.x,e.y-e.r-32,'DEF DOWN ×'+e.defenseMultiplier,'#8863ad',13);}
     }else if(effect.type==='grantWeak'){
-      if(state.waves[state.wave].noWeakPoints||state.stage.noWeakPoints)continue;
+      if(state.waves[state.wave].noWeakPoints??state.stage.noWeakPoints)continue;
       e.weakPoint={...(effect.angles?{angles:[...effect.angles]}:{}),angle:effect.angle??e.weakAngles?.[0]??Math.PI/2,internal:!!effect.internal,radius:effect.radius??(effect.internal?12:15)};e.weakStep=0;
       if(effect.multiplier!==undefined)e.weakMultiplier=effect.multiplier;
       if(e.alive){const w=weakPosition(e);ring(w.x,w.y,'#ddac32',35,.6);floatingText(e.x,e.y-e.r-30,'WEAK POINT','#b48b25',12);}
@@ -88,11 +88,11 @@ function applyEnemyEffect(effect,source){
 function setupEnemyGimmicks(){
   state.crossSkullsFired=new Set();state.weakRouteSteps=new Map();
   if(state.waves[state.wave].gimmicks?.transPanels?.length)for(const e of state.enemies)e.stealthManaged=true;
-  if(state.waves[state.wave].noWeakPoints||state.stage.noWeakPoints)for(const e of state.enemies)e.weakPoint=null;
+  if(state.waves[state.wave].noWeakPoints??state.stage.noWeakPoints)for(const e of state.enemies)e.weakPoint=null;
   for(const route of state.waves[state.wave].weakRoutes||[])setWeakRoute(route,0);
 }
 function setWeakRoute(route,start){
-  if(state.waves[state.wave].noWeakPoints||state.stage.noWeakPoints||!route.positions?.length)return;
+  if((state.waves[state.wave].noWeakPoints??state.stage.noWeakPoints)||!route.positions?.length)return;
   for(let offset=0;offset<route.positions.length;offset++){
     const index=(start+offset)%route.positions.length,p=route.positions[index],target=selectEffectTargets(p.target).find(e=>e.alive);
     if(!target)continue;
@@ -177,10 +177,12 @@ function stageGimmickNamesRaw(stage){
   for(const wave of stage.waves){
     if(wave.cube??stage.cube)names.add('キューブ状態');if(wave.touchPower??stage.touchPower)names.add('触れた味方の数に応じて攻撃力アップ');
     if(wave.laserMultipliers||stage.laserMultipliers)names.add('レーザージェネレーター');
-    if(wave.noWeakPoints||stage.noWeakPoints)names.add('全敵弱点なし');if(wave.switchMultiplier||stage.switchMultiplier)names.add('パワースイッチ（'+(wave.switchMultiplier??stage.switchMultiplier)+'倍）');
+    if(wave.noWeakPoints??stage.noWeakPoints)names.add('全敵弱点なし');if(wave.switchMultiplier||stage.switchMultiplier)names.add('パワースイッチ（'+(wave.switchMultiplier??stage.switchMultiplier)+'倍）');
     for(const [key,value] of Object.entries(wave.gimmicks||{}))if(value?.length&&map[key])names.add(map[key]);
     if(wave.crossSkulls?.length){names.add('クロスドクロ');for(const g of wave.crossSkulls)g.effects.forEach(addEffect);}
     if(wave.weakRoutes?.length)names.add('弱点移動');
+    const direct=wave.directMultiplier??stage.directMultiplier??1;
+    if(direct!==1)names.add('直殴り倍率アップ（'+direct+'倍）');
     const weak=wave.weakMultiplier??stage.weakMultiplier??3,photon=wave.photonMultiplier??stage.photonMultiplier??2;
     if(weak!==3)names.add('弱点倍率アップ（'+weak+'倍）');if(photon!==2)names.add('フォトン倍率アップ（'+photon+'倍）');
     for(const e of [...wave.enemies,...(wave.reserves||[])]){
@@ -198,7 +200,7 @@ function stageGimmickNamesRaw(stage){
 }
 // ステージ選択画面のギミック表示：赤（危険）→青（強化）→灰色（その他）の順に並べ、色分けする。
 const GIMMICK_TONE_RED=['ダメージライン','ダメージウォール','重力バリア','地雷','ウィンド','減速壁','反射制限','貫通制限'];
-const GIMMICK_TONE_GREEN=['弱点倍率アップ','フォトン倍率アップ','防御ダウン'];
+const GIMMICK_TONE_GREEN=['直殴り倍率アップ','弱点倍率アップ','フォトン倍率アップ','防御ダウン'];
 const GIMMICK_TONE_BLUE=['透明パネル','フォトンコンテナ','剣持ち敵','エナジーフォトン','パワーエリア','パワースイッチ','剣パネル','結界','HP共有','レーザージェネレーター','キューブ状態','触れた味方の数に応じて攻撃力アップ'];
 const GIMMICK_RED_BLOCK_STAGES=['3-5','6-2','8-5'];
 // ワープは原則として赤（危険）。対策が不要な 3-2・8-2 だけ青（強化）で表示する。
@@ -209,10 +211,12 @@ function gimmickTone(name,stage){
   if(GIMMICK_TONE_RED.some(n=>name.startsWith(n)))return 'red';
   if(GIMMICK_TONE_BLUE.some(n=>name.startsWith(n)))return 'blue';
   if(GIMMICK_TONE_GREEN.some(n=>name.startsWith(n)))return 'green';
-  return 'gray';
+  return 'blue';
 }
 function stageGimmickEntries(stage){
   const order={red:0,blue:1,green:2,gray:3};
-  return stageGimmickNamesRaw(stage).map((name,i)=>({name,tone:gimmickTone(name,stage),i})).sort((a,b)=>order[a.tone]-order[b.tone]||a.i-b.i).map(({name,tone})=>({name,tone}));
+  const priority=name=>{const index=(stage.gimmickOrder||[]).indexOf(name);return index<0?Infinity:index;};
+  const hidden=new Set('蘇生 召喚 雑魚敵に弱点 中ボス クロスドクロ ドクロ 敵移動 撤退 透明化 弱点付与'.split(' '));
+  return stageGimmickNamesRaw(stage).filter(name=>!hidden.has(name)).map((name,i)=>({name,tone:gimmickTone(name,stage),i})).sort((a,b)=>order[a.tone]-order[b.tone]||priority(a.name)-priority(b.name)||a.i-b.i).map(({name,tone})=>({name,tone}));
 }
 function stageGimmickNames(stage){return stageGimmickEntries(stage).map(e=>e.name);}
