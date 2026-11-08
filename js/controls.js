@@ -102,8 +102,9 @@
     unit.lineContacts=new Set();
     unit.superUsed=new Set();unit.lineStacks=0;unit.superWallAttack=0;
     const speed = (390 + clamp(power, 0, 1) * 710) * (state.skillShot ? 2 : 1) * (unit.speed * dashMultiplier(unit) * (unit.superWind?1.5:1) / 100);
-    unit.vx = dx / magnitude * speed;
-    unit.vy = dy / magnitude * speed;
+    state.waterWallUsed=false;state.waterPower=false;
+    unit.vx = dx / magnitude * speed * waterSpeedMultiplier();
+    unit.vy = dy / magnitude * speed * waterSpeedMultiplier();
     state.phase = 'moving';
     state.aiming = null;
     state.shotCount++;
@@ -151,6 +152,9 @@
   }
 
   function finishShot() {
+    const recovery=Math.min(state.units.reduce((sum,u)=>sum+(u.chipRegen||0),0),state.maxHp-state.hp);
+    if(recovery>0){state.hp+=recovery;floatingText(310,100,"緩回復 ＋"+recovery,"#35b981",16);}
+    changeWaterDepth();
     const unit = state.units[state.activeUnit];
     unit.vx = 0;
     unit.vy = 0;
@@ -240,6 +244,7 @@
   }
 
   function endGame(won) {
+    const chipDrops=won?awardChips():[];
     state.phase = won ? 'victory' : 'gameover';
     state.phaseTimer = -1;
     state.aiming = null;
@@ -248,7 +253,7 @@
     showOverlay({
       eyebrow: won ? 'MISSION COMPLETE' : 'TRY AGAIN',
       title: won ? '完璧な、軌道。' : '次の一撃に、可能性を。',
-      copy: won ? `${state.waves.length}つのウェーブを突破。あなたの一撃が、すべてをつなぎました。` : '味方の上を通り抜けると友情コンボが発動。壁の反射を使って、次の軌道を見つけよう。',
+      copy: won ? `${state.waves.length}つのウェーブを突破。 チップ：${chipDrops.length?chipDrops.map(chipName).join("、"):"ドロップなし"}${state.chipSaveFailed?"（保存に失敗しました）":""}` : '味方の上を通り抜けると友情コンボが発動。壁の反射を使って、次の軌道を見つけよう。',
       stats: `SCORE ${String(state.score).padStart(6, '0')}　/　MAX ${state.maxCombo} HITS　/　${state.shotCount} SHOTS`,
       primary: 'もう一度プレイ', onPrimary: resetGame,
       secondary: 'フィールドを見る', onSecondary: () => { hideOverlay(); updateUI(); },

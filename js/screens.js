@@ -62,7 +62,7 @@
     }
   }
 
-  const teamHp = ids => ids.reduce((sum, id) => sum + CHAR_BY_ID[id].hp, 0);
+  const teamHp = ids => ids.reduce((sum, id) => sum + chipCharacter(CHAR_BY_ID[id],ids).hp, 0);
 
   function statRow(label, value, max) {
     return `<div class="stat-row"><dt>${label}</dt><dd><span class="stat-value">${fmt(value)}</span><span class="stat-bar"><i style="width:${Math.min(100, Math.round(value / max * 100))}%"></i></span></dd></div>`;
@@ -126,7 +126,7 @@
     }).join('');
 
     if(!matches.length)$('roster').innerHTML='<p class="roster-empty">条件に合うキャラクターがいません。絞り込み条件を変更してください。</p>';
-    const c = CHAR_BY_ID[selectedCharId];
+    const c = chipCharacter(CHAR_BY_ID[selectedCharId],team.includes(selectedCharId)?team:[...team,selectedCharId]);
     const f = c.friendship;
     const inTeam = team.includes(c.id);
     const full = !inTeam && team.length >= MAX_TEAM;
@@ -134,11 +134,11 @@
     detail.setAttribute('style', colorVars(c.color));
     detail.innerHTML = `
       <div class="detail-head"><span class="detail-avatar">${shapeHTML(c, 'big')}</span>
-        <div><p class="eyebrow">STATUS</p><h3>${c.name}<small>${c.kana}</small></h3><p class="detail-type">${c.type}</p></div></div>
-      <p class="style-ability">${BATTLE_STYLES[c.battleStyle]}<br>${isPiercing(c)?'敵を貫通して移動。':'敵に当たると反射。'} 敵接触後の速度：${Math.round(enemyHitRetention(c)*100)}%。</p><div class="ability-box">${c.abilities.map(id=>'<p><strong>'+ABILITIES[id][0]+'</strong><br>'+ABILITIES[id][1]+'</p>').join('')}</div>
-      <dl class="stat-list">${statRow('HP', c.hp, 5000)}${statRow('攻撃', c.atk, 1500)}${statRow('スピード', c.speed, 300)}</dl>
-      <div class="friend-box"><p class="friend-label">友情コンボ</p><p class="friend-name">${friendshipTitle(f)}</p><p class="friend-desc">${FRIENDSHIP_KINDS[f.kind].describe(f)}</p></div>
-      <div class="friend-box"><p class="friend-label">副友情コンボ</p><p class="friend-name">${friendshipTitle(c.secondary)}</p><p class="friend-desc">${FRIENDSHIP_KINDS[c.secondary.kind].describe(c.secondary)}</p></div>
+        <div><p class="eyebrow">STATUS</p><h3>${c.name}<small>${c.kana}</small></h3><div class="detail-type">${c.type}<details class="type-help"><summary aria-label="撃種と戦型の説明">？</summary><p>${BATTLE_STYLES[c.battleStyle]}<br>${isPiercing(c)?"敵を貫通して移動。":"敵に当たると反射。"} 敵接触後の速度：${Math.round(enemyHitRetention(c)*100)}%。</p></details></div></div></div>
+      <div class="ability-box">${c.abilities.map(id=>'<p><strong>'+ABILITIES[id][0]+'</strong><br>'+ABILITIES[id][1]+'</p>').join('')}</div>
+      ${chipEditor(c)}<dl class="stat-list">${statRow('HP', c.hp, 5000)}${statRow('攻撃', c.atk, 1500)}${statRow('スピード', c.speed, 300)}</dl>
+      <div class="friend-box"><p class="friend-label">友情コンボ</p><p class="friend-name">${friendshipTitle(f)} <span class="friend-power">基礎威力 ${f.power}</span></p><p class="friend-desc">${FRIENDSHIP_KINDS[f.kind].describe(f)}</p></div>
+      <div class="friend-box"><p class="friend-label">副友情コンボ</p><p class="friend-name">${friendshipTitle(c.secondary)} <span class="friend-power">基礎威力 ${c.secondary.power}</span></p><p class="friend-desc">${FRIENDSHIP_KINDS[c.secondary.kind].describe(c.secondary)}</p></div>
       <button type="button" class="${inTeam ? 'outline-button' : 'primary-button'} wide-button" data-detail-toggle="${c.id}"${full ? ' disabled' : ''}>${inTeam ? '編成から外す' : full ? '編成がいっぱいです' : '編成に加える'}</button>`;
   }
 
@@ -182,6 +182,7 @@
         else return;
         renderFormation();
       });
+      if(button.dataset.inspect&&window.matchMedia("(max-width:950px)").matches)$("char-detail").scrollIntoView({behavior:"smooth",block:"start"});
     });
   }
   if ($('formation-confirm')) $('formation-confirm').addEventListener('click', confirmFormation);

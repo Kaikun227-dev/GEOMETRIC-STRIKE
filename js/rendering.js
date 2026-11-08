@@ -324,6 +324,7 @@
     ctx.restore();
   }
   function drawBackground() {
+    if(state.stage.underwater){drawUnderwater();return;}
     ctx.fillStyle = '#f7f9fb';
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
     const wash = ctx.createRadialGradient(310, 320, 20, 310, 340, 460);
@@ -962,3 +963,11 @@ wing:[[-1,0.65],[-0.6,-0.65],[0,0.05],[0.6,-1],[1,-0.8],[0.6,0.35],[0,1]],
     }
     requestAnimationFrame(frame);
   }
+function drawUnderwater(){
+ const lv=state.waterLevel||1,pal=[['#79e1ed','#258ebd','#0b416e'],['#328fb9','#155b88','#082a50'],['#164967','#0b2b4e','#030f28']][lv-1];
+ ctx.save();const g=ctx.createLinearGradient(0,0,WIDTH,HEIGHT);g.addColorStop(0,pal[0]);g.addColorStop(.48,pal[1]);g.addColorStop(1,pal[2]);ctx.fillStyle=g;ctx.fillRect(0,0,WIDTH,HEIGHT);
+ ctx.fillStyle='#a7edff';for(let i=0;i<6;i++){const x=60+i*100+Math.sin(state.clock*.3+i)*12;ctx.globalAlpha=.035;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x+25,0);ctx.lineTo(x+150,HEIGHT);ctx.lineTo(x+55,HEIGHT);ctx.closePath();ctx.fill();}
+ ctx.strokeStyle='#b1efff';ctx.lineWidth=1;for(let i=0;i<18;i++){ctx.globalAlpha=.15;const x=45+(i*79)%530,y=710-((state.clock*18+i*43)%680);ctx.beginPath();ctx.arc(x,y,2+i%4,0,TAU);ctx.stroke();}
+ ctx.globalAlpha=1;ctx.strokeStyle=pal[0];ctx.lineWidth=6;ctx.strokeRect(FIELD.left,FIELD.top,FIELD.right-FIELD.left,FIELD.bottom-FIELD.top);ctx.strokeStyle='#b8f1ff';ctx.lineWidth=1;ctx.strokeRect(FIELD.left+4,FIELD.top+4,FIELD.right-FIELD.left-8,FIELD.bottom-FIELD.top-8);
+ ctx.fillStyle='#a9e9ff';ctx.font='bold 14px sans-serif';ctx.textAlign='left';ctx.fillText('水中 Lv.'+lv+'  /  速度 −'+[50,70,90][lv-1]+'%・パワー −'+[30,45,60][lv-1]+'%',45,55);if(state.waterPower)ctx.fillText('壁反発：次の直殴り ×3',45,76);if(laserStage())drawLaserWalls();ctx.restore();
+}

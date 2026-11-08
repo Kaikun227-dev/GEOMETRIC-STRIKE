@@ -10,7 +10,7 @@ unit.superUsed??=new Set();if(unit.superUsed.has(id))return;unit.superUsed.add(i
 }
 function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56e8bb',85,.45);floatingText(unit.x,unit.y-45,'SUPER SPEED','#36ab89',13);}
   function setupArea(){
-    for(const u of state.units){u.barrierHp=hasAbility(u,'barrierM')?5000:hasAbility(u,'barrier')?2000:0;u.weakAttack=0;u.lineStacks=0;u.superWallAttack=0;u.superUsed=new Set();}
+    for(const u of state.units){u.barrierHp=hasAbility(u,'barrierM')?5000:hasAbility(u,'barrier')?2000:(u.chipBarrier||0);u.weakAttack=0;u.lineStacks=0;u.superWallAttack=0;u.superUsed=new Set();}
     const g=state.waves[state.wave].gimmicks||{};
     state.heartPanels=(g.hearts||[]).map((p,i)=>({...p,id:p.id||'heart-'+i}));
     state.heartFruits=[];state.heartFruitSeq=0;
@@ -76,6 +76,7 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
     for(let i=0;i<count&&state.pickups.length<(wall?48:32);i++)for(let attempt=0;attempt<40;attempt++){
       const p={x:65+Math.random()*490,y:85+Math.random()*540,kind};
       if(wall){const edge=Math.floor(Math.random()*4);if(edge<2){p.x=edge===0?58:562;p.y=75+Math.random()*580;}else{p.y=edge===2?60:680;p.x=75+Math.random()*470;}}
+      if(state.stage.id==='2-EX'&&kind==='mine'&&(state.enemies.some(e=>e.alive&&distance(e,p)<e.r*(e.shape==='square'?Math.SQRT2:1)+28)||(state.waves[state.wave].gimmicks?.warps||[]).some(w=>[w.a,w.b].some(q=>distance(p,q)<(w.r||22)+28))))continue;
       if(state.enemies.some(e=>e.alive&&distance(e,p)<e.r+28)||state.pickups.some(q=>distance(p,q)<36)||state.units.some(u=>distance(u,p)<u.r+25))continue;
       state.pickups.push(p);ring(p.x,p.y,kind==='mine'?'#e56565':'#d3a128',35,.4);break;
     }
@@ -506,7 +507,8 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
     let styleMultiplier=unit.battleStyle==='balance'?1.2:1;
     if(unit.battleStyle==='power'&&!state.powerHitUsed){state.powerHitUsed=true;styleMultiplier=2;floatingText(unit.x,unit.y-38,'POWER ×2',unit.color,14);}
     const switchMultiplier=powerSwitchMultiplier();
-    return baseDamage*(state.waves[state.wave].directMultiplier??state.stage.directMultiplier??1)*(effectiveAttack(unit)/1000)*(state.skillShot?2.4:1)*styleMultiplier*(1+(state.swordBonus||0))*(state.atkUp||1)*wallBoostMultiplier(unit)*switchMultiplier*consumePhoton(unit);
+    const waterBoost=state.waterPower?3:1;state.waterPower=false;
+    return waterMultiplier()*waterBoost*baseDamage*(state.waves[state.wave].directMultiplier??state.stage.directMultiplier??1)*(effectiveAttack(unit)/1000)*(state.skillShot?2.4:1)*styleMultiplier*(1+(state.swordBonus||0))*(state.atkUp||1)*wallBoostMultiplier(unit)*switchMultiplier*consumePhoton(unit);
   }
   // キューブ状態：手番以外の味方は正方形の当たり判定を持つ（移動中の味方は反射し、友情は接触で発動）。
   function cubeActive(){return !!(state.waves[state.wave].cube??state.stage.cube??stageSettings.cube);}
@@ -690,3 +692,11 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
     uiAccumulator += dt;
     if (uiAccumulator > 0.1) { uiAccumulator = 0; updateUI(); }
   }
+// 水深はステージ全体で保持。友情の威力計算からは参照しない。
+function waterMultiplier(){return state.stage.underwater?[.7,.55,.4][(state.waterLevel||1)-1]:1;}
+function changeWaterDepth(){
+ if(!state.stage.underwater)return;state.waterPower=false;
+ if(Math.random()<.5){const old=state.waterLevel||1,others=[1,2,3].filter(n=>n!==old);state.waterLevel=others[Math.floor(Math.random()*2)];floatingText(310,90,'水深 Lv.'+state.waterLevel,'#42b8ff',20);}
+}
+
+function waterSpeedMultiplier(){return state.stage.underwater?[.5,.3,.1][(state.waterLevel||1)-1]:1;}

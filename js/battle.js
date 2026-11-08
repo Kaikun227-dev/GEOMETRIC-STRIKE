@@ -118,7 +118,7 @@
   function makeUnits() {
     const positions = FORMATION_POSITIONS[team.length] || FORMATION_POSITIONS[MAX_TEAM];
     return team.map((charId, i) => {
-      const c = CHAR_BY_ID[charId];
+      const c = chipCharacter(CHAR_BY_ID[charId],team);
       return { ...c, atk: c.atk + (stageSettings.powerBonus ? 3000 : 0), id: i, charId, x: positions[i][0], y: positions[i][1], r: UNIT_RADIUS, vx: 0, vy: 0, photons: 0 };
     });
   }
@@ -134,6 +134,7 @@
     const maxHp = currentStage.teamHp ?? units.reduce((sum, unit) => sum + unit.hp, 0);
     best = loadBest(currentStage.id);
     state = {
+      waterLevel:1,waterWallUsed:false,waterPower:false,
       phase: 'ready', paused: false, stage: currentStage, waves: currentStage.waves, wave: 0, turn: 1, waveTurn: 1,
       hp: maxHp, maxHp, score: 0,
       activeUnit: 0, units, enemies: makeEnemies(currentStage, 0),

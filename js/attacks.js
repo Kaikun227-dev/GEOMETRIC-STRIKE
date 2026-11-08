@@ -603,7 +603,7 @@
       showFriendshipActivation(ally.x,ally.y,ally.color,kind.label);
       return;
     }
-    const damage = f.power * (effectiveAttack(ally) / 1000) * (state.skillShot ? 1.7 : 1) * (ally.battleStyle === 'artillery' ? 2 : 1);
+    const damage = f.power * (ally.chipFriendMultiplier||1) * (effectiveAttack(ally) / 1000) * (state.skillShot ? 1.7 : 1) * (ally.battleStyle === 'artillery' ? 2 : 1);
     const mover=trigger;
     const direction=Math.hypot(mover.vx,mover.vy)>.01?{vx:mover.vx,vy:mover.vy}:state.shotDirection||{vx:0,vy:-1};
     const carrier=mover;

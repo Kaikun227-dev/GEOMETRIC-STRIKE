@@ -2,7 +2,7 @@
 // 新友情コンボ：クロスバウンドボム / アブソリュートクロスレイ / カウンターリング / ショットガン。
 // 発射は spawnNewFriendship（attacks.js の emitFriendship から呼ぶ）、更新は updateNewFriendship、描画は drawNewFriendship。
 // attacks.js の後、controls.js の前に読み込む。
-const NEW_COMBOS=['heavyCannon','wallSnake','sakuraNova','sonicCannon','crossBomb','absoluteCross','counterRing','shotgun','shockSplit','wayLaser','pierceHoming','shinePillar','wheel','sakuraBurst','cornerMissile'];
+const NEW_COMBOS=['armageddon','interference','dimensionRift','astralPress','blastHoming','oathSwords','heavyCannon','wallSnake','sakuraNova','sonicCannon','crossBomb','absoluteCross','counterRing','shotgun','shockSplit','wayLaser','pierceHoming','shinePillar','wheel','sakuraBurst','cornerMissile'];
 const CANNON_RADIUS=76,WALL_SNAKE_SCALE=3.6,WALL_SNAKE_LENGTH=130*WALL_SNAKE_SCALE,WALL_SNAKE_REACH=29*WALL_SNAKE_SCALE;
 const CROSS_BOMB_STEP=150,CROSS_BOMB_HOP=.34;
 // アブソリュートクロスレイ：出だしはゆっくり、その後に急加速（速度 = 初速 + 加速度×経過時間²、上限 speed）。
@@ -49,6 +49,8 @@ function pointOnBeam(b,s){
 }
 
 function spawnNewFriendship(ally,f,carrier,damage){
+ if(f.kind==='armageddon'){queueEffect({type:f.kind,side:'ally',ownerId:ally.id,owner:ally,color:ally.color,damage,age:0,hit:false});return true;}
+ if(RESONANCE_KINDS.includes(f.kind)){spawnResonance(ally,f,carrier,damage);return true;}
   if(!NEW_COMBOS.includes(f.kind))return false;
   const base={side:'ally',x:ally.x,y:ally.y,damage,color:ally.color,age:0};
   if(f.kind==='heavyCannon'){
@@ -123,6 +125,7 @@ function spawnNewFriendship(ally,f,carrier,damage){
 
 // カウンターリング：手番キャラが壁に触れるたびにカウント+1（最大 max）。
 function noteWallTouch(unit){
+ if(state.stage.underwater&&!state.waterWallUsed){state.waterWallUsed=true;state.waterPower=true;unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,"#62dfff",75,.4);}
   for(const e of state.effects)if(e.type==='counterRing'&&e.phase==='count'&&e.count<e.max){
     e.count++;floatingText(unit.x,unit.y-34,'RING '+e.count+'/'+e.max,e.color,12);ring(unit.x,unit.y,e.color,38,.25);
   }
@@ -149,6 +152,8 @@ function sakuraTouch(unit,enemy){
 const wheelSpeed=a=>WHEEL_SPEED_MULT*(390+710)*((a.speed*dashMultiplier(a))/100);
 
 function updateNewFriendship(e,dt){
+ if(e.type==='armageddon')return updateArmageddon(e);
+ if(RESONANCE_KINDS.includes(e.type))return updateResonance(e,dt);
   const pool=livingTargets();
   if(e.type==='heavyCannon'){
     e.wait-=dt;
@@ -417,6 +422,8 @@ function updateNewFriendship(e,dt){
 }
 
 function drawNewFriendship(e){
+ if(e.type==='armageddon'){drawArmageddon(e);return;}
+ if(RESONANCE_KINDS.includes(e.type)){drawResonance(e);return;}
   if(e.type==='heavyCannon'){
     ctx.save();
     for(const b of e.balls){
@@ -624,4 +631,239 @@ function drawPoisonStatus(x,y,r,turns){
   if(!(turns>0))return;ctx.save();ctx.fillStyle='#a85ad0';ctx.strokeStyle='#e5bbff';ctx.lineWidth=1.5;
   for(let i=0;i<3;i++){const a=(state.clock||0)*1.6+i*TAU/3;ctx.beginPath();ctx.arc(x+Math.cos(a)*(r+6),y+Math.sin(a)*(r+6)-8,3+i,0,TAU);ctx.fill();ctx.stroke();}
   ctx.font='bold 11px Arial';ctx.textAlign='center';ctx.fillText('毒 '+turns+'T',x,y+r+16);ctx.restore();
+}
+// Five cinematic friendships. Timelines use absolute timestamps so skipped frames do not lose hits.
+const RESONANCE_KINDS=['interference','dimensionRift','astralPress','blastHoming','oathSwords'];
+function resonanceSegment(p,a,b){const dx=b.x-a.x,dy=b.y-a.y,t=clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy||1),0,1);return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);}
+function spawnResonance(ally,f,carrier,damage){
+ if(f.kind==='blastHoming'||f.kind==='oathSwords'){spawnRevisedFriendship(ally,f,damage);return;}
+ const targets=livingTargets().sort((a,b)=>b.hp-a.hp),e={type:f.kind,side:'ally',ownerId:ally.id,owner:ally,x:ally.x,y:ally.y,color:ally.color,damage,age:0,carrier,events:[],points:[],hits:new Map(),life:1.55};
+ const event=(t,p,r,m)=>e.events.push({t,p:{x:p.x,y:p.y},r,m});
+ if(f.kind==='interference'){e.life=1.8;e.points=[{x:ally.x,y:ally.y}];}
+ else if(f.kind==='dimensionRift'&&targets.length){
+  e.life=1.85;
+  let best=-1;for(const p of targets)for(let i=0;i<12;i++){const a=i*Math.PI/12,u={x:Math.cos(a),y:Math.sin(a)},a0={x:p.x-u.x*290,y:p.y-u.y*290},b={x:p.x+u.x*290,y:p.y+u.y*290},score=targets.filter(t=>resonanceSegment(t,a0,b)<=100+t.r).length;if(score>best){best=score;e.points=[a0,b];}}
+  for(const t of [.55,.7,.85,1.2])e.events.push({t,line:true,r:t===1.2?140:100,m:t===1.2?6:1.33});
+ }else if(f.kind==='astralPress'&&targets.length){e.points=[{x:targets[0].x,y:targets[0].y}];for(let i=0;i<6;i++)event(.3+i*.1,e.points[0],105,1);event(1,e.points[0],125,6);}
+ e.events.sort((a,b)=>a.t-b.t);queueEffect(e);
+}
+function resonanceHit(e,p,r,m,key,limit=99){for(const enemy of livingTargets()){if(distance(enemy,p)>r+enemy.r)continue;const k=key+':'+enemy.id,n=e.hits.get(k)||0;if(n>=limit)continue;e.hits.set(k,n+1);damageEnemy(enemy,e.damage*m,true,{owner:e.owner,hit:{x:p.x,y:p.y,radius:r}});}}
+function interferenceGeometry(e){const a=e.points[0],b=e.points[1],r=e.age*280,s=Math.max(0,e.age-.25)*370;if(!b)return {r,s,cross:[]};const d=distance(a,b);if(d<24)return {r,s,resonant:true,cross:[]};if(d>r+s||d<Math.abs(r-s))return {r,s,cross:[]};const z=(r*r-s*s+d*d)/(2*d),h=Math.sqrt(Math.max(0,r*r-z*z)),dx=(b.x-a.x)/d,dy=(b.y-a.y)/d;return {r,s,cross:[{x:a.x+z*dx-h*dy,y:a.y+z*dy+h*dx},{x:a.x+z*dx+h*dy,y:a.y+z*dy-h*dx}]};}
+function updateResonance(e,dt){
+ if(e.type==='blastHoming'||e.type==='oathSwords')return updateRevisedFriendship(e,dt);
+ if(e.type==='interference'){
+  if(e.age>=.25&&!e.points[1])e.points.push({x:e.carrier.x,y:e.carrier.y});const g=interferenceGeometry(e);
+  e.points.forEach((p,i)=>{const r=i?g.s:g.r,prev=Math.max(0,r-dt*(i?370:280));for(const enemy of livingTargets()){const d=distance(p,enemy),key='ring'+i+':'+enemy.id;if(d+enemy.r>=prev-14&&d-enemy.r<=r+14&&!e.hits.has(key)){e.hits.set(key,1);damageEnemy(enemy,e.damage*2,true,{owner:e.owner,hit:{x:enemy.x,y:enemy.y,radius:14}});}}});
+  if(e.age>=(e.nextPulse||.25)){e.nextPulse=e.age+.1;if(g.resonant){for(const en of livingTargets())if(Math.abs(distance(en,e.points[0])-g.r)<en.r+38)resonanceHit(e,en,1,1,'cross',6);}else for(const p of g.cross)resonanceHit(e,p,56,1,'cross',6);}
+ }else while(e.events.length&&e.events[0].t<=e.age){const v=e.events.shift();if(v.line){for(const enemy of livingTargets()){let hit=false;for(let i=1;i<e.points.length;i++)if(resonanceSegment(enemy,e.points[i-1],e.points[i])<=v.r+enemy.r)hit=true;if(hit)damageEnemy(enemy,e.damage*v.m,true,{owner:e.owner,hit:{x:enemy.x,y:enemy.y,radius:v.r}});}}else resonanceHit(e,v.p,v.r,v.m,'event');}
+ return e.age<e.life;
+}
+function drawResonance(e){
+ if(e.type==='blastHoming'||e.type==='oathSwords'){drawRevisedFriendship(e);return;}
+ const t=e.age,fade=clamp((e.life-t)/.35,0,1);ctx.save();ctx.strokeStyle=e.color;ctx.fillStyle=e.color;ctx.shadowColor=e.color;ctx.shadowBlur=14;ctx.globalAlpha=fade;
+ const line=(a,b,w)=>{ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();};
+ const circle=(p,r,w=3)=>{ctx.lineWidth=w;ctx.beginPath();ctx.arc(p.x,p.y,Math.max(.1,r),0,TAU);ctx.stroke();};
+ const shards=(p,r)=>{for(let i=0;i<12;i++){const a=i*TAU/12+t,rr=r*(.3+(i%3)*.2);ctx.save();ctx.translate(p.x+Math.cos(a)*rr,p.y+Math.sin(a)*rr);ctx.rotate(a+t);ctx.beginPath();ctx.moveTo(0,-10);ctx.lineTo(5,4);ctx.lineTo(-3,8);ctx.closePath();ctx.fill();ctx.restore();}};
+ if(e.type==='interference'){const g=interferenceGeometry(e);e.points.forEach((p,i)=>{ctx.globalAlpha=fade*(i?.65:.9);circle(p,i?g.s:g.r,12);circle(p,(i?g.s:g.r)+9,2);});ctx.globalAlpha=fade;for(const p of g.cross){circle(p,43+Math.sin(t*40)*6,9);shards(p,54);}if(g.resonant)circle(e.points[0],g.r,23);}
+ else if(e.type==='dimensionRift'&&e.points.length){drawCosmicRift(e);}
+ else for(const [i,p] of e.points.entries()){
+  if(e.type==='astralPress'){const gap=90*(1-clamp(t,0,1));ctx.globalAlpha=fade*.12;ctx.fillRect(p.x-100,p.y-gap,200,gap*2);ctx.globalAlpha=fade;for(const sign of [-1,1]){ctx.save();ctx.translate(p.x,p.y+sign*gap);ctx.scale(1,.38);circle({x:0,y:0},110,5);circle({x:0,y:0},86,2);for(let j=0;j<8;j++){const a=j*TAU/8+t*sign;line({x:Math.cos(a)*65,y:Math.sin(a)*65},{x:Math.cos(a+.4)*100,y:Math.sin(a+.4)*100},3);}ctx.restore();}if(t>=1){circle(p,(t-1)*280,12);shards(p,(t-1)*240);}}
+ }
+ ctx.restore();
+}
+// Oath swords and four-generation explosive homing.
+const BLAST_HOMING_RADII=[0,66,98,135,188]; // 爆風半径を約1.5倍。威力は共通。
+function spawnRevisedFriendship(ally,f,damage){
+ const e={type:f.kind,side:'ally',ownerId:ally.id,owner:ally,color:ally.color,damage,age:0,shots:[],bursts:[],counts:new Map(),emitted:0,count:Math.max(1,Math.floor(f.count??3)),resonated:false};
+ if(f.kind==='blastHoming')e.shots.push({x:ally.x,y:ally.y,level:4,age:0,angle:-Math.PI/2,curve:0,trail:[]});
+ queueEffect(e);
+}
+function revisedDamage(e,enemy,m,r=1){damageEnemy(enemy,e.damage*m,true,{owner:e.owner,hit:{x:enemy.x,y:enemy.y,radius:r}});}
+function updateRevisedFriendship(e,dt){
+ e.bursts=e.bursts.filter(b=>(b.age+=dt)<.4);
+ if(e.type==='oathSwords'){
+  while(e.emitted<e.count&&e.age>=e.emitted*.075){const pool=livingTargets(),enemy=pool[Math.floor(Math.random()*pool.length)];const i=e.emitted++;if(enemy)e.shots.push({target:enemy,x:enemy.x+(Math.random()-.5)*26,y:enemy.y+(Math.random()-.5)*18,start:i*.075,land:i*.075+.10,hit:false});}
+  for(const s of e.shots)if(!s.hit&&e.age>=s.land){s.hit=true;if(targetable(s.target)){revisedDamage(e,s.target,1.5);e.counts.set(s.target.id,(e.counts.get(s.target.id)||0)+1);}e.bursts.push({x:s.x,y:s.y,r:40,age:0});}
+  e.resonanceAt=(e.count-1)*.075+.24;
+  if(!e.resonated&&e.age>=e.resonanceAt){e.resonated=true;for(const enemy of livingTargets()){const n=e.counts.get(enemy.id)||0;if(n)revisedDamage(e,enemy,2*Math.pow(2,n-1));}}
+  return e.age<e.resonanceAt+.6;
+ }
+ // Small integration steps retain collision accuracy on slower frames.
+ let remaining=dt;while(remaining>0){const step=Math.min(remaining,1/120);remaining-=step;const next=[];
+  for(const s of e.shots){s.age+=step;const pool=livingTargets().sort((a,b)=>distance(a,s)-distance(b,s));const target=pool[0];if(!target)continue;
+   // 分裂時の個体差と滑らかな揺らぎ。帰還時には揺らぎを収束させる。
+   const old={x:s.x,y:s.y},arcTime=s.arcTime??.23;
+   if(s.curve&&s.age<arcTime){s.angle+=s.curve*(s.arcRate??7)*step;}else{
+    const aim=Math.atan2(target.y-s.y,target.x-s.x),wobble=s.curve?Math.sin(s.age*(s.frequency??8)+(s.phase??0))*.35*clamp(distance(target,s)/220,0,1)*clamp(2-s.age,0,1):0;
+    const desired=aim+wobble,delta=Math.atan2(Math.sin(desired-s.angle),Math.cos(desired-s.angle)),turn=s.turnRate??10;
+    s.angle=s.age>2.5?aim:s.angle+clamp(delta,-turn*step,turn*step);
+   }
+   s.x+=Math.cos(s.angle)*(s.speed??640)*step;s.y+=Math.sin(s.angle)*(s.speed??640)*step;
+   s.trail.push({x:s.x,y:s.y});if(s.trail.length>14)s.trail.shift();
+   if((!s.curve||s.age>=arcTime)&&resonanceSegment(target,old,s)<=target.r+6+s.level*3){const r=BLAST_HOMING_RADII[s.level];e.bursts.push({x:s.x,y:s.y,r,age:0,level:s.level});for(const enemy of livingTargets())if(distance(enemy,s)<=r+enemy.r)revisedDamage(e,enemy,1,r);
+    if(s.level>1)for(const sign of [-1,1])next.push({x:s.x,y:s.y,level:s.level-1,age:0,angle:s.angle+sign*(.7+Math.random()*.9),curve:sign,arcTime:.17+Math.random()*.19,arcRate:4.5+Math.random()*5,speed:540+Math.random()*200,turnRate:8+Math.random()*5,frequency:6+Math.random()*6,phase:Math.random()*TAU,trail:[]});
+   }else if(s.age<4)next.push(s);
+  }e.shots=next;
+ }
+ return e.shots.length>0||e.bursts.length>0;
+}
+function revisedLightning(a,b,color,seed=0,width=2){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(a.x,a.y);const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1;for(let j=1;j<9;j++){const z=Math.sin(j*71+seed)*12;ctx.lineTo(a.x+dx*j/9-dy/d*z,a.y+dy*j/9+dx/d*z);}ctx.lineTo(b.x,b.y);ctx.stroke();}
+function drawRevisedFriendship(e){
+ ctx.save();ctx.strokeStyle=e.color;ctx.fillStyle=e.color;ctx.shadowColor=e.color;ctx.shadowBlur=16;
+ for(const b of e.bursts){const p=b.age/.4;ctx.globalAlpha=1-p;ctx.lineWidth=8*(1-p)+1;ctx.beginPath();ctx.arc(b.x,b.y,Math.max(1,b.r*(.2+p*.8)),0,TAU);ctx.stroke();ctx.globalAlpha=(1-p)*.2;ctx.fill();for(let i=0;i<10;i++){const a=i*TAU/10;ctx.beginPath();ctx.moveTo(b.x+Math.cos(a)*b.r*p,b.y+Math.sin(a)*b.r*p);ctx.lineTo(b.x+Math.cos(a)*b.r*(p+.2),b.y+Math.sin(a)*b.r*(p+.2));ctx.stroke();}}
+ if(e.type==='blastHoming'){for(const s of e.shots){ctx.globalAlpha=.5;ctx.lineWidth=s.level*3;ctx.beginPath();s.trail.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();ctx.globalAlpha=1;ctx.beginPath();ctx.arc(s.x,s.y,5+s.level*4,0,TAU);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(s.x,s.y,2+s.level*2,0,TAU);ctx.stroke();ctx.strokeStyle=e.color;}}
+ else{
+  const fade=e.resonated?clamp(1-(e.age-e.resonanceAt)/.6,0,1):1;ctx.globalAlpha=fade;
+  for(const [i,s] of e.shots.entries()){const fall=clamp((s.land-e.age)/.1,0,1);ctx.save();ctx.translate(s.x,s.y-fall*220);ctx.rotate(-.12+(i%3)*.12);
+   ctx.fillStyle='#172032';ctx.strokeStyle=e.color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,6);ctx.lineTo(-12,-24);ctx.lineTo(-9,-78);ctx.lineTo(-17,-90);ctx.lineTo(-7,-86);ctx.lineTo(0,-103);ctx.lineTo(7,-86);ctx.lineTo(17,-90);ctx.lineTo(9,-78);ctx.lineTo(12,-24);ctx.closePath();ctx.fill();ctx.stroke();
+   ctx.fillStyle=e.color;ctx.beginPath();ctx.moveTo(0,2);ctx.lineTo(-4,-27);ctx.lineTo(0,-82);ctx.lineTo(4,-27);ctx.closePath();ctx.fill();
+   ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(-26,-87);ctx.lineTo(-17,-77);ctx.lineTo(0,-82);ctx.lineTo(17,-77);ctx.lineTo(26,-87);ctx.stroke();ctx.fillRect(-4,-117,8,29);ctx.beginPath();ctx.arc(0,-121,6,0,TAU);ctx.fill();
+   revisedLightning({x:-15,y:-120},{x:8,y:5},e.color,Math.floor(e.age*30)+i,2);ctx.restore();
+   if(e.resonated){const other=e.shots[(i+1)%e.shots.length];if(other&&other!==s)revisedLightning(s,other,e.color,Math.floor(e.age*45)+i,4);revisedLightning({x:s.x-30,y:s.y-100},{x:s.x+25,y:s.y+25},'#ffffff',e.age*40+i,1.5);}
+  }
+ }
+ ctx.restore();
+}
+function drawCosmicRift(e){
+ const [a,b]=e.points,t=e.age,angle=Math.atan2(b.y-a.y,b.x-a.x),length=distance(a,b),open=(1-Math.pow(1-clamp((t-.5)/.045,0,1),3))*(t>1.2?clamp((1.8-t)/.6,0,1):1);
+ ctx.save();ctx.shadowBlur=0;ctx.translate((a.x+b.x)/2,(a.y+b.y)/2);ctx.rotate(angle);
+ const spine=e.riftSpine||(e.riftSpine=Array.from({length:17},(_,i)=>({x:-length/2+length*i/16,y:Math.sin(i*17)*18})));
+ // Stable angular branches form a fractured glass network, rather than a wavering beam.
+ for(let i=1;i<16;i++){if(t<i*.012)continue;const p=spine[i];for(const sign of [-1,1]){const q={x:p.x+Math.sin(i*13)*28,y:p.y+sign*(25+(i%4)*16)};ctx.strokeStyle=e.color;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.lineTo(q.x+18*Math.cos(i),q.y+sign*22);ctx.stroke();ctx.lineWidth=.65;ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(q.x-24,q.y+sign*14);ctx.stroke();}}
+ drawRiftOpening(t,length,e.color);
+ const boundary=[];for(const sign of [-1,1]){const seq=sign===1?spine:[...spine].reverse();for(const p of seq){const width=(16+62*Math.pow(Math.max(0,1-Math.abs(p.x)/(length/2)),.6)+12*Math.sin(p.x))*open;boundary.push({x:p.x,y:p.y+sign*width});}}
+ ctx.beginPath();boundary.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.save();ctx.clip();ctx.fillStyle='#03040d';ctx.fillRect(-length/2-10,-100,length+20,200);
+ // Character-tinted nebulae and drifting stars remain clipped inside the tear.
+ for(let i=0;i<7;i++){ctx.globalAlpha=.08;ctx.fillStyle=e.color;ctx.beginPath();ctx.ellipse(-length*.42+i*length*.14,Math.sin(i*7+t)*30,95,24+i%3*12,.4,0,TAU);ctx.fill();}
+ const stars=cinematicBitmap('rift-stars:'+e.color,640,200,1,g=>{for(let i=0;i<100;i++){g.fillStyle=i%4?'#ffffff':e.color;g.globalAlpha=.35+(i%7)*.09;g.fillRect((i*97.31)%640,100+Math.sin(i*127.1)*95,i%9===0?2.5:1,i%9===0?2.5:1);}});
+ if(stars){ctx.globalAlpha=.8+.15*Math.sin(t*2);ctx.drawImage(stars,-length/2+t*8-20,-100,length+40,200);}else{for(let i=0;i<100;i++){ctx.globalAlpha=.65;ctx.fillStyle=i%4?'#ffffff':e.color;ctx.fillRect(((i*97.31+t*8)%length)-length/2,Math.sin(i*127.1)*95,1.5,1.5);}}
+
+ ctx.restore();ctx.beginPath();boundary.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.shadowBlur=8;ctx.strokeStyle=e.color;ctx.lineWidth=3;ctx.stroke();ctx.shadowBlur=0;ctx.strokeStyle='#ffffff';ctx.lineWidth=.7;ctx.stroke();
+ drawRiftShards(t,length,e.color);
+ ctx.restore();
+}
+// Secondary fractures erupt after the pause. Black cores retain the owner's hue.
+function drawRiftOpening(t,length,color){
+ const age=t-.5;if(age<0)return;
+ const rgb=[1,3,5].map(i=>Math.round(parseInt(color.slice(i,i+2),16)*.16));
+ const ink=`rgb(${rgb.join(',')})`,growth=clamp(age/.14,0,1),fade=clamp((1.8-t)/.4,0,1);
+ ctx.save();ctx.globalAlpha=fade;ctx.shadowBlur=0;
+ for(let i=0;i<12;i++){
+  const sign=i%2?1:-1,x=-length*.46+i*length*.08,y=Math.sin(i*17)*18;
+  const pts=[{x,y}];for(let j=1;j<5;j++)pts.push({x:x+Math.sin(i*23+j*9)*j*15*growth,y:y+sign*j*(24+i%3*7)*growth});
+  for(const [stroke,width] of [[color,5],[ink,3]]){ctx.strokeStyle=stroke;ctx.lineWidth=width;ctx.beginPath();pts.forEach((p,j)=>j?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();}
+  for(let j=2;j<5;j++){const p=pts[j];ctx.strokeStyle=ink;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+(i%2?1:-1)*32*growth,p.y+sign*15*growth);ctx.lineTo(p.x+(i%2?1:-1)*49*growth,p.y+sign*38*growth);ctx.stroke();}
+ }
+ // Brief pressure flash as the opening snaps outward.
+ if(age<.18){ctx.globalAlpha=(1-age/.18)*.65;ctx.strokeStyle=color;ctx.lineWidth=5*(1-age/.18)+1;ctx.beginPath();ctx.ellipse(0,0,length*.48+age*100,12+age*420,0,0,TAU);ctx.stroke();}
+ ctx.restore();
+}
+function drawRiftShards(t,length,color){
+ const age=t-.5;if(age<0||age>.75)return;
+ ctx.save();ctx.shadowBlur=0;
+ for(let i=0;i<20;i++){
+  const sign=i%2?1:-1,speed=160+(i*47)%260,x=-length*.48+(i*79%997)/997*length*.96;
+  const travel=(1-Math.exp(-age*4))*speed;
+  ctx.save();ctx.translate(x+Math.sin(i*17)*travel*.45,sign*(12+travel)+age*age*90);ctx.rotate(i*13+age*(i%2?7:-9));
+  const size=7+i%6*2,flip=.25+.75*Math.abs(Math.cos(age*8+i));ctx.scale(flip,1);
+  ctx.globalAlpha=clamp(1-age/.75,0,1)*.8;ctx.fillStyle=i%4===0?'#ffffff':color;ctx.strokeStyle='#ffffff';ctx.lineWidth=.8;
+  ctx.beginPath();ctx.moveTo(-size*.7,-size);ctx.lineTo(size,-size*.25);ctx.lineTo(size*.25,size*1.3);ctx.lineTo(-size*.5,size*.3);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.globalAlpha*=.6;ctx.beginPath();ctx.moveTo(-size*.7,-size);ctx.lineTo(size*.25,size*1.3);ctx.stroke();ctx.restore();
+ }
+ ctx.restore();
+}
+// A single full-field detonation. Beam and scenery are visual only, avoiding repeated damage.
+function updateArmageddon(e){
+ if(!e.hit&&e.age>=1.15){e.hit=true;for(const enemy of livingTargets())damageEnemy(enemy,e.damage,true,{owner:e.owner,hit:{x:enemy.x,y:enemy.y,radius:1}});state.shake=Math.max(state.shake||0,7);}
+ return e.age<2.25;
+}
+function drawArmageddon(e){
+ const t=e.age,c=e.color,cx=(FIELD.left+FIELD.right)/2,portalY=FIELD.top+10,impactY=FIELD.top+(FIELD.bottom-FIELD.top)*.73;
+ const arrival=1-Math.pow(1-clamp((t-.15)/.48,0,1),3),depart=clamp((t-1.7)/.45,0,1),fade=1-depart;
+ ctx.save();ctx.globalAlpha=fade;ctx.translate(cx,portalY);ctx.strokeStyle=c;ctx.shadowColor=c;ctx.shadowBlur=0;
+ const oval=(x,y,rx,ry,fill,stroke=c,w=2)=>{ctx.beginPath();ctx.ellipse(x,y,Math.max(.1,rx),Math.max(.1,ry),0,0,TAU);if(fill){ctx.fillStyle=fill;ctx.fill();}ctx.strokeStyle=stroke;ctx.lineWidth=w;ctx.stroke();};
+
+ // Horizontal cosmic aperture and its star field.
+ const aperture=clamp(t/.18,0,1);oval(0,0,245*aperture,25*aperture,'#070711',c,3);
+ ctx.save();ctx.beginPath();ctx.ellipse(0,0,240*aperture,23*aperture,0,0,TAU);ctx.clip();ctx.fillStyle='#ffffff';for(let i=0;i<30;i++)ctx.fillRect(-230+(i*83%460),Math.sin(i*17)*18,1.5,1.5);ctx.restore();
+ drawArmageddonAtmosphere(e,impactY-portalY);
+ // Clip deployment at the aperture: an armored central reactor, side engines and segmented struts.
+ ctx.save();ctx.beginPath();ctx.rect(-260,0,520,340);ctx.clip();const machineY=-190+arrival*170-depart*170-(t>=.93&&t<1.3?Math.sin(clamp((t-.93)/.37,0,1)*Math.PI)*9:0);ctx.translate(0,machineY);
+ const machine=cinematicBitmap('machine:'+c,420,190,1.5,(g)=>{g.translate(210,15);drawArmageddonMachine(g,c);});
+ if(machine)ctx.drawImage(machine,-210,-15,420,190);else drawArmageddonMachine(ctx,c);
+ const muzzle=machineY+159;ctx.restore();
+ drawArmageddonDischarge(e,muzzle,impactY-portalY);
+
+ ctx.restore();
+}
+function armageddonGlow(x,y,r,color,alpha){
+ if(alpha<=.005||r<=0)return;
+ ctx.save();ctx.globalAlpha*=alpha;ctx.shadowBlur=0;
+ const glow=cinematicBitmap('glow:'+color,128,128,1,g=>{const grad=g.createRadialGradient(64,64,0,64,64,64);grad.addColorStop(0,'#ffffff');grad.addColorStop(.15,color);grad.addColorStop(1,color+'00');g.fillStyle=grad;g.fillRect(0,0,128,128);});
+ if(glow)ctx.drawImage(glow,x-r,y-r,r*2,r*2);else{const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,'#ffffff');g.addColorStop(.15,color);g.addColorStop(1,color+'00');ctx.fillStyle=g;ctx.fillRect(x-r,y-r,r*2,r*2);}ctx.restore();
+}
+function drawArmageddonAtmosphere(e,end){
+ const t=e.age,c=e.color;ctx.save();ctx.shadowBlur=0;
+ // Darken the space behind the weapon, preserving the readable battlefield beneath.
+ ctx.globalAlpha=.22*Math.sin(clamp(t/2.25,0,1)*Math.PI);ctx.fillStyle='#080b1c';ctx.fillRect(-310,0,620,740);ctx.globalAlpha=1;
+ armageddonGlow(0,0,260,c,.25);
+ for(let k=0;k<3;k++){ctx.strokeStyle=k===1?'#ecf3ff':c;ctx.lineWidth=k===1?1:2;ctx.globalAlpha=.5;ctx.beginPath();ctx.ellipse(0,0,245+k*8,17+k*6,0,t*(k%2?1:-1),t*(k%2?1:-1)+Math.PI*1.6);ctx.stroke();}
+ // Electrical fractures travel along the rim, and motes fall out of the dimensional breach.
+ for(let i=0;i<6;i++){const x=-230+i*85;ctx.globalAlpha=.55;revisedLightning({x,y:-2},{x:x+45,y:Math.sin(i*9)*12},c,Math.floor(t*16)+i,1.5);}
+ for(let i=0;i<24;i++){const p=(t*.45+i*.137)%1,x=Math.sin(i*57)*230;ctx.globalAlpha=(1-p)*.6;ctx.fillStyle=i%3?c:'#ffffff';ctx.fillRect(x,p*90,1.5,3+p*6);}
+ if(t>.65&&t<1.15){const p=clamp((t-.65)/.5,0,1);ctx.globalAlpha=p*.65;ctx.strokeStyle=c;ctx.lineWidth=1.5;for(let k=0;k<2;k++){ctx.beginPath();ctx.ellipse(0,end,90-k*30,28-k*8,0,t*2,-t*2+TAU);ctx.stroke();}for(let i=0;i<4;i++){ctx.save();ctx.translate(0,end);ctx.rotate(i*Math.PI/2);ctx.beginPath();ctx.moveTo(35,0);ctx.lineTo(62,0);ctx.stroke();ctx.restore();}}
+ ctx.restore();
+}
+function drawArmageddonDischarge(e,muzzle,end){
+ const t=e.age,c=e.color;ctx.save();ctx.shadowBlur=0;
+ if(t>.57&&t<1.65){const charge=clamp((t-.57)/.36,0,1);
+  armageddonGlow(0,muzzle,35+charge*75,c,.7);
+  // Counter-rotating collector rings and inward spirals feed the muzzle.
+  for(let k=0;k<3;k++){ctx.strokeStyle=k===1?'#ffffff':c;ctx.lineWidth=2;ctx.globalAlpha=.7;ctx.beginPath();ctx.ellipse(0,muzzle,22+k*12,8+k*5,(k%2?1:-1)*t*2,0,TAU);ctx.stroke();}
+  for(let i=0;i<24;i++){const p=(t*1.8+i/24)%1,a=i*2.4+t*3,r=12+(1-p)*90;ctx.globalAlpha=p;ctx.strokeStyle=i%3?c:'#ffffff';ctx.lineWidth=1+p*2;ctx.beginPath();ctx.moveTo(Math.cos(a)*r,muzzle+Math.sin(a)*r*.65);ctx.lineTo(Math.cos(a+.2)*(r+12),muzzle+Math.sin(a+.2)*(r+12)*.65);ctx.stroke();}
+  if(t>=.93){const power=clamp((t-.93)/.07,0,1)*clamp((1.65-t)/.2,0,1),width=35*power;
+   for(const [w,alpha,color] of [[width*3,.12,c],[width*1.8,.22,c],[width,.8,c],[width*.38,1,'#ffffff']]){ctx.globalAlpha=alpha;ctx.strokeStyle=color;ctx.lineWidth=Math.max(1,w);ctx.beginPath();ctx.moveTo(0,muzzle);ctx.lineTo(0,end);ctx.stroke();}
+   for(let i=0;i<7;i++){const p=(t*3+i/7)%1,y=muzzle+(end-muzzle)*p;ctx.globalAlpha=(1-p)*.75;ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,y,20+power*12,6,0,0,TAU);ctx.stroke();}
+   for(const sign of [-1,1]){ctx.globalAlpha=.6;revisedLightning({x:sign*18,y:muzzle},{x:sign*23,y:end},c,Math.floor(t*25)+sign,2);}
+   if(t<1.15)armageddonGlow(0,end,110,c,.8);
+  }
+ }
+ if(t>=1.15){const age=t-1.15,fade=clamp(1-age/1.1,0,1),expand=1-Math.exp(-age*6);
+  // Layered plasma cloud, a rising incandescent column and expanding pressure fronts.
+  ctx.globalAlpha=fade;armageddonGlow(0,end,100+expand*300,c,.8);
+  const core=ctx.createLinearGradient(0,end-320,0,end+90);core.addColorStop(0,c+'00');core.addColorStop(.5,c+'88');core.addColorStop(.85,'#ffffff');core.addColorStop(1,c+'00');ctx.fillStyle=core;ctx.globalAlpha=fade*.8;
+  ctx.beginPath();ctx.moveTo(-70*expand,end+50);ctx.bezierCurveTo(-100,end-80,-10,end-120,-12,end-320*expand);ctx.lineTo(12,end-320*expand);ctx.bezierCurveTo(10,end-120,100,end-80,70*expand,end+50);ctx.closePath();ctx.fill();
+  for(let k=0;k<4;k++){const p=clamp((age-k*.07)/.65,0,1);if(!p)continue;ctx.globalAlpha=(1-p)*fade;ctx.strokeStyle=k%2?c:'#ffffff';ctx.lineWidth=6*(1-p)+1;ctx.beginPath();ctx.ellipse(0,end,25+p*460,10+p*(110+k*18),k%2?.08:-.08,0,TAU);ctx.stroke();}
+  // Radial bolts and hot fragments make the burst irregular instead of a flat polygon.
+  for(let i=0;i<14;i++){const a=i*TAU/14+.12,r=70+expand*(150+i%4*32);ctx.globalAlpha=fade*.65;revisedLightning({x:Math.cos(a)*45,y:end+Math.sin(a)*35},{x:Math.cos(a)*r,y:end+Math.sin(a)*r*.8},i%3?c:'#ffffff',i+Math.floor(age*14),2);}
+  for(let i=0;i<32;i++){const a=i*2.399,r=age*(150+i%7*35),x=Math.cos(a)*r,y=end+Math.sin(a)*r*.7+age*age*50;ctx.globalAlpha=fade;ctx.strokeStyle=i%4?c:'#ffffff';ctx.lineWidth=1+i%3;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-Math.cos(a)*18,y-Math.sin(a)*12);ctx.stroke();}
+  if(age<.1){ctx.globalAlpha=(1-age/.1)*.17;ctx.fillStyle='#ffffff';ctx.fillRect(-310,-80,620,800);}
+ }
+ ctx.restore();
+}
+
+function drawArmageddonMachine(ctx,c){
+ const oval=(x,y,rx,ry,fill,stroke=c,w=2)=>{ctx.beginPath();ctx.ellipse(x,y,Math.max(.1,rx),Math.max(.1,ry),0,0,TAU);if(fill){ctx.fillStyle=fill;ctx.fill();}ctx.strokeStyle=stroke;ctx.lineWidth=w;ctx.stroke();};
+ const panel=(x,y,w,h)=>{const metal=ctx.createLinearGradient(x,y,x+w,y);metal.addColorStop(0,'#151d2b');metal.addColorStop(.28,'#647487');metal.addColorStop(.48,'#9ba8b5');metal.addColorStop(.56,'#3b485c');metal.addColorStop(1,'#111725');ctx.fillStyle=metal;ctx.fillRect(x,y,w,h);ctx.strokeStyle='#9da9b9';ctx.lineWidth=1.5;ctx.strokeRect(x,y,w,h);ctx.fillStyle='#a3b5c9';ctx.fillRect(x+3,y+3,w-6,2);ctx.fillStyle='#101825';ctx.fillRect(x+3,y+h-5,w-6,3);};
+ for(const sign of [-1,1]){
+  ctx.save();ctx.translate(sign*140,65);ctx.rotate(sign*-.23);panel(-13,-65,26,95);for(let j=0;j<4;j++)panel(-17,-58+j*22,34,10);ctx.restore();
+  panel(sign*154-32,78,64,43);oval(sign*154,122,29,12,'#151b27');oval(sign*154,131,17,5,c);
+  for(let j=0;j<3;j++){const x=sign*154+(j-1)*17;panel(x-4,122,8,20);}
+ }
+ panel(-61,8,122,87);oval(0,10,64,16,'#637181');oval(0,84,65,18,'#151b27');
+ panel(-44,24,88,18);for(let i=0;i<7;i++){ctx.fillStyle=c;ctx.fillRect(-37+i*11,28,7,10);}
+ for(const sign of [-1,1]){ctx.save();ctx.translate(sign*76,42);ctx.rotate(sign*.4);panel(-13,-38,26,86);panel(-17,14,34,15);ctx.restore();}
+ oval(0,128,110,32,'#222b38','#a3afbd',3);panel(-98,104,196,27);oval(0,105,99,22,'#657283');oval(0,107,68,12,'#252c39');
+ for(let i=0;i<11;i++){const a=i*Math.PI/10;oval(Math.cos(a)*93,126+Math.sin(a)*19,3,3,'#c0c9d4','#606c7c',1);}
+ panel(-28,137,56,18);oval(0,157,25,10,'#111722');oval(0,159,14,5,c);
+
+}
+
+// Bounded LRU cache of procedurally drawn assets; released on eviction.
+const cinematicBitmaps=new Map();
+function cinematicBitmap(key,w,h,scale,paint){
+ if(cinematicBitmaps.has(key)){const image=cinematicBitmaps.get(key);cinematicBitmaps.delete(key);cinematicBitmaps.set(key,image);return image;}
+ let image;if(typeof OffscreenCanvas!=='undefined')image=new OffscreenCanvas(Math.ceil(w*scale),Math.ceil(h*scale));else if(typeof document!=='undefined'){image=document.createElement('canvas');image.width=Math.ceil(w*scale);image.height=Math.ceil(h*scale);}else return null;
+ const g=image.getContext('2d');if(!g)return null;g.scale(scale,scale);paint(g);cinematicBitmaps.set(key,image);
+ while(cinematicBitmaps.size>18)cinematicBitmaps.delete(cinematicBitmaps.keys().next().value);return image;
 }

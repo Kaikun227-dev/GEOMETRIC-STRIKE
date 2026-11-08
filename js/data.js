@@ -405,6 +405,18 @@
     ionis:['santiWind','asw','adl','pk'],
     cirrus:['adw','sms','santiWind','fkM','pm']
   };
+CHARACTERS.push({"id":"lyra","name":"LYRA","kana":"ライラ","shape":"rosette","color":"#24b8b0","type":"貫通 / スピード","hp":4100,"atk":1180,"speed":405,"friendship":{"kind":"interference","power":420}});
+abilitySets.lyra=["sagb","asw","ab"];SECONDARIES.lyra={"kind":"speedUp","power":0,"count":8,"radius":180,"maxHits":3};
+CHARACTERS.push({"id":"rift","name":"RIFT","kana":"リフト","shape":"gem","color":"#9264d8","type":"反射 / 砲撃","hp":4300,"atk":1160,"speed":315,"friendship":{"kind":"dimensionRift","power":520}});
+abilitySets.rift=["sadw","aw","ms"];SECONDARIES.rift={"kind":"pierceHoming","power":210,"count":8,"radius":180,"maxHits":3};
+CHARACTERS.push({"id":"atlas","name":"ATLAS","kana":"アトラス","shape":"octastar","color":"#d39b35","type":"反射 / パワー","hp":5000,"atk":1460,"speed":275,"friendship":{"kind":"astralPress","power":600}});
+abilitySets.atlas=["sagb","aw","barrier"];SECONDARIES.atlas={"kind":"bubblyGift","power":0,"count":8,"radius":180,"maxHits":3};
+CHARACTERS.push({"id":"floria","name":"FLORIA","kana":"フローリア","shape":"blossom","color":"#df73a3","type":"貫通 / 砲撃","hp":4200,"atk":1150,"speed":340,"friendship":{"kind":"blastHoming","power":330}});
+abilitySets.floria=["adw","ms","heal"];SECONDARIES.floria={"kind":"explosion","power":280,"count":8,"radius":180,"maxHits":3};
+CHARACTERS.push({"id":"raiden","name":"RAIDEN","kana":"ライデン","shape":"bolt","color":"#528ddd","type":"貫通 / バランス","hp":4450,"atk":1240,"speed":355,"friendship":{"kind":"oathSwords","power":650,"count":3}});
+abilitySets.raiden=["agb","sadw","asw"];SECONDARIES.raiden={"kind":"atkUp","power":0,"count":8,"radius":180,"maxHits":3};
+CHARACTERS.push({id:'omega',name:'OMEGA',kana:'オメガ',shape:'gear',color:'#b36ce0',type:'反射 / 砲撃',hp:4600,atk:1180,speed:285,friendship:{kind:'armageddon',power:1240}});
+abilitySets.omega=['adw','aw','ms'];SECONDARIES.omega={kind:'bubblyGift',power:0};
   for (const c of CHARACTERS) {
     c.shotType = c.type.startsWith('貫通') ? 'pierce' : 'reflect';
     c.secondary = SECONDARIES[c.id];
@@ -424,6 +436,12 @@
   const DEFAULT_TEAM = ['nova', 'axis', 'prism', 'burst'];
 
   const FRIENDSHIP_KINDS = {
+armageddon:{name:'アルマゲドン',label:'ARMAGEDDON',describe:()=> '上空の裂け目から巨大機械が出現。光線が中央下で特殊爆発を起こし、全ての敵を攻撃。'},
+interference:{name:'インターフェアレンス',label:'インターフェアレンス',describe:()=> '2つの光輪と交点の雷撃。中心が近い場合は共鳴リング。'},
+dimensionRift:{name:'次元断層',label:'次元断層',describe:()=> '敵の密集地に3回の切断後、広範囲の次元破砕。'},
+astralPress:{name:'アストラルプレス',label:'アストラルプレス',describe:()=> '高HPの敵を魔法陣で圧縮。6回の攻撃と最終衝突。'},
+blastHoming:{name:'爆裂ホーミング',label:'爆裂ホーミング',describe:()=> '近くの敵へ爆裂弾。爆発ごとに2分裂しLv4→3→2→1、最大15回爆発。威力は一定、サイズは縮小。'},
+oathSwords:{name:'誓いの剣',label:'誓いの剣',describe:f=> (f.count??3)+'本の剣をランダムな敵へ高速連続落下。共鳴ダメージは命中した剣1本で1倍、2本で2倍、3本で4倍。'},
     summon:{name:'召喚',label:'召喚'},revive:{name:'蘇生',label:'REVIVE'},effect:{name:'効果',label:'EFFECT'},
     machinegun:{name:'マシンガン',label:'MACHINE GUN',describe:f=>'近くの敵へ'+f.count+'発を高速連射。敵を倒すと次の敵を狙う。'},
     drones:{name:'レーザードローン',label:'LASER DRONES',describe:f=>f.count+'機が発動元キャラから遠い敵を優先して囲み、順番に2巡射撃。射撃中に敵を倒しても2巡を完了してから別の敵へ移動。各機最大4射。'},
@@ -478,7 +496,7 @@
     poisonMeteor:{name:'毒メテオ',label:'POISON METEOR',describe:f=>'ランダムな敵へ毒のメテオを'+f.count+'個落とす。'},
     poisonBomb:{name:'ドロップポイズンボム',label:'POISON BOMB',describe:()=> 'ランダムな位置へ毒のボムを1個投下する。'}
   };
-  const friendshipTitle=f=>{const name=FRIENDSHIP_KINDS[f.kind].name;if(f.kind==='poisonSpread')return name+'（'+f.ways+'×'+f.volleys+'）';if(f.kind==='poisonMeteor')return name+'（'+f.count+'）';if(f.kind==='wayLaser')return f.count+'方向レーザー';if(['reflectLaser','reflectCross'].includes(f.kind))return name+'（'+f.bounces+'）';if(['sniper','homing','meteor','pierce','dropBomb','splitShot','machinegun','drones','satellites','involute','crossBomb','counterRing','shockSplit','pierceHoming'].includes(f.kind))return name+'（'+(f.count??5)+'）';if(f.kind==='spread'||f.kind==='shotgun')return name+'（'+f.ways+'×'+f.volleys+'）';return name;};
+  const friendshipTitle=f=>{const name=FRIENDSHIP_KINDS[f.kind].name;if(f.kind==='oathSwords')return name+'（'+(f.count??3)+'）';if(f.kind==='poisonSpread')return name+'（'+f.ways+'×'+f.volleys+'）';if(f.kind==='poisonMeteor')return name+'（'+f.count+'）';if(f.kind==='wayLaser')return f.count+'方向レーザー';if(['reflectLaser','reflectCross'].includes(f.kind))return name+'（'+f.bounces+'）';if(['sniper','homing','meteor','pierce','dropBomb','splitShot','machinegun','drones','satellites','involute','crossBomb','counterRing','shockSplit','pierceHoming'].includes(f.kind))return name+'（'+(f.count??5)+'）';if(f.kind==='spread'||f.kind==='shotgun')return name+'（'+f.ways+'×'+f.volleys+'）';return name;};
 
   // 敵の攻撃。mult は基本ダメージ（ウェーブごとに上昇）に対する倍率。
   // 敵データ側の attacks: [{ kind, ...上書き }] で個別に調整できます。
