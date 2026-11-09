@@ -181,7 +181,19 @@
     {id:'ionis',name:'IONIS',kana:'イオニス',shape:'crescent',color:'#56a891',type:'貫通 / バランス',hp:4400,atk:1250,speed:350,
       friendship:{kind:'plasma',power:280}},
     {id:'cirrus',name:'CIRRUS',kana:'シーラス',shape:'cirrus',color:'#9b67cb',type:'反射 / スピード',hp:4000,atk:1160,speed:420,
-      friendship:{kind:'poisonMeteor',power:210,count:12}}
+      friendship:{kind:'poisonMeteor',power:210,count:12}},
+    {id:'lyra',name:'LYRA',kana:'ライラ',shape:'rosette',color:'#24b8b0',type:'貫通 / スピード',hp:4100,atk:1180,speed:405,
+      friendship:{kind:'interference',power:420}},
+    {id:'rift',name:'RIFT',kana:'リフト',shape:'riftSigil',color:'#6f4aa5',type:'反射 / バランス',hp:4300,atk:1260,speed:315,
+      friendship:{kind:'dimensionRift',power:640}},
+    {id:'atlas',name:'ATLAS',kana:'アトラス',shape:'atlasPillar',color:'#d39b35',type:'反射 / パワー',hp:5000,atk:1460,speed:275,
+      friendship:{kind:'astralPress',power:600}},
+    {id:'next',name:'NEXT',kana:'ネクスト',shape:'vesperComet',color:'#df73a3',type:'貫通 / バランス',hp:4200,atk:1250,speed:340,
+      friendship:{kind:'blastHoming',power:330}},
+    {id:'raiden',name:'RAIDEN',kana:'ライデン',shape:'raidenBlades',color:'#4e89db',type:'貫通 / スピード',hp:4450,atk:1140,speed:442,
+      friendship:{kind:'oathSwords',power:440,count:5}},
+    {id:'omega',name:'OMEGA',kana:'オメガ',shape:'omegaCore',color:'#63cccc',type:'反射 / 砲撃',hp:3600,atk:1280,speed:190,
+      friendship:{kind:'armageddon',power:1240}}
 
   ];
   // CHARACTERSと同じ順に並べる
@@ -262,6 +274,12 @@
     fulgur:{kind:'shinePillar',power:999,radius:170,ticks:6},
     ionis:{kind:'pierceHoming',power:230,count:8},
     cirrus:{kind:'wayLaser',power:180,count:16},
+    lyra:{kind:'eruption',power:480,radius:155},
+    rift:{kind: 'scramble', power: 345},
+    atlas:{kind:'heavyCannon',power:470},
+    next:{kind:'machinegun',power:96,count:60},
+    raiden:{kind:'pierceHoming',power:210,count:18,radius:180,maxHits:3},
+    omega:{kind:'atkSpeedUp',power:0},
   };
   const BATTLE_STYLES = {
     balance: '被ダメージ20%軽減・直殴りダメージ20%アップ。',
@@ -301,7 +319,7 @@
     dashM:['ダッシュM','スピードが2倍。'],
     dashL:['ダッシュL','スピードが2.5倍。'],
     dashEL:['ダッシュEL','スピードが3倍。'],
-    bubblyMode:['バブリーモード','各エリア開始時から8ターンの間バブリー状態になる。バブリー状態は減速率が25%緩和される。'],
+    bubblyMode:['バブリーモード','各エリア開始時から8ターンの間バブリー状態になる。バブリー状態は減速率が30%緩和される。'],
     barrier:['バリア','各エリア開始時に耐久2000のバリアを展開。破壊時の超過ダメージも防ぐ。'],
     barrierM:['バリアM','各エリア開始時に耐久5000のバリアを展開。破壊時の超過ダメージも防ぐ。'],
     pk:['毒キラー','毒状態の敵に与ダメージ1.5倍。'],
@@ -322,8 +340,8 @@
   const ALL_KILLER_COLORS=['#46b4ff','#a46bff','#ff74c4']; // オールキラーのエフェクト色（青・紫・ピンク）
   const DASH_TIERS={dash:1.5,dashM:2,dashL:2.5,dashEL:3};
   const dashMultiplier=u=>{for(const id of u.abilities||[])if(DASH_TIERS[id])return DASH_TIERS[id];return 1;};
-  // バブリー状態：バブリーモード持ちは各ウェーブ開始から BUBBLY_TURNS ターン、バブリーギフトを受けた手番キャラはそのターンのみ。減速率を25%緩和する。
-  const BUBBLY_TURNS=8,BUBBLY_RELIEF=.25;
+  // バブリー状態：バブリーモード持ちは各ウェーブ開始から BUBBLY_TURNS ターン、バブリーギフトを受けた手番キャラはそのターンのみ。減速率を30%緩和する。
+  const BUBBLY_TURNS=8,BUBBLY_RELIEF=.30;
   const isBubbly=u=>!!(u&&((u.abilities?.includes('bubblyMode')&&state.waveTurn<=BUBBLY_TURNS)||u.bubblyGift));
   const bubblyRelax=(u,retention)=>isBubbly(u)?1-(1-retention)*(1-BUBBLY_RELIEF):retention;
   // CHARACTERSと同じ順に並べる
@@ -397,26 +415,23 @@
     miasma:['sagb','santiWind','adl'],
     hemlock:['adw','santiWind','adl','wb'],
     dartwing:['adw','agb','sadl','pk'],
-    geode:['sms','saw','adl'],
+    geode:['sms','saw','adl','pm'],
     cadence:['sadw','ms','adl','regen','barrier'],
     mantis:['ms','santiWind','sadl','pk'],
     bastion:['sagb','sadl','pkM','dashL'],
     fulgur:['ms','antiWind','adl','barrier'],
     ionis:['santiWind','asw','adl','pk'],
-    cirrus:['adw','sms','santiWind','fkM','pm']
+    cirrus:['adw','sms','santiWind','fkM'],
+    lyra:['sasw','sadl','wb','pm'],
+    rift:['sadw','aw','ms','pkM','bubblyMode'],
+    atlas:['sagb','sasw','ab','dashM'],
+    next:['santiWind','asw','adl','heal'],
+    raiden:['sadw','agb','saw','fk','dash'],
+    omega:['ab','sadl','akM','paM','barrierM','regen']
   };
-CHARACTERS.push({"id":"lyra","name":"LYRA","kana":"ライラ","shape":"rosette","color":"#24b8b0","type":"貫通 / スピード","hp":4100,"atk":1180,"speed":405,"friendship":{"kind":"interference","power":420}});
-abilitySets.lyra=["sagb","asw","ab"];SECONDARIES.lyra={"kind":"speedUp","power":0,"count":8,"radius":180,"maxHits":3};
-CHARACTERS.push({"id":"rift","name":"RIFT","kana":"リフト","shape":"gem","color":"#9264d8","type":"反射 / 砲撃","hp":4300,"atk":1160,"speed":315,"friendship":{"kind":"dimensionRift","power":520}});
-abilitySets.rift=["sadw","aw","ms"];SECONDARIES.rift={"kind":"pierceHoming","power":210,"count":8,"radius":180,"maxHits":3};
-CHARACTERS.push({"id":"atlas","name":"ATLAS","kana":"アトラス","shape":"octastar","color":"#d39b35","type":"反射 / パワー","hp":5000,"atk":1460,"speed":275,"friendship":{"kind":"astralPress","power":600}});
-abilitySets.atlas=["sagb","aw","barrier"];SECONDARIES.atlas={"kind":"bubblyGift","power":0,"count":8,"radius":180,"maxHits":3};
-CHARACTERS.push({"id":"floria","name":"FLORIA","kana":"フローリア","shape":"blossom","color":"#df73a3","type":"貫通 / 砲撃","hp":4200,"atk":1150,"speed":340,"friendship":{"kind":"blastHoming","power":330}});
-abilitySets.floria=["adw","ms","heal"];SECONDARIES.floria={"kind":"explosion","power":280,"count":8,"radius":180,"maxHits":3};
-CHARACTERS.push({"id":"raiden","name":"RAIDEN","kana":"ライデン","shape":"bolt","color":"#528ddd","type":"貫通 / バランス","hp":4450,"atk":1240,"speed":355,"friendship":{"kind":"oathSwords","power":650,"count":3}});
-abilitySets.raiden=["agb","sadw","asw"];SECONDARIES.raiden={"kind":"atkUp","power":0,"count":8,"radius":180,"maxHits":3};
-CHARACTERS.push({id:'omega',name:'OMEGA',kana:'オメガ',shape:'gear',color:'#b36ce0',type:'反射 / 砲撃',hp:4600,atk:1180,speed:285,friendship:{kind:'armageddon',power:1240}});
-abilitySets.omega=['adw','aw','ms'];SECONDARIES.omega={kind:'bubblyGift',power:0};
+  CHARACTERS.push({id:'sigil',name:'SIGIL',kana:'シジル',shape:'sixstar',color:'#b795ed',type:'貫通 / バランス',hp:4500,atk:1240,speed:335,friendship:{kind:'markedPierce',power:420,count:3}},{id:'voltcore',name:'VOLTCORE',kana:'ヴォルトコア',shape:'octastar',color:'#50cce0',type:'反射 / パワー',hp:5100,atk:1530,speed:260,friendship:{kind:'plasmaBall',power:380}});
+  abilitySets.sigil=['saw','antiWind','asw','heal'];SECONDARIES.sigil={kind:'poisonSpread',power:130,ways:16,volleys:3};
+  abilitySets.voltcore=['aw','ab','sadl','wb','dashL'];SECONDARIES.voltcore={kind:'blastHoming',power:250};
   for (const c of CHARACTERS) {
     c.shotType = c.type.startsWith('貫通') ? 'pierce' : 'reflect';
     c.secondary = SECONDARIES[c.id];
@@ -436,12 +451,12 @@ abilitySets.omega=['adw','aw','ms'];SECONDARIES.omega={kind:'bubblyGift',power:0
   const DEFAULT_TEAM = ['nova', 'axis', 'prism', 'burst'];
 
   const FRIENDSHIP_KINDS = {
-armageddon:{name:'アルマゲドン',label:'ARMAGEDDON',describe:()=> '上空の裂け目から巨大機械が出現。光線が中央下で特殊爆発を起こし、全ての敵を攻撃。'},
-interference:{name:'インターフェアレンス',label:'インターフェアレンス',describe:()=> '2つの光輪と交点の雷撃。中心が近い場合は共鳴リング。'},
-dimensionRift:{name:'次元断層',label:'次元断層',describe:()=> '敵の密集地に3回の切断後、広範囲の次元破砕。'},
-astralPress:{name:'アストラルプレス',label:'アストラルプレス',describe:()=> '高HPの敵を魔法陣で圧縮。6回の攻撃と最終衝突。'},
-blastHoming:{name:'爆裂ホーミング',label:'爆裂ホーミング',describe:()=> '近くの敵へ爆裂弾。爆発ごとに2分裂しLv4→3→2→1、最大15回爆発。威力は一定、サイズは縮小。'},
-oathSwords:{name:'誓いの剣',label:'誓いの剣',describe:f=> (f.count??3)+'本の剣をランダムな敵へ高速連続落下。共鳴ダメージは命中した剣1本で1倍、2本で2倍、3本で4倍。'},
+    armageddon:{name:'アルマゲドン',label:'ARMAGEDDON',describe:()=> '上空の裂け目から巨大機械が出現。光線が中央下で特殊爆発を起こし、全ての敵とその弱点を攻撃。'},
+    interference:{name:'インターフェアレンスサークル',label:'INTERFERENCE CIRCLE',describe:()=> '2つの光輪と交点の雷撃が、接触中は約0.12秒間隔で継続ダメージ。中心が近い場合は共鳴リング。'},
+    dimensionRift:{name:'ディメンションブレイク',label:'DIMENSION BREAK',describe:()=> '敵の密集地に3回の切断後、広範囲の次元破砕。'},
+    astralPress:{name:'アストラルプレス',label:'ASTRAL PRESS',describe:()=> '高HPの敵を魔法陣で圧縮。6回の攻撃と最終衝突。'},
+    blastHoming:{name:'爆裂ホーミング',label:'EXPLOSIVE HOMING',describe:()=> '近くの敵へ爆裂弾。爆発ごとに2分裂しLv4→3→2→1、最大15回爆発。威力は一定、サイズは縮小。'},
+    oathSwords:{name:'雷撃の剣',label:'LIGHTNING SWORD',describe:f=> (f.count??3)+'本の剣をランダムな敵へ高速連続落下。共鳴ダメージは命中した剣1本で1倍、2本で2倍、3本で4倍。'},
     summon:{name:'召喚',label:'召喚'},revive:{name:'蘇生',label:'REVIVE'},effect:{name:'効果',label:'EFFECT'},
     machinegun:{name:'マシンガン',label:'MACHINE GUN',describe:f=>'近くの敵へ'+f.count+'発を高速連射。敵を倒すと次の敵を狙う。'},
     drones:{name:'レーザードローン',label:'LASER DRONES',describe:f=>f.count+'機が発動元キャラから遠い敵を優先して囲み、順番に2巡射撃。射撃中に敵を倒しても2巡を完了してから別の敵へ移動。各機最大4射。'},
@@ -469,7 +484,7 @@ oathSwords:{name:'誓いの剣',label:'誓いの剣',describe:f=> (f.count??3)+'
     shotgun:{name:'ショットガン',label:'SHOTGUN',describe:f=>'近くの敵へ向けて、狭い扇形に'+f.ways+'wayの貫通弾を'+f.volleys+'回放つ。'},
     sakuraBurst:{name:'サクラバースト・オメガ',label:'SAKURA BURST',describe:f=>'発動キャラが桜の花のカウンターを出し、手番キャラが敵に触れるたび（最大5回）、当たった所に桜型の爆発を起こす。爆発は回ごとに大きく強くなり、5回目で1.5倍。手番キャラの停止後に5回全て発動していたら、画面全体に花びらが舞い、全ての敵へ威力の3倍のダメージ。'},
     cornerMissile:{name:'コーナーウォールミサイル',label:'CORNER MISSILE',describe:()=>'画面の4隅に向けてウォールミサイルを放つ。壁に当たると広範囲に爆発し、味方の友情も誘発。'},
-    bubblyGift:{name:'バブリーギフト',label:'BUBBLY GIFT',describe:()=>'手番のキャラをバブリー状態にする（そのターンのみ）。減速率が25%緩和される。'},
+    bubblyGift:{name:'バブリーギフト',label:'BUBBLY GIFT',describe:()=>'手番のキャラをバブリー状態にする（そのターンのみ）。減速率が30%緩和される。'},
     wheel:{name:'ホイール',label:'WHEEL',describe:()=>'近くの敵へホイールを1つ放つ。撃種は発動キャラに依存し、壁で反射・敵に触れると減速などキャラと同じ挙動。初速は発動キャラの2倍。'},
     wayLaser:{name:'方向レーザー',label:'WAY LASER',describe:f=>'自身から周囲'+f.count+'方向へレーザーを放つ。'},
     pierceHoming:{name:'貫通ホーミング',label:'PIERCE HOMING',describe:f=>'敵を最大3回まで貫通（4回目まで命中）するホーミング弾を'+f.count+'発放つ。最初に当たった敵を狙い続け、貫通すると弧を描いて再び向かう。'},
@@ -480,10 +495,12 @@ oathSwords:{name:'誓いの剣',label:'誓いの剣',describe:f=> (f.count??3)+'
     mines:{name:'地雷散布',label:'MINE FIELD'},photons:{name:'フォトン散布',label:'PHOTON FIELD'},
     reflectLaser:{name:'反射レーザー',label:'REFLECT LASER',describe:f=>'触れたキャラの進行方向へ極太レーザーを1回発射。壁で最大'+f.bounces+'回反射する。'},
     reflectCross:{name:'反射クロスレーザー',label:'REFLECT CROSS',describe:f=> 'X字の4方向へレーザーを1回発射。それぞれ壁で'+f.bounces+'回反射する。'},
-    heavyCannon:{name:'巨大砲弾',label:'巨大砲弾',describe:()=> '巨大な砲弾を十字、次にX字へ放つ。触れた順に1・2・3セット発射。'},
+    heavyCannon:{name:'巨大砲弾',label:'BIG CANON',describe:()=> '巨大な砲弾を十字、次にX字へ放つ。触れた順に1・2・3セット発射。'},
     wallSnake:{name:'ウォールサーフィンボール',label:'ウォールサーフィンボール',describe:()=> '手番の進行方向へ波乗りするボールが突進し、壁に沿って時計回りに一周する。'},
     plasma:{name:'プラズマ',label:'PLASMA',describe:()=> '触れた味方との間に移動中ずっとプラズマ線を張り、線に触れた敵へ連続ダメージ。'},
-    energyBall:{name:'エナジーボール',label:'ENERGY BALL',describe:()=> '触れたキャラの進行方向へ弾を発射。敵に命中すると広範囲に激しく爆発する。'},
+    markedPierce:{name:'追撃貫通弾',label:'MARKED PIERCE',describe:f=>'接触した敵に撃破後も残る魔法陣を付与。停止後、各マークへ狭い'+(f.count||3)+'方向の貫通弾を3斉射。'},
+    plasmaBall:{name:'プラズマボール',label:'PLASMA BALL',describe:()=> '発動時に現在HPが最も多い敵を狙い、その中心で停止し、拡大しながら連続攻撃。壁に届くと電撃を放ち大ダメージ。'},
+    energyBall:{name:'バーストボール',label:'BURST BALL',describe:()=> '触れたキャラの進行方向へ弾を発射。敵に命中すると広範囲に激しく爆発する。'},
     meteor: { name: 'メテオ', label: 'METEOR', describe: f => `ランダムな敵へ順番に${f.count}個のメテオを落とす。` },
     spread: { name: '拡散弾', label: 'SPREAD', describe: f => `全方位に${f.ways}wayの弾を${f.volleys}回放つ。` },
     sniper: { name: 'スナイパーショット', label: 'SNIPER SHOT', describe: f => `近くの敵${f.count}体を狙い撃つ。` },
@@ -496,7 +513,7 @@ oathSwords:{name:'誓いの剣',label:'誓いの剣',describe:f=> (f.count??3)+'
     poisonMeteor:{name:'毒メテオ',label:'POISON METEOR',describe:f=>'ランダムな敵へ毒のメテオを'+f.count+'個落とす。'},
     poisonBomb:{name:'ドロップポイズンボム',label:'POISON BOMB',describe:()=> 'ランダムな位置へ毒のボムを1個投下する。'}
   };
-  const friendshipTitle=f=>{const name=FRIENDSHIP_KINDS[f.kind].name;if(f.kind==='oathSwords')return name+'（'+(f.count??3)+'）';if(f.kind==='poisonSpread')return name+'（'+f.ways+'×'+f.volleys+'）';if(f.kind==='poisonMeteor')return name+'（'+f.count+'）';if(f.kind==='wayLaser')return f.count+'方向レーザー';if(['reflectLaser','reflectCross'].includes(f.kind))return name+'（'+f.bounces+'）';if(['sniper','homing','meteor','pierce','dropBomb','splitShot','machinegun','drones','satellites','involute','crossBomb','counterRing','shockSplit','pierceHoming'].includes(f.kind))return name+'（'+(f.count??5)+'）';if(f.kind==='spread'||f.kind==='shotgun')return name+'（'+f.ways+'×'+f.volleys+'）';return name;};
+  const friendshipTitle=f=>{const name=FRIENDSHIP_KINDS[f.kind].name;if(f.kind==='oathSwords'||f.kind==='markedPierce')return name+'（'+(f.count??3)+'）';if(f.kind==='poisonSpread')return name+'（'+f.ways+'×'+f.volleys+'）';if(f.kind==='poisonMeteor')return name+'（'+f.count+'）';if(f.kind==='wayLaser')return f.count+'方向レーザー';if(['reflectLaser','reflectCross'].includes(f.kind))return name+'（'+f.bounces+'）';if(['sniper','homing','meteor','pierce','dropBomb','splitShot','machinegun','drones','satellites','involute','crossBomb','counterRing','shockSplit','pierceHoming'].includes(f.kind))return name+'（'+(f.count??5)+'）';if(f.kind==='spread'||f.kind==='shotgun')return name+'（'+f.ways+'×'+f.volleys+'）';return name;};
 
   // 敵の攻撃。mult は基本ダメージ（ウェーブごとに上昇）に対する倍率。
   // 敵データ側の attacks: [{ kind, ...上書き }] で個別に調整できます。

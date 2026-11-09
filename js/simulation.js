@@ -499,6 +499,7 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
   // 敵への接触時：ファーストキラー用の「最初に触れた敵」の記録、ドレインの回復。
   function onEnemyTouch(unit,enemy){
     sakuraTouch(unit,enemy);
+    for(const e of state.effects)if(e.type==='markedPierce'&&e.phase==='wait'&&e.carrier===unit)e.marks.set(enemy.id,enemy);
     if(state.firstTouchId==null&&!enemy.sword)state.firstTouchId=enemy.id;
     if(hasAbility(unit,'drain')){const heal=Math.min(DRAIN_HEAL,state.maxHp-state.hp);if(heal>0){state.hp+=heal;floatingText(unit.x,unit.y-35,'DRAIN +'+heal,'#2a9a56',14);}}
   }

@@ -315,7 +315,7 @@
         const duration=Math.max(.08,distance(seg.from,seg.to)/1400);segments.push({...seg,start,duration,progress:0,hitIds:new Set()});start+=duration;
       }
     }
-    queueEffect({type:'reflectBeam',side,segments,width:22,damage,color,elapsed:0,life:Math.max(...segments.map(s=>s.start+s.duration))+.45,fired:false,age:0});
+    queueEffect({type:'reflectBeam',side,segments,width:36,damage,color,elapsed:0,life:Math.max(...segments.map(s=>s.start+s.duration))+.45,fired:false,age:0});
   }
   function spawnWallProjectiles(source,carrier,f,damage){
     const base=Math.atan2(carrier.vy,carrier.vx),count=f.kind==='splitShot'?(f.count??5):3;

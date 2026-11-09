@@ -85,7 +85,8 @@
     try {
       const raw = JSON.parse(localStorage.getItem(TEAM_KEY));
       if (Array.isArray(raw)) {
-        const ids = raw.filter((id, i) => CHAR_BY_ID[id] && raw.indexOf(id) === i).slice(0, MAX_TEAM);
+        const migrated = raw.map(id => id === 'floria' ? 'next' : id);
+        const ids = migrated.filter((id, i) => CHAR_BY_ID[id] && migrated.indexOf(id) === i).slice(0, MAX_TEAM);
         if (ids.length) return ids;
       }
     } catch (_) {}
