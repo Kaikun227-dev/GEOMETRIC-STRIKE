@@ -977,3 +977,21 @@ function drawUnderwater(){
  ctx.globalAlpha=1;ctx.strokeStyle=pal[0];ctx.lineWidth=6;ctx.strokeRect(FIELD.left,FIELD.top,FIELD.right-FIELD.left,FIELD.bottom-FIELD.top);ctx.strokeStyle='#b8f1ff';ctx.lineWidth=1;ctx.strokeRect(FIELD.left+4,FIELD.top+4,FIELD.right-FIELD.left-8,FIELD.bottom-FIELD.top-8);
  ctx.fillStyle='#a9e9ff';ctx.font='bold 14px sans-serif';ctx.textAlign='left';ctx.fillText('水中 Lv.'+lv+'  /  速度 −'+[50,70,90][lv-1]+'%・パワー −'+[30,45,60][lv-1]+'%',45,55);if(state.waterPower)ctx.fillText('壁反発：次の直殴り ×3',45,76);if(laserStage())drawLaserWalls();ctx.restore();
 }
+
+// 感電状態・感電キラーの描画
+const oldElectricEnemy=drawEnemy;
+drawEnemy=function(e){oldElectricEnemy(e);if(!e.alive||!(e.shockTurns>0))return;drawShockStatus(e);};
+function drawShockStatus(e){
+ ctx.save();const t=state.clock,seed=Math.floor(t*12),r=e.r;
+ // Broken electric arcs instead of poison bubbles. Keep the status badge below-right.
+ for(let i=0;i<4;i++){const a=i*TAU/4+.25;const p={x:e.x+Math.cos(a)*(r+3),y:e.y+Math.sin(a)*(r+3)},q={x:e.x+Math.cos(a+.55)*(r+6),y:e.y+Math.sin(a+.55)*(r+6)};ctx.globalAlpha=.25;revisedLightning(p,q,'#14a9ee',seed+i,6);ctx.globalAlpha=.95;revisedLightning(p,q,'#56cfff',seed+i,2);}
+ const x=clamp(e.x+r*.65,FIELD.left+26,FIELD.right-26),y=clamp(e.y+r*.65,FIELD.top+14,FIELD.bottom-14);
+ ctx.globalAlpha=1;ctx.fillStyle='#103c5b';ctx.fillRect(x-24,y-11,48,22);ctx.strokeStyle='#68e4ff';ctx.lineWidth=1;ctx.strokeRect(x-24,y-11,48,22);
+ ctx.fillStyle='#fff36b';ctx.beginPath();ctx.moveTo(x-13,y-8);ctx.lineTo(x-20,y+1);ctx.lineTo(x-14,y+1);ctx.lineTo(x-17,y+8);ctx.lineTo(x-8,y-2);ctx.lineTo(x-14,y-2);ctx.closePath();ctx.fill();ctx.fillStyle='#d6faff';ctx.font='bold 11px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(e.shockTurns+'T',x+7,y+1);ctx.restore();
+}
+function drawShockKiller(e){
+ ctx.save();const p=e.age/e.life,fade=1-p,seed=Math.floor(e.age*28),reach=e.r+30+p*35;ctx.globalAlpha=fade;
+ for(let i=0;i<6;i++){const a=i*TAU/6+.2,from={x:e.x+Math.cos(a)*reach,y:e.y+Math.sin(a)*reach},to={x:e.x+Math.cos(a+2)*8,y:e.y+Math.sin(a+2)*8};ctx.globalAlpha=fade*.25;revisedLightning(from,to,'#24c4ff',seed+i,9);ctx.globalAlpha=fade;revisedLightning(from,to,i%2?'#ffffff':'#fff17a',seed+i,2.3);}
+ ctx.globalAlpha=fade;ctx.strokeStyle='#64ddff';ctx.lineWidth=2;ctx.beginPath();for(let i=0;i<=6;i++){const a=i*TAU/6,r=e.r+12+p*24;if(i)ctx.lineTo(e.x+Math.cos(a)*r,e.y+Math.sin(a)*r);else ctx.moveTo(e.x+r,e.y);}ctx.stroke();
+ ctx.restore();
+}

@@ -429,6 +429,7 @@
     for (const effect of updating) {
       let alive = true;
       effect.age += dt;
+      state.damageKind=effect.type;
       withDamageOwner(effect.side==='ally'?state.units[effect.ownerId]:null,()=>{
       if(effect.type==='friendshipActivation'||effect.type==='killerFx')alive=effect.age<effect.life;
       else if(NEW_COMBOS.includes(effect.type))alive=updateNewFriendship(effect,dt);
@@ -447,6 +448,7 @@
       else if (effect.type === 'homing') alive = updateHoming(effect, dt);
       else if (effect.type === 'explosion') alive = updateExplosion(effect, dt);
       });
+      state.damageKind=null;
       if (state.phase === 'gameover') break;
       if(alive)keep.push(effect);
     }
@@ -490,7 +492,7 @@
     effect.hitsLeft--;
     effect.flash = 1;
     state.shake = Math.max(state.shake, 1.5);
-    tone(880 - effect.hitsLeft * 90, 0.09, 'sawtooth', 0.02, 0, 420);
+    if(!effect.silent)tone(880 - effect.hitsLeft * 90, 0.09, 'sawtooth', effect.quiet?.007:.02, 0, 420);
     const reach = effect.width * 0.5;
     if (effect.side === 'ally') {
       state.enemies.forEach(enemy => {
@@ -603,7 +605,7 @@
       showFriendshipActivation(ally.x,ally.y,ally.color,kind.label);
       return;
     }
-    const damage = f.power * (ally.chipFriendMultiplier||1) * (effectiveAttack(ally) / 1000) * (state.skillShot ? 1.7 : 1) * (ally.battleStyle === 'artillery' ? 2 : 1);
+    const damage = f.power * friendBoost(ally) * (ally.chipFriendMultiplier||1) * (effectiveAttack(ally) / 1000) * (state.skillShot ? 1.7 : 1) * (ally.battleStyle === 'artillery' ? 2 : 1);
     const mover=trigger;
     const direction=Math.hypot(mover.vx,mover.vy)>.01?{vx:mover.vx,vy:mover.vy}:state.shotDirection||{vx:0,vy:-1};
     const carrier=mover;

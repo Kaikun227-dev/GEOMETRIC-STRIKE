@@ -102,7 +102,7 @@ function spawnNewFriendship(ally,f,carrier,damage){
     const N=Math.max(1,f.count??16);
     for(let i=0;i<N;i++){
       const a=-Math.PI/2+i*TAU/N,dx=Math.cos(a),dy=Math.sin(a),end=rayEnd(ally.x,ally.y,dx,dy);
-      queueEffect({type:'laser',side:'ally',x:ally.x,y:ally.y,ex:end.x,ey:end.y,dx,dy,width:WAY_LASER_WIDTH,hits:WAY_LASER_VOLLEYS,hitsLeft:WAY_LASER_VOLLEYS,wait:.12,interval:.17,flash:0,age:0,damage,color:ally.color});
+      queueEffect({type:'laser',side:'ally',x:ally.x,y:ally.y,ex:end.x,ey:end.y,dx,dy,silent:i>0,quiet:true,width:WAY_LASER_WIDTH,hits:WAY_LASER_VOLLEYS,hitsLeft:WAY_LASER_VOLLEYS,wait:.12,interval:.17,flash:0,age:0,damage,color:ally.color});
     }
   }else if(f.kind==='pierceHoming'){
     const X=Math.max(1,f.count??8),targets=friendshipVisualTargets(ally),a0=Math.random()*TAU;
@@ -709,7 +709,7 @@ function updateRevisedFriendship(e,dt){
    }
    s.x+=Math.cos(s.angle)*(s.speed??640)*step;s.y+=Math.sin(s.angle)*(s.speed??640)*step;
    s.trail.push({x:s.x,y:s.y});if(s.trail.length>14)s.trail.shift();
-   if((!s.curve||s.age>=arcTime)&&resonanceSegment(target,old,s)<=target.r+6+s.level*3){const r=BLAST_HOMING_RADII[s.level];e.bursts.push({x:s.x,y:s.y,r,age:0,level:s.level});for(const enemy of livingTargets())if(distance(enemy,s)<=r+enemy.r)revisedDamage(e,enemy,1,r);
+   if((!s.curve||s.age>=arcTime)&&resonanceSegment(target,old,s)<=target.r+6+s.level*3){const r=BLAST_HOMING_RADII[s.level];e.bursts.push({x:s.x,y:s.y,r,age:0,level:s.level});for(const ally of state.units)if(distance(ally,s)<=r+ally.r)friendshipBlast(ally);for(const enemy of livingTargets())if(distance(enemy,s)<=r+enemy.r)revisedDamage(e,enemy,1,r);
     if(s.level>1)for(const sign of [-1,1])next.push({x:s.x,y:s.y,level:s.level-1,age:0,angle:s.angle+sign*(.7+Math.random()*.9),curve:sign,arcTime:.17+Math.random()*.19,arcRate:4.5+Math.random()*5,speed:540+Math.random()*200,turnRate:8+Math.random()*5,frequency:6+Math.random()*6,phase:Math.random()*TAU,trail:[]});
    }else if(s.age<4)next.push(s);
   }e.shots=next;
@@ -717,6 +717,13 @@ function updateRevisedFriendship(e,dt){
  return e.shots.length>0||e.bursts.length>0;
 }
 function revisedLightning(a,b,color,seed=0,width=2){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(a.x,a.y);const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||1;for(let j=1;j<9;j++){const z=Math.sin(j*71+seed)*12;ctx.lineTo(a.x+dx*j/9-dy/d*z,a.y+dy*j/9+dx/d*z);}ctx.lineTo(b.x,b.y);ctx.stroke();}
+function drawJavelinBlade(color,time,seed=0,lightning=true){const e={color,age:time},i=seed;
+   ctx.fillStyle='#172032';ctx.strokeStyle=e.color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,6);ctx.lineTo(-12,-24);ctx.lineTo(-9,-78);ctx.lineTo(-17,-90);ctx.lineTo(-7,-86);ctx.lineTo(0,-103);ctx.lineTo(7,-86);ctx.lineTo(17,-90);ctx.lineTo(9,-78);ctx.lineTo(12,-24);ctx.closePath();ctx.fill();ctx.stroke();
+   ctx.fillStyle=e.color;ctx.beginPath();ctx.moveTo(0,2);ctx.lineTo(-4,-27);ctx.lineTo(0,-82);ctx.lineTo(4,-27);ctx.closePath();ctx.fill();
+   ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(-26,-87);ctx.lineTo(-17,-77);ctx.lineTo(0,-82);ctx.lineTo(17,-77);ctx.lineTo(26,-87);ctx.stroke();ctx.fillRect(-4,-117,8,29);ctx.beginPath();ctx.arc(0,-121,6,0,TAU);ctx.fill();
+   if(lightning)revisedLightning({x:-15,y:-120},{x:8,y:5},e.color,Math.floor(e.age*30)+i,2);
+}
+
 function drawRevisedFriendship(e){
  ctx.save();ctx.strokeStyle=e.color;ctx.fillStyle=e.color;ctx.shadowColor=e.color;ctx.shadowBlur=16;
  for(const b of e.bursts){const p=b.age/.4;ctx.globalAlpha=1-p;ctx.lineWidth=8*(1-p)+1;ctx.beginPath();ctx.arc(b.x,b.y,Math.max(1,b.r*(.2+p*.8)),0,TAU);ctx.stroke();ctx.globalAlpha=(1-p)*.2;ctx.fill();for(let i=0;i<10;i++){const a=i*TAU/10;ctx.beginPath();ctx.moveTo(b.x+Math.cos(a)*b.r*p,b.y+Math.sin(a)*b.r*p);ctx.lineTo(b.x+Math.cos(a)*b.r*(p+.2),b.y+Math.sin(a)*b.r*(p+.2));ctx.stroke();}}
@@ -724,10 +731,7 @@ function drawRevisedFriendship(e){
  else{
   const fade=e.resonated?clamp(1-(e.age-e.resonanceAt)/.6,0,1):1;ctx.globalAlpha=fade;
   for(const [i,s] of e.shots.entries()){const fall=clamp((s.land-e.age)/.1,0,1);ctx.save();ctx.translate(s.x,s.y-fall*220);ctx.rotate(-.12+(i%3)*.12);
-   ctx.fillStyle='#172032';ctx.strokeStyle=e.color;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,6);ctx.lineTo(-12,-24);ctx.lineTo(-9,-78);ctx.lineTo(-17,-90);ctx.lineTo(-7,-86);ctx.lineTo(0,-103);ctx.lineTo(7,-86);ctx.lineTo(17,-90);ctx.lineTo(9,-78);ctx.lineTo(12,-24);ctx.closePath();ctx.fill();ctx.stroke();
-   ctx.fillStyle=e.color;ctx.beginPath();ctx.moveTo(0,2);ctx.lineTo(-4,-27);ctx.lineTo(0,-82);ctx.lineTo(4,-27);ctx.closePath();ctx.fill();
-   ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(-26,-87);ctx.lineTo(-17,-77);ctx.lineTo(0,-82);ctx.lineTo(17,-77);ctx.lineTo(26,-87);ctx.stroke();ctx.fillRect(-4,-117,8,29);ctx.beginPath();ctx.arc(0,-121,6,0,TAU);ctx.fill();
-   revisedLightning({x:-15,y:-120},{x:8,y:5},e.color,Math.floor(e.age*30)+i,2);ctx.restore();
+   drawJavelinBlade(e.color,e.age,i);ctx.restore();
    if(e.resonated){const other=e.shots[(i+1)%e.shots.length];if(other&&other!==s)revisedLightning(s,other,e.color,Math.floor(e.age*45)+i,4);revisedLightning({x:s.x-30,y:s.y-100},{x:s.x+25,y:s.y+25},'#ffffff',e.age*40+i,1.5);}
   }
  }
@@ -910,3 +914,40 @@ function drawOrbFriendship(e){
  }
  ctx.restore();
 }
+
+// 強化型友情・電撃演出
+NEW_COMBOS.push('enhancedReflect','enhancedScramble','crossWheel','mineFlash','shockKiller');
+const oldElectricSpawn=spawnNewFriendship;
+spawnNewFriendship=function(ally,f,carrier,damage){
+ if(f.kind==='crossWheel'){for(let i=0;i<4;i++){const a=Math.PI/4+i*Math.PI/2,sp=wheelSpeed(ally);queueEffect({type:'wheel',side:'ally',ownerId:ally.id,damage,color:ally.color,age:0,piercing:isPiercing(ally),moveTime:0,wheel:{x:ally.x,y:ally.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,r:ally.r,shotType:ally.shotType,battleStyle:ally.battleStyle,abilities:[],contacts:new Map(),spawnOverlaps:new Set(state.enemies.filter(en=>en.alive&&contactEnemy(ally,en)).map(en=>en.id)),trail:[],spin:0}});}return true;}
+ if(f.kind==='enhancedReflect'||f.kind==='enhancedScramble'){const scramble=f.kind==='enhancedScramble',segments=[],motion=Math.hypot(carrier?.vx||0,carrier?.vy||0)>.01?carrier:state.shotDirection||{vx:0,vy:-1},direction=Math.atan2(motion.vy,motion.vx);for(let i=0;i<(scramble?20:5);i++){const a=scramble?Math.floor(Math.random()*32)*TAU/32:direction+(i-2)*.16;let start=.08+(scramble?i*.045:0);for(const seg of traceReflectedBeam(ally,{x:Math.cos(a),y:Math.sin(a)},scramble?3:f.bounces??4)){const duration=Math.max(.08,distance(seg.from,seg.to)/1400);segments.push({...seg,start,duration,progress:0,hitIds:new Set()});start+=duration;}}queueEffect({type:'reflectBeam',side:'ally',ownerId:ally.id,segments,width:scramble?48:40,damage,color:ally.color,elapsed:0,life:Math.max(...segments.map(s=>s.start+s.duration))+.45,fired:false,age:0});return true;}
+ return oldElectricSpawn(ally,f,carrier,damage);
+};
+const oldElectricUpdate=updateNewFriendship;
+updateNewFriendship=function(e,dt){if(e.type==='mineFlash'||e.type==='shockKiller')return e.age<e.life;return oldElectricUpdate(e,dt);};
+const oldElectricDraw=drawNewFriendship;
+drawNewFriendship=function(e){if(e.type==='shockKiller'){drawShockKiller(e);return;}if(e.type==='mineFlash'){ctx.save();const p=e.age/e.life;ctx.globalAlpha=(1-p)*.5;const r=e.radius*Math.min(1,p*4);const g=ctx.createRadialGradient(e.x,e.y,0,e.x,e.y,Math.max(1,r));g.addColorStop(0,'#fff');g.addColorStop(.5,'#ffe581');g.addColorStop(1,'#ff9a3000');ctx.fillStyle=g;ctx.beginPath();ctx.arc(e.x,e.y,r,0,TAU);ctx.fill();ctx.strokeStyle='#ffb847';ctx.lineWidth=5*(1-p);ctx.stroke();ctx.restore();return;}oldElectricDraw(e);if(e.type==='interference'){ctx.save();const g=interferenceGeometry(e);e.points.forEach((p,i)=>{const r=i?g.s:g.r;for(let j=0;j<20;j++){const a=j*TAU/20,b=(j+1)*TAU/20;revisedLightning({x:p.x+Math.cos(a)*r,y:p.y+Math.sin(a)*r},{x:p.x+Math.cos(b)*r,y:p.y+Math.sin(b)*r},j%3?'#b7eaff':e.color,Math.floor(e.age*24)+j,1.6);}});for(const p of g.cross)for(let i=0;i<5;i++){const a=e.age*3+i*TAU/5;revisedLightning(p,{x:p.x+Math.cos(a)*65,y:p.y+Math.sin(a)*65},'#bceeff',i+e.age*20,2);}ctx.restore();}};
+
+// ジャベリンソード
+NEW_COMBOS.push('javelinOrbit','javelinFollow');
+const previousJavelinSpawn=spawnNewFriendship;
+spawnNewFriendship=function(ally,f,carrier,damage){if(!['javelinOrbit','javelinFollow'].includes(f.kind))return previousJavelinSpawn(ally,f,carrier,damage);queueEffect({type:f.kind,side:'ally',ownerId:ally.id,owner:ally,carrier,x:ally.x,y:ally.y,color:ally.color,damage,age:0,phase:'orbit',count:4,blades:[],wait:0});return true;};
+function javelinHit(e,b,from,mult){for(const en of livingTargets()){if(e.phase==='orbit'){if(e.age-(b.ticks.get(en.id)??-99)<.12)continue;}else if(b.hits.has(en.id))continue;if(enemyGap(en,from,b)>10)continue;b.hits.add(en.id);b.ticks.set(en.id,e.age);damageEnemy(en,e.damage*mult,true,{owner:e.owner,hit:{from,to:b,radius:10}});}}
+const previousJavelinUpdate=updateNewFriendship;
+updateNewFriendship=function(e,dt){
+ if(!['javelinOrbit','javelinFollow'].includes(e.type))return previousJavelinUpdate(e,dt);
+ const moving=state.phase==='moving'&&!state.unitStopped;
+ if(e.type==='javelinOrbit'&&e.phase==='orbit'){
+  while(e.blades.length<e.count)e.blades.push({x:e.carrier.x,y:e.carrier.y,hits:new Set(),ticks:new Map(),fresh:true});
+  e.blades.forEach((b,i)=>{const from={x:b.x,y:b.y},a=e.age*3+i*TAU/e.count;b.x=e.carrier.x+Math.cos(a)*74;b.y=e.carrier.y+Math.sin(a)*74;b.angle=a;if(b.fresh){b.fresh=false;from.x=b.x;from.y=b.y;}javelinHit(e,b,from,1);});
+  if(moving)return true;
+  const target=livingTargets().sort((a,b)=>b.hp-a.hp)[0];if(!target)return false;e.phase='fire';for(const b of e.blades){b.angle=Math.atan2(target.y-b.y,target.x-b.x);b.hits.clear();b.travel=0;}
+ }
+ if(e.type==='javelinFollow'){
+  e.phase='fire';e.wait-=dt;if(moving&&e.wait<=0){e.wait+=.4;for(const offset of [-.14,0,.14])e.blades.push({x:e.x,y:e.y,angle:0,offset,charge:.22,travel:0,hits:new Set(),ticks:new Map()});}
+ }
+ e.blades=e.blades.filter(b=>{if(b.charge>0){b.angle=Math.atan2(e.carrier.y-b.y,e.carrier.x-b.x)+(b.offset||0);b.charge-=dt;return true;}const from={x:b.x,y:b.y};b.x+=Math.cos(b.angle)*1900*dt;b.y+=Math.sin(b.angle)*1900*dt;b.travel+=1900*dt;javelinHit(e,b,from,e.type==='javelinOrbit'?3:1);return b.travel<1100;});
+ return (e.type==='javelinFollow'&&moving)||e.blades.length>0;
+};
+const previousJavelinDraw=drawNewFriendship;
+drawNewFriendship=function(e){if(!['javelinOrbit','javelinFollow'].includes(e.type))return previousJavelinDraw(e);ctx.save();for(const [i,b] of e.blades.entries()){if(b.charge>0){ctx.strokeStyle=e.color;ctx.globalAlpha=.28;ctx.setLineDash([3,7]);ctx.beginPath();ctx.moveTo(b.x,b.y);const aimLength=distance(b,e.carrier);ctx.lineTo(b.x+Math.cos(b.angle)*aimLength,b.y+Math.sin(b.angle)*aimLength);ctx.stroke();ctx.setLineDash([]);}else if(e.phase==='fire'){ctx.globalAlpha=.45;ctx.strokeStyle=e.color;ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(b.x,b.y);ctx.lineTo(b.x-Math.cos(b.angle)*110,b.y-Math.sin(b.angle)*110);ctx.stroke();}ctx.save();ctx.globalAlpha=b.charge>0?.55:1;ctx.translate(b.x,b.y);ctx.rotate(b.angle-Math.PI/2);ctx.scale(e.type==='javelinOrbit'?.55:.65,e.type==='javelinOrbit'?1.15:1);if(e.phase==='orbit')ctx.translate(0,55);drawJavelinBlade(e.color,e.age,i,false);ctx.restore();}ctx.restore();};

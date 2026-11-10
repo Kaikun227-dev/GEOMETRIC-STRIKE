@@ -388,7 +388,7 @@
   function killerEffect(enemy,k,friendship){
     const color=k.kind==='poison'?'#a65bd3':k.kind==='gravity'?'#6a5fd6':k.kind==='all'?ALL_KILLER_COLORS[1]:'#e8553a';
     if(friendship){if((enemy.killerFxAt||-9)>state.clock-.25)return;enemy.killerFxAt=state.clock;if(k.kind==='all')for(const c of ALL_KILLER_COLORS)burst(enemy.x,enemy.y,c,3,150);else burst(enemy.x,enemy.y,color,8,150);return;}
-    floatingText(enemy.x,enemy.y-enemy.r-58,(k.kind==='poison'?'POISON KILLER':k.kind==='gravity'?'GRAVITY KILLER':k.kind==='all'?'ALL KILLER':'FIRST KILLER')+' ×'+(Math.round(k.mult*100)/100),color,15);
+    floatingText(enemy.x,enemy.y-enemy.r-58,'KILLER','#348fe5',15);
     ring(enemy.x,enemy.y,color,enemy.r+46,.4);if(k.kind==='all'){ALL_KILLER_COLORS.forEach((c,i)=>{ring(enemy.x,enemy.y,c,enemy.r+30+i*14,.35+i*.06);burst(enemy.x,enemy.y,c,6,230);});}else burst(enemy.x,enemy.y,color,16,230);state.shake=Math.max(state.shake,5);
     queueEffect({type:'killerFx',side:'ally',x:enemy.x,y:enemy.y,r:enemy.r,kind:k.kind,color,age:0,life:.5});
   }
@@ -403,19 +403,20 @@
     const damage=shared?Math.max(0,Math.round(amount)):Math.round(amount*powerAuraMultiplier(owner)*killer.mult*powerAreaMultiplier(owner)*touchPowerMultiplier(owner)*(state.swordBoost||1)*(friendship?powerSwitchMultiplier():1)*(weak?(options.weakBonusOnly?multiplier-1:multiplier):1)*(enemy.defenseMultiplier||1)*(enemy.switchArmor&&!state.powerSwitchActive?enemy.switchArmor:1)*(options.laserGenerator?1:enemyRestrictionMultiplier(enemy,owner,friendship))*(friendship?1:enemy.armor??1));
     if (weak) { floatingText(enemy.x, enemy.y - enemy.r - 38, 'WEAK ×'+multiplier, '#c79816', 15); ring(weakPosition(enemy).x, weakPosition(enemy).y, '#e1b327', 36, .3); }
     if(killer.mult>1)killerEffect(enemy,killer,friendship);
+    else if(!friendship&&!shared&&options.shockKiller)floatingText(enemy.x,enemy.y-enemy.r-58,'KILLER','#348fe5',15);
     const actualDamage = Math.min(enemy.hp, damage);
     enemy.hp = Math.max(0, enemy.hp - damage);
     enemy.flash = 0.15;
     if (!scoreDisabled()&&!enemy.hpShare?.length) state.score += actualDamage; // HP共有元の得点は、反映先の敵が受けたダメージ分に含める（二重加算しない）
     if(shared){
-      floatingText(enemy.x + (Math.random() - 0.5) * 28, enemy.y - enemy.r - 10, (options.poisonTick?'毒 −':'')+String(damage), options.poisonTick?'#a65bd3':'#6f8f3f', 20);
-      ring(enemy.x,enemy.y,'#7fae4f',enemy.r+22,.35);burst(enemy.x, enemy.y, '#9cc46a', 6, 90);
+      floatingText(enemy.x + (Math.random() - 0.5) * 28, enemy.y - enemy.r - 10, (options.poisonTick?'毒 −':'')+String(damage), options.poisonTick?'#a65bd3':options.shockTick?'#199ed2':'#6f8f3f', 20);
+      if(!options.shockTick){ring(enemy.x,enemy.y,'#7fae4f',enemy.r+22,.35);burst(enemy.x, enemy.y, '#9cc46a', 6, 90);}
     }else{
       state.combo++;
       state.maxCombo = Math.max(state.maxCombo, state.combo);
       state.comboTime = 1.7;
       chargeSkill(options.charge !== undefined ? options.charge : friendship ? 4 : 3.5);
-      floatingText(enemy.x + (Math.random() - 0.5) * 28, enemy.y - enemy.r - 10, String(damage), friendship ? '#269e86' : '#dc776c', friendship ? 19 : 22);
+      floatingText(enemy.x + (Math.random() - 0.5) * 28, enemy.y - enemy.r - 10, String(damage), friendship ? '#269e86' : (killer.mult>1||options.shockKiller)?'#348fe5':'#dc776c', friendship ? 19 : 22);
       burst(enemy.x, enemy.y, friendship ? '#65c6ae' : '#ee9187', 7, 95);
       tone(250 + Math.min(state.combo, 12) * 36, 0.085, 'triangle', 0.025, 0, 170);
     }
@@ -480,3 +481,21 @@
     }
     updateUI();
   }
+
+// 感電・感電キラー・友情ブースト
+const tierBoost=(u,prefix)=>{for(const [suffix,m] of [['EL',3],['L',2.5],['M',2],['',1.5]])if(u?.abilities?.includes(prefix+suffix))return m;return 1;};
+const friendBoost=u=>tierBoost(u,'fb');
+const ELECTRIC_KINDS=new Set(['plasma','thunder','discharge','interference','oathSwords','plasmaBall']);
+const baseElectricDamage=damageEnemy;
+damageEnemy=function(enemy,amount,friendship=false,options={}){
+ const owner=options.owner||state.damageOwner||(!friendship?state.units[state.activeUnit]:null),alive=enemy.alive,hp=enemy.hp;
+ const secondary=options.sharedFrom||options.poisonTick||options.shockTick;
+ const shocked=enemy.shockTurns>0;
+ if(!secondary){if(shocked)amount*=tierBoost(owner,'ek');if(hitsWeak(enemy,options.hit)&&(!enemy.weakPoint?.internal||friendship||owner&&isPiercing(owner)))amount*=1+(owner?.chipWeak||0);}
+ baseElectricDamage(enemy,amount,friendship,{...options,shockKiller:!secondary&&shocked&&tierBoost(owner,'ek')>1});
+ const dealt=Math.max(0,hp-enemy.hp);
+ if(!secondary&&!friendship&&shocked&&dealt>0&&tierBoost(owner,'ek')>1&&state.clock-(enemy.shockKillerFxAt??-99)>=.22){enemy.shockKillerFxAt=state.clock;queueEffect({type:'shockKiller',side:'ally',x:enemy.x,y:enemy.y,r:enemy.r,mult:tierBoost(owner,'ek'),age:0,life:.48});}
+ if(alive&&!enemy.alive&&owner?.chipSoul)state.hp=Math.min(state.maxHp,state.hp+owner.chipSoul);
+ if(!secondary&&dealt>0&&friendship&&ELECTRIC_KINDS.has(state.damageKind)&&enemy.alive&&Math.random()<.5){enemy.shockTurns=3;enemy.shockTurn=state.turn;}
+ if(!secondary&&!friendship&&shocked&&dealt>0){for(const target of [...state.enemies])if(target.alive&&target.shockTurns>0&&!target.transparent){const resistance=(target.defenseMultiplier??1)*(target.switchArmor&&!state.powerSwitchActive?target.switchArmor:1)*(target.armor??1)*enemyRestrictionMultiplier(target,owner,false);damageEnemy(target,dealt*.3*resistance,false,{owner,shockTick:true,sharedFrom:'shock',charge:0});ring(target.x,target.y,'#75cfff',target.r+15,.3);}}
+};

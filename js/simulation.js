@@ -238,7 +238,7 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
       if(p.taken||distance(unit,p)>unit.r+12)continue;
       if(p.kind==='photon'&&unit.photons>=4)continue;
       p.taken=true;
-      if(p.kind==='mine'&&hasAbility(unit,'ms')){if(hasAbility(unit,'sms')){ring(p.x,p.y,'#ffb94f',150,.5);burst(p.x,p.y,'#ffb94f',24,190);for(const enemy of state.enemies)if(enemy.alive&&distance(p,enemy)<=150+enemy.r)damageEnemy(enemy,effectiveAttack(unit),true,{owner:unit,hit:{x:p.x,y:p.y,radius:150}});}ring(p.x,p.y,'#6ba6a0',35,.25);floatingText(p.x,p.y-25,'MINE CLEAR','#5a8f89',11);}
+      if(p.kind==='mine'&&hasAbility(unit,'ms')){if(hasAbility(unit,'sms')){queueEffect({type:'mineFlash',x:p.x,y:p.y,age:0,life:.55,radius:150});ring(p.x,p.y,'#ffb94f',150,.5);burst(p.x,p.y,'#ffb94f',24,190);for(const enemy of state.enemies)if(enemy.alive&&distance(p,enemy)<=150+enemy.r)damageEnemy(enemy,effectiveAttack(unit),true,{owner:unit,hit:{x:p.x,y:p.y,radius:150}});}ring(p.x,p.y,'#6ba6a0',35,.25);floatingText(p.x,p.y-25,'MINE CLEAR','#5a8f89',11);}
       else if(p.kind==='photon'){unit.photons=Math.min(4,(unit.photons||0)+1);ring(p.x,p.y,'#d3a128',45,.3);floatingText(p.x,p.y-25,'PHOTON '+unit.photons+'/4','#b88a16',12);}
       else {ring(p.x,p.y,'#e56565',85,.4);burst(p.x,p.y,'#e56565',20,180);damageTeam(p.damage??1000,unit.x,unit.y,unit);if(state.phase==='gameover')break;}
     }
@@ -701,3 +701,7 @@ function changeWaterDepth(){
 }
 
 function waterSpeedMultiplier(){return state.stage.underwater?[.5,.3,.1][(state.waterLevel||1)-1]:1;}
+
+// 接触による衛星型ジャベリンの追加
+const previousJavelinTouch=onEnemyTouch;
+onEnemyTouch=function(unit,enemy){previousJavelinTouch(unit,enemy);for(const e of state.effects)if(e.type==='javelinOrbit'&&e.carrier===unit&&e.phase==='orbit')e.count=Math.min(8,e.count+1);};

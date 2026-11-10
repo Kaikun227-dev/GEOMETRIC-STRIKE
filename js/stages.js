@@ -1113,7 +1113,7 @@ const stage2EX={id:'2-EX',name:'転送機雷の大群',hint:'ワープ3対・地
    ...(i>=3?{bossPhase:i-2}:{}),enemies,gimmicks:EX2_GIMMICKS[i]};
  })};
 const waterLayouts=[[[160,180],[460,180],[230,360],[390,360]],[[120,170],[310,260],[500,350],[250,460]],[[140,170],[480,170],[140,450],[480,450]],[[120,340],[500,340],[210,470],[410,470]],[[110,220],[510,220],[140,430],[480,430]]];
-const stage3EX={id:'3-EX',name:'深海の七光宮',underwater:true,noWeakPoints:true,
+const stage3EX={id:'3-EX',name:'深海の七光宮',underwater:true,noWeakPoints:true,hideGimmicks:['一部のボスは弱点なし'],
  hint:'水中・全敵弱点なし。水深1/2/3でスピードが50/70/90%、直殴りパワーが30/45/60%低下（友情は不変）。壁に一度触れると速度1.5倍、次の敵への直殴り3倍。ターン終了時50%で別の水深へ変化。',
  waves:waterLayouts.map((layout,i)=>({name:['浅瀬の双門','潮流の階段','深海の四柱','海王の玉座','七光の深淵'][i],step:'ABYSS '+(i+1),
   ...(i>=3?{bossPhase:i-2}:{}),gimmicks:{},enemies:[

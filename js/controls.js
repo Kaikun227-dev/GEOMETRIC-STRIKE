@@ -167,6 +167,7 @@
       return;
     }
     tickEnemyPoison();
+    for(const e of state.enemies)if(e.shockTurns>0&&e.shockTurn!==state.turn)e.shockTurns--;
     if(!state.enemies.some(e=>e.alive)){tickAllyPoison();if(state.phase!=='gameover')clearWave();return;}
     endOfTurnHeartFruits();
     state.phase = 'enemy';

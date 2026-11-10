@@ -110,19 +110,21 @@
 - `index.html`：画面とスクリプトの読み込み順。`styles.css`：レスポンシブデザイン。
 - `js/core.js`：Canvas、共通定数、基本ユーティリティ。
 - `js/data.js`：キャラクター、アビリティ、友情・敵攻撃の定義、編成位置。数値調整やキャラ追加はここ。
+- `js/chips.js`：チップの定義・所持データ・装備効果。
 - `js/enemies.js`：敵のビルダー関数（foe/orb/core など）、雑魚の種類、十字／クロスレーザーの定義。
 - `js/stages.js`：第1〜5章の全ステージ（1-1〜5-3）。ステージの追加・配置調整はここ。
 - `js/enemy-gimmicks.js`：蘇生、ドクロ効果、弱点の付与・移動、ダメージ倍率、ギミック一覧の生成。
 - `js/battle.js`：保存、戦闘状態、ステータス、音、ダメージ計算。
 - `js/attacks.js`：友情と敵攻撃の発射・更新。ドローンの対象選択もここ。
-- `js/friendship-ext.js`：新友情（クロスバウンドボム・アブソリュートクロスレイ・カウンターリング・ショットガン）の発射・更新・描画。
+- `js/friendship-ext.js`：追加友情コンボの発射・更新・描画。
 - `js/controls.js`：ターン進行、オーバーレイ、マウス・タッチ・キーボード操作。
 - `js/simulation.js`：ギミック、衝突、移動、時間更新。
 - `js/rendering.js`：Canvas描画、演出、アニメーションループ。
 - `js/screens.js`：タイトル・編成・ステージ選択。
+- `js/maker.js`：ステージメーカー。
 - `game.js`：起動処理と公開APIのみ。
 
-ビルドやサーバーは不要です。`index.html` を直接開いて遊べます。`js` フォルダーも一緒に保存してください。各ファイルは通常のスクリプトとして共通スコープを共有し、`index.html` の `defer` 指定順（core → data → friendship → enemies → stages → enemy-gimmicks → battle → attacks → controls → simulation → rendering → screens → game）に実行されます。stages は data・enemies の後、battle の前に置く必要があります。共有定数は core/data、可変状態は battle にあります。起動用 game.js は最後に読み込みます。
+ビルドやサーバーは不要です。`index.html` を直接開いて遊べます。`js` フォルダーも一緒に保存してください。各ファイルは通常のスクリプトとして共通スコープを共有し、`index.html` の `defer` 指定順（core → data → chips → enemies → stages → enemy-gimmicks → battle → attacks → friendship-ext → controls → simulation → rendering → screens → maker → electric → javelin → game）に実行されます。stages は data・enemies の後、battle の前に置きます。electric と javelin は友情処理を拡張するため friendship-ext の後に読み込みます。共有定数は core/data、可変状態は battle にあります。起動用 game.js は最後に読み込みます。
 - `CHARACTERS` / `SECONDARIES`：主・副友情。`abilitySets`：アビリティ。
 - `STAGES`：敵配置とエリア。`STAGE_GIMMICKS`：第2章のギミック許可リスト。許可しない配置と散布攻撃を出撃データから除外します。
 - `tests/mechanics.cjs`：実エンジンで物理・友情・ギミックと通しプレイを検証。
@@ -741,3 +743,5 @@ weakRoutes: [{ id: 'relay', positions: [
 
 ### 音波砲・桜ノヴァの調整
 音波砲は6秒で最大チャージ。0秒・3秒・6秒でそれぞれ4・10・16ヒットとなり、威力と幅も同じ割合で上昇する。射程は壁まで。サクラバースト・ノヴァは初回半径240→280、連続爆発の間隔0.2→0.15秒。ブロッサムは主友情をサクラバースト・ノヴァ（威力410）、副友情をサクラバースト（威力390、半径120）に入れ替え。
+
+感電処理は `js/battle.js`、状態表示は `js/rendering.js`、接触処理は `js/simulation.js`、電撃・ジャベリン友情は `js/friendship-ext.js` に統合。

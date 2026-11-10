@@ -137,8 +137,8 @@
         <div><p class="eyebrow">STATUS</p><h3>${c.name}<small>${c.kana}</small></h3><div class="detail-type">${c.type}<details class="type-help"><summary aria-label="撃種と戦型の説明">？</summary><p>${BATTLE_STYLES[c.battleStyle]}<br>${isPiercing(c)?"敵を貫通して移動。":"敵に当たると反射。"} 敵接触後の速度：${Math.round(enemyHitRetention(c)*100)}%。</p></details></div></div></div>
       <div class="ability-box">${c.abilities.map(id=>'<p><strong>'+ABILITIES[id][0]+'</strong><br>'+ABILITIES[id][1]+'</p>').join('')}</div>
       ${chipEditor(c)}<dl class="stat-list">${statRow('HP', c.hp, 6000)}${statRow('攻撃', c.atk, 2000)}${statRow('スピード', c.speed, 400)}</dl>
-      <div class="friend-box"><p class="friend-label">友情コンボ</p><p class="friend-name">${friendshipTitle(f)} <span class="friend-power">基礎威力 ${f.power}</span></p><p class="friend-desc">${FRIENDSHIP_KINDS[f.kind].describe(f)}</p></div>
-      <div class="friend-box"><p class="friend-label">副友情コンボ</p><p class="friend-name">${friendshipTitle(c.secondary)} <span class="friend-power">基礎威力 ${c.secondary.power}</span></p><p class="friend-desc">${FRIENDSHIP_KINDS[c.secondary.kind].describe(c.secondary)}</p></div>
+      <div class="friend-box"><p class="friend-label">友情コンボ</p><p class="friend-name">${friendshipTitle(f)} <span class="friend-power">基礎威力 ${Math.round(f.power*(c.chipFriendMultiplier||1)*friendBoost(c))}</span></p><p class="friend-desc">${FRIENDSHIP_KINDS[f.kind].describe(f)}</p></div>
+      <div class="friend-box"><p class="friend-label">副友情コンボ</p><p class="friend-name">${friendshipTitle(c.secondary)} <span class="friend-power">基礎威力 ${Math.round(c.secondary.power*(c.chipFriendMultiplier||1)*friendBoost(c))}</span></p><p class="friend-desc">${FRIENDSHIP_KINDS[c.secondary.kind].describe(c.secondary)}</p></div>
       <button type="button" class="${inTeam ? 'outline-button' : 'primary-button'} wide-button" data-detail-toggle="${c.id}"${full ? ' disabled' : ''}>${inTeam ? '編成から外す' : full ? '編成がいっぱいです' : '編成に加える'}</button>`;
   }
 
