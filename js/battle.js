@@ -379,11 +379,17 @@
     for(const id of owner?.abilities||[]){
       const t=KILLER_TIERS[id];if(!t)continue;
       if(t.kind==='all'){mult*=t.mult;kind='all';}
-      else if(t.kind==='poison'&&enemy.poisonTurns>0){mult*=t.mult;kind='poison';}
+      else if(t.kind==='poison'&&enemy.poisonTurns>0){mult*=t.mult;if(kind!=='all')kind='poison';}
       else if(t.kind==='gravity'&&enemy.gravity){mult*=t.mult;if(kind!=='all')kind='gravity';}
       else if(t.kind==='first'&&state.firstTouchId!=null&&state.firstTouchId===enemy.id){mult*=t.mult;if(kind!=='all')kind='first';}
     }
     return {mult,kind};
+  }
+  function killerDamageColor(killer,shockKiller,friendship){
+    if(killer.mult>1&&killer.kind==='all')return ['#348fe5','#9554dd','#ed63b5'];
+    if(shockKiller)return '#30bce6';
+    if(killer.mult>1)return {gravity:'#348fe5',poison:'#a65bd3',first:'#e8553a'}[killer.kind]||(friendship?'#269e86':'#dc776c');
+    return friendship?'#269e86':'#dc776c';
   }
   function killerEffect(enemy,k,friendship){
     const color=k.kind==='poison'?'#a65bd3':k.kind==='gravity'?'#6a5fd6':k.kind==='all'?ALL_KILLER_COLORS[1]:'#e8553a';
@@ -416,7 +422,7 @@
       state.maxCombo = Math.max(state.maxCombo, state.combo);
       state.comboTime = 1.7;
       chargeSkill(options.charge !== undefined ? options.charge : friendship ? 4 : 3.5);
-      floatingText(enemy.x + (Math.random() - 0.5) * 28, enemy.y - enemy.r - 10, String(damage), friendship ? '#269e86' : (killer.mult>1||options.shockKiller)?'#348fe5':'#dc776c', friendship ? 19 : 22);
+      floatingText(enemy.x + (Math.random() - 0.5) * 28, enemy.y - enemy.r - 10, String(damage), killerDamageColor(killer,options.shockKiller,friendship), friendship ? 19 : 22);
       burst(enemy.x, enemy.y, friendship ? '#65c6ae' : '#ee9187', 7, 95);
       tone(250 + Math.min(state.combo, 12) * 36, 0.085, 'triangle', 0.025, 0, 170);
     }

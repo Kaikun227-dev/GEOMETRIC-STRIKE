@@ -874,7 +874,8 @@ wing:[[-1,0.65],[-0.6,-0.65],[0,0.05],[0.6,-1],[1,-0.8],[0.6,0.35],[0,1]],
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.strokeStyle = 'rgba(255,255,255,.95)'; ctx.lineWidth = 4;
       ctx.strokeText(label.text, label.x, label.y);
-      ctx.fillStyle = label.color; ctx.fillText(label.text, label.x, label.y); ctx.restore();
+      if(Array.isArray(label.color)){const w=Math.max(1,ctx.measureText(label.text).width),gradient=ctx.createLinearGradient(label.x-w/2,label.y,label.x+w/2,label.y);label.color.forEach((color,i)=>gradient.addColorStop(i/(label.color.length-1),color));ctx.fillStyle=gradient;}else ctx.fillStyle=label.color;
+      ctx.fillText(label.text, label.x, label.y); ctx.restore();
     }
   }
 
