@@ -331,11 +331,14 @@
   // DAMAGE
   // ---------------------------------------------------------------------------
   function weakPosition(enemy) {
+    if(enemy.convergenceWeak)return weakPositions(enemy)[0]||null;
     if (!enemy.weakPoint) return null;
     if(enemy.weakPoint.internal){const w=enemy.weakPoint,d=Math.min(w.offset||0,Math.max(0,enemy.r-w.radius-3));return {x:enemy.x+Math.cos(w.angle||0)*d,y:enemy.y+Math.sin(w.angle||0)*d,r:w.radius};}
     return { x: enemy.x + Math.cos(enemy.weakPoint.angle) * enemy.r * .84, y: enemy.y + Math.sin(enemy.weakPoint.angle) * enemy.r * .84, r: enemy.weakPoint.radius };
   }
   function weakPositions(enemy){
+    if(!enemy.weakPoint)return [];
+    if(enemy.convergenceWeak)return enemy.convergenceWeak.angles.flatMap((angle,i)=>enemy.convergenceGone?.has(i)?[]:[{...weakPosition({...enemy,convergenceWeak:null,weakPoint:{angle,radius:15}}),convergenceIndex:i}]);
     if(!enemy.weakPoint)return [];
     const angles=enemy.weakPoint.angles;
     return angles?.length?angles.map(angle=>weakPosition({...enemy,weakPoint:{...enemy.weakPoint,angle}})):[weakPosition(enemy)];
@@ -345,9 +348,10 @@
     const t = clamp(((p.x-a.x)*dx+(p.y-a.y)*dy)/(dx*dx+dy*dy || 1),0,1);
     return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy);
   }
+  function weakHitOverlaps(weak,hit){return !!hit&&(hit.from&&hit.to?segmentDistance(weak,hit.from,hit.to)<=weak.r+(hit.radius||0):distance(weak,hit)<=weak.r+(hit.radius||0));}
   function hitsWeak(enemy, hit) {
     if(!hit)return false;
-    return weakPositions(enemy).some(weak=>hit.from&&hit.to?segmentDistance(weak,hit.from,hit.to)<=weak.r+(hit.radius||0):distance(weak,hit)<=weak.r+(hit.radius||0));
+    return weakPositions(enemy).some(weak=>weakHitOverlaps(weak,hit));
   }
   function withDamageOwner(owner, action) {
     const previous=state.damageOwner;
@@ -407,7 +411,7 @@
     const multiplier=enemyWeakMultiplier(enemy);
     const killer=shared?{mult:1,kind:null}:killerMultiplier(owner,enemy);
     const damage=shared?Math.max(0,Math.round(amount)):Math.round(amount*powerAuraMultiplier(owner)*killer.mult*powerAreaMultiplier(owner)*touchPowerMultiplier(owner)*(state.swordBoost||1)*(friendship?powerSwitchMultiplier():1)*(weak?(options.weakBonusOnly?multiplier-1:multiplier):1)*(enemy.defenseMultiplier||1)*(enemy.switchArmor&&!state.powerSwitchActive?enemy.switchArmor:1)*(options.laserGenerator?1:enemyRestrictionMultiplier(enemy,owner,friendship))*(friendship?1:enemy.armor??1));
-    if (weak) { floatingText(enemy.x, enemy.y - enemy.r - 38, 'WEAK ×'+multiplier, '#c79816', 15); ring(weakPosition(enemy).x, weakPosition(enemy).y, '#e1b327', 36, .3); }
+    if (weak) { floatingText(enemy.x, enemy.y - enemy.r - 38, 'WEAK ×'+multiplier, '#c79816', 15); const point=weakPositions(enemy).find(w=>weakHitOverlaps(w,options.hit));ring(point.x,point.y,enemy.convergenceWeak?CONVERGENCE_COLORS[enemy.convergenceLevel??enemy.convergenceWeak.startLevel??0]:'#e1b327',36,.3); }
     if(killer.mult>1)killerEffect(enemy,killer,friendship);
     else if(!friendship&&!shared&&options.shockKiller)floatingText(enemy.x,enemy.y-enemy.r-58,'KILLER','#348fe5',15);
     const actualDamage = Math.min(enemy.hp, damage);
@@ -460,7 +464,8 @@
     }
     resolveRetreats();
     if(!state.enemies.some(e=>e.alive))state.friendshipCleanupTimer=0;
-    if((weak&&!friendship)||(!enemy.alive&&enemy.weakPoint?.routeId))advanceWeakPoint(enemy);
+    if(weak&&!friendship&&enemy.convergenceWeak)consumeConvergenceWeakPoint(enemy,options.hit);
+    else if((weak&&!friendship)||(!enemy.alive&&enemy.weakPoint?.routeId))advanceWeakPoint(enemy);
   }
 
   // Enemy attacks always damage the shared team HP.
@@ -503,5 +508,14 @@ damageEnemy=function(enemy,amount,friendship=false,options={}){
  if(!secondary&&!friendship&&shocked&&dealt>0&&tierBoost(owner,'ek')>1&&state.clock-(enemy.shockKillerFxAt??-99)>=.22){enemy.shockKillerFxAt=state.clock;queueEffect({type:'shockKiller',side:'ally',x:enemy.x,y:enemy.y,r:enemy.r,mult:tierBoost(owner,'ek'),age:0,life:.48});}
  if(alive&&!enemy.alive&&owner?.chipSoul)state.hp=Math.min(state.maxHp,state.hp+owner.chipSoul);
  if(!secondary&&dealt>0&&friendship&&ELECTRIC_KINDS.has(state.damageKind)&&enemy.alive&&Math.random()<.5){enemy.shockTurns=3;enemy.shockTurn=state.turn;}
- if(!secondary&&!friendship&&shocked&&dealt>0){for(const target of [...state.enemies])if(target.alive&&target.shockTurns>0&&!target.transparent){const resistance=(target.defenseMultiplier??1)*(target.switchArmor&&!state.powerSwitchActive?target.switchArmor:1)*(target.armor??1)*enemyRestrictionMultiplier(target,owner,false);damageEnemy(target,dealt*.3*resistance,false,{owner,shockTick:true,sharedFrom:'shock',charge:0});ring(target.x,target.y,'#75cfff',target.r+15,.3);}}
+ if(!secondary&&!friendship&&shocked&&dealt>0){
+  const segments=[],from={x:enemy.x,y:enemy.y};
+  for(const target of [...state.enemies])if(target.alive&&target.shockTurns>0&&!target.transparent){
+   const resistance=(target.defenseMultiplier??1)*(target.switchArmor&&!state.powerSwitchActive?target.switchArmor:1)*(target.armor??1)*enemyRestrictionMultiplier(target,owner,false),before=target.hp;
+   damageEnemy(target,dealt*.01*resistance,false,{owner,shockTick:true,sharedFrom:'shock',charge:0});
+   if(target.hp<before){ring(target.x,target.y,'#75cfff',target.r+15,.3);if(target!==enemy)segments.push({from:{...from},to:{x:target.x,y:target.y},life:.25});}
+  }
+  // 放電の描画だけを再利用。finished=true により連鎖探索・追加攻撃は実行しない。
+  if(segments.length)queueEffect({type:'discharge',side:'ally',shockShare:true,color:'#75cfff',age:0,segments,finished:true,wait:0});
+ }
 };

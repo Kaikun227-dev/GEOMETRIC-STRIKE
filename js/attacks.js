@@ -659,13 +659,12 @@
     else if(attack.kind==='revive')applyEnemyEffect({type:'revive',targets:spec.targets,hpRatio:spec.hpRatio,limit:spec.limit,skipRestricted:spec.skipRestricted},enemy);
     else if(attack.kind==='effect')for(const effect of spec.effects||[])applyEnemyEffect(effect,enemy);
     else if(attack.kind==='mines'||attack.kind==='photons')scatterPickups(attack.kind==='mines'?'mine':'photon',spec.count,spec.wall);
-    else if(attack.kind==='plusLaser'||attack.kind==='crossLaser'){
-      const offset=attack.kind==='crossLaser'?Math.PI/4:0;
-      for(let i=0;i<4;i++){const angle=offset+i*Math.PI/2;spawnLaser('enemy',enemy,{x:enemy.x+Math.cos(angle),y:enemy.y+Math.sin(angle)},{hits:spec.hits,damage,color,width:36});}
-    }    else if(attack.kind==='vibration')queueEffect({type:'vibration',side:'enemy',x:enemy.x,y:enemy.y,radius:spec.radius,push:spec.push,damage,color,age:0,targets:null,progress:0});
+    else if(attack.kind==='plusLaser'){
+      for(let i=0;i<4;i++){const angle=i*Math.PI/2;spawnLaser('enemy',enemy,{x:enemy.x+Math.cos(angle),y:enemy.y+Math.sin(angle)},{hits:spec.hits,damage,color,width:36});}
+    } else if(attack.kind==='vibration')queueEffect({type:'vibration',side:'enemy',x:enemy.x,y:enemy.y,radius:spec.radius,push:spec.push,damage,color,age:0,targets:null,progress:0});
     else if(attack.kind==='scramble')spawnScramble(enemy,damage,'enemy',color);
     else if(attack.kind==='reflectLaser')spawnReflect(enemy,{vx:target.x-enemy.x,vy:target.y-enemy.y},{bounces:spec.bounces,damage,side:'enemy',color});
-    else if(attack.kind==='reflectCross')spawnReflect(enemy,{vx:1,vy:1},{bounces:spec.bounces,damage,side:'enemy',color},true);
+    else if(attack.kind==='reflectCross'||attack.kind==='crossLaser')spawnReflect(enemy,{vx:1,vy:1},{bounces:spec.bounces,damage,side:'enemy',color},true);
     else if(attack.kind==='wayLaser'){
       for(let i=0;i<spec.count;i++){const a=-Math.PI/2+i*TAU/spec.count;spawnLaser('enemy',enemy,{x:enemy.x+Math.cos(a),y:enemy.y+Math.sin(a)},{hits:spec.hits,damage,color,width:spec.width});}
     }

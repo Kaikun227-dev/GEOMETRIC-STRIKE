@@ -373,3 +373,34 @@ body:not([data-screen="battle"]) .page-footer{padding-top:34px}
 .shape-vesperComet{background:var(--c);border:0;border-radius:0;transform:none;clip-path:polygon(100.00% 0.00%,82.50% 62.50%,60.00% 92.50%,27.50% 100.00%,0.00% 72.50%,7.50% 40.00%,37.50% 17.50%,55.00% 2.50%,47.50% 37.50%,67.50% 27.50%,57.50% 57.50%,77.50% 45.00%)}
 .shape-raidenBlades{background:var(--c);border:0;border-radius:0;transform:none;clip-path:polygon(10.00% 0.00%,47.50% 27.50%,60.00% 0.00%,70.00% 37.50%,100.00% 10.00%,80.00% 60.00%,57.50% 77.50%,55.00% 100.00%,40.00% 90.00%,17.50% 100.00%,25.00% 72.50%,0.00% 55.00%,32.50% 52.50%)}
 .shape-omegaCore{background:var(--c);border:0;border-radius:0;transform:none;clip-path:polygon(0.00% 95.00%,0.00% 75.00%,22.50% 75.00%,5.00% 52.50%,5.00% 22.50%,27.50% 0.00%,72.50% 0.00%,95.00% 22.50%,95.00% 52.50%,77.50% 75.00%,100.00% 75.00%,100.00% 95.00%,57.50% 95.00%,57.50% 70.00%,75.00% 47.50%,75.00% 30.00%,62.50% 20.00%,37.50% 20.00%,25.00% 30.00%,25.00% 47.50%,42.50% 70.00%,42.50% 95.00%)}
+
+/* Chapter navigation and compact mobile formation. */
+.chapter-tabs{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));flex-wrap:nowrap}
+.chapter-tabs button{min-width:0;padding:11px 4px;white-space:nowrap}
+@media(max-width:740px){
+ .chapter-tabs{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+ .chapter-tabs button{min-height:44px;font-size:12px;padding:10px 2px}
+ .roster{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .roster-card{border-radius:10px}
+ .roster-main{grid-template-columns:28px minmax(0,1fr);grid-template-areas:"a n" "m m" "b b" "f f";padding:10px 8px;column-gap:6px;row-gap:5px;align-content:start;flex:1}
+ .roster-avatar{width:28px;height:28px}
+ .roster-name{min-width:0;font-size:12px;letter-spacing:0;overflow-wrap:anywhere}
+ .roster-name small{font-size:10px}
+ .roster-meta{font-size:11px}
+ .roster-abilities{font-size:11px;line-height:1.55;margin-top:3px}
+ .roster-friend{font-size:11px;line-height:1.6;margin-top:4px;padding-top:7px;overflow-wrap:anywhere}
+ .roster-toggle{min-height:44px;font-size:12px;padding:8px}
+ .team-slots{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .team-slot{flex-direction:column;align-items:stretch;padding:8px;gap:5px;min-width:0}
+ .slot-body{gap:5px;min-height:44px}.slot-avatar{width:28px;height:28px}.slot-order{width:10px}
+ .slot-name{font-size:11px;letter-spacing:0;overflow-wrap:anywhere}.slot-tools{justify-content:space-between}.slot-tools button{width:32px;height:36px}
+}
+
+@media(max-width:740px){
+ .roster-friend,.roster-abilities{min-width:0;line-break:strict;word-break:break-all;white-space:normal}
+ .roster-filters{padding:10px;gap:8px}.roster-filters label:nth-of-type(n+3){grid-column:auto}
+}
+
+.roster-friend>span{display:block;min-width:0;overflow-wrap:anywhere}
+
+@media(max-width:740px){.roster-friend{padding-right:8px}}

@@ -259,8 +259,8 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
         unit.x=clamp(exit.x+unit.vx/speed*(pair.r+unit.r+4),FIELD.left+unit.r,FIELD.right-unit.r);
         unit.y=clamp(exit.y+unit.vy/speed*(pair.r+unit.r+4),FIELD.top+unit.r,FIELD.bottom-unit.r);
         state.warpCooldown=.4;state.trail=[];ring(entry.x,entry.y,'#9a75de',65,.4);ring(exit.x,exit.y,'#9a75de',65,.4);
-        // 出口が敵（ボスなど）の内側だったら外へ押し出す。出現直後の「すり抜け猶予」は与えず、壁と敵の間に挟まって通常どおり衝突する。
-        for(let k=0;k<4;k++){let moved=false;
+        // 反射は事前に押し出さず、直後の敵衝突処理で押し出し・反射・ダメージを処理する。
+        for(let k=0;isPiercing(unit)&&k<4;k++){let moved=false;
           for(const e of state.enemies){if(!e.alive||e.transparent)continue;const info=contactEnemy(unit,e);if(info){unit.x+=info.nx*info.push;unit.y+=info.ny*info.push;moved=true;}}
           unit.x=clamp(unit.x,FIELD.left+unit.r,FIELD.right-unit.r);unit.y=clamp(unit.y,FIELD.top+unit.r,FIELD.bottom-unit.r);
           if(!moved)break;}
@@ -503,13 +503,13 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
     if(state.firstTouchId==null&&!enemy.sword)state.firstTouchId=enemy.id;
     if(hasAbility(unit,'drain')){const heal=Math.min(DRAIN_HEAL,state.maxHp-state.hp);if(heal>0){state.hp+=heal;floatingText(unit.x,unit.y-35,'DRAIN +'+heal,'#2a9a56',14);}}
   }
-  function directHitDamage(unit){
+  function directHitDamage(unit,photonMultiplier){
     const speed=Math.hypot(unit.vx,unit.vy),baseDamage=390+Math.min(speed,1100)*.24;
     let styleMultiplier=unit.battleStyle==='balance'?1.2:1;
     if(unit.battleStyle==='power'&&!state.powerHitUsed){state.powerHitUsed=true;styleMultiplier=2;floatingText(unit.x,unit.y-38,'POWER ×2',unit.color,14);}
     const switchMultiplier=powerSwitchMultiplier();
     const waterBoost=state.waterPower?3:1;state.waterPower=false;
-    return waterMultiplier()*waterBoost*baseDamage*(state.waves[state.wave].directMultiplier??state.stage.directMultiplier??1)*(effectiveAttack(unit)/1000)*(state.skillShot?2.4:1)*styleMultiplier*(1+(state.swordBonus||0))*(state.atkUp||1)*wallBoostMultiplier(unit)*switchMultiplier*consumePhoton(unit);
+    return waterMultiplier()*waterBoost*baseDamage*(state.waves[state.wave].directMultiplier??state.stage.directMultiplier??1)*(effectiveAttack(unit)/1000)*(state.skillShot?2.4:1)*styleMultiplier*(1+(state.swordBonus||0))*(state.atkUp||1)*wallBoostMultiplier(unit)*switchMultiplier*(photonMultiplier??consumePhoton(unit));
   }
   // キューブ状態：手番以外の味方は正方形の当たり判定を持つ（移動中の味方は反射し、友情は接触で発動）。
   function cubeActive(){return !!(state.waves[state.wave].cube??state.stage.cube??stageSettings.cube);}
@@ -530,6 +530,21 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
     state.touchedAllies.add(ally.id);
     if(touchPowerActive()){const m=touchPowerMultiplier();floatingText(unit.x,unit.y-52,'TOUCH ×'+m,'#2f6fd1',16);ring(unit.x,unit.y,'#5b8fe0',62,.45);}
   }
+  // 反対側へ同じ座標・速度で抜ける。進入方向を検査し、出口での即時再転送を防ぐ。
+  function applyThroughWalls(unit){
+    for(const w of state.waves[state.wave].gimmicks?.throughWalls||[]){
+      const vertical=w.side==='left'||w.side==='right',along=vertical?unit.y:unit.x;
+      if(along<w.start||along>w.end)continue;
+      const entered=w.side==='left'?unit.vx<0&&unit.x<=FIELD.left+unit.r:w.side==='right'?unit.vx>0&&unit.x>=FIELD.right-unit.r:w.side==='top'?unit.vy<0&&unit.y<=FIELD.top+unit.r:unit.vy>0&&unit.y>=FIELD.bottom-unit.r;
+      if(!entered)continue;
+      applyDamageWalls(unit);if(state.phase==='gameover')return;
+      ring(unit.x,unit.y,'#74e7ff',45,.35);
+      if(vertical)unit.x=w.side==='left'?FIELD.right-unit.r-.5:FIELD.left+unit.r+.5;
+      else unit.y=w.side==='top'?FIELD.bottom-unit.r-.5:FIELD.top+unit.r+.5;
+      unit.spawnOverlaps=new Set();unit.enemyContacts?.clear();state.trail=[];
+      ring(unit.x,unit.y,'#74e7ff',45,.35);
+    }
+  }
   function updatePhysics(dt) {
     const unit = state.units[state.activeUnit];
     state.moveTime += dt;
@@ -544,6 +559,7 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
       applyContainers(unit);
       applyBarriers(unit);
       if(state.phase==='gameover')return;
+      applyThroughWalls(unit);if(state.phase==='gameover')return;
       let wallHit = false;const hitSides=[];
       if (unit.x < FIELD.left + unit.r) { unit.x = FIELD.left + unit.r; unit.vx = Math.abs(unit.vx); wallHit = true; hitSides.push('left'); }
       if (unit.x > FIELD.right - unit.r) { unit.x = FIELD.right - unit.r; unit.vx = -Math.abs(unit.vx); wallHit = true; hitSides.push('right'); }
@@ -573,7 +589,7 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
         if (!enemy.alive||enemy.transparent) continue;
         const info=contactEnemy(unit,enemy);
         if (unit.spawnOverlaps?.has(enemy.id)) {
-          if (!info) unit.spawnOverlaps.delete(enemy.id);
+          if (!info||!isPiercing(unit)) unit.spawnOverlaps.delete(enemy.id);
           else continue;
         }
         if (!info) {unit.enemyContacts?.delete(enemy.id);continue;}
@@ -586,12 +602,14 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
             onEnemyTouch(unit,enemy);
             const retention=contactRetention(unit,enemy);unit.vx*=retention;unit.vy*=retention;
             if(enemy.sword){touchSwordEnemy(unit,enemy);unit.enemyContacts.set(enemy.id,{amount:0,weak:swordWeakHit(enemy,hit),sword:true});continue;}
-            const amount=directHitDamage(unit);contact={amount,attack:effectiveAttack(unit),weak:hitsWeak(enemy,hit)};
+            const baseAmount=directHitDamage(unit,1),amount=baseAmount*consumePhoton(unit);contact={amount:baseAmount,attack:effectiveAttack(unit),weak:hitsWeak(enemy,hit)};
             unit.enemyContacts.set(enemy.id,contact);
             damageEnemy(enemy,amount,false,{hit,owner:unit});
-          }else if(!contact.weak&&hitsWeak(enemy,hit)){
-            // Body contact and the later weak-point crossing total x3, without another slowdown/photon.
-            contact.weak=true;if(contact.sword)swordWeakHit(enemy,hit);else damageEnemy(enemy,contact.amount*(effectiveAttack(unit)/contact.attack),false,{hit,owner:unit,weakBonusOnly:true,charge:0});
+          }else if(enemy.convergenceWeak&&hitsWeak(enemy,hit)){
+            damageEnemy(enemy,contact.amount*(effectiveAttack(unit)/contact.attack)*consumePhoton(unit),false,{hit,owner:unit,charge:0});
+          }else if(!enemy.convergenceWeak&&!contact.weak&&hitsWeak(enemy,hit)){
+            // 弱点追加分は胴体のフォトン倍率を引き継がず、残りのフォトンを別に1個消費する。追加減速はしない。
+            contact.weak=true;if(contact.sword)swordWeakHit(enemy,hit);else damageEnemy(enemy,contact.amount*(effectiveAttack(unit)/contact.attack)*consumePhoton(unit),false,{hit,owner:unit,weakBonusOnly:true,charge:0});
           }
           continue;
         }

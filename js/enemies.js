@@ -12,8 +12,8 @@
 
 // Reusable enemy families. Stats/placement remain authored by each stage.
 const ENEMY_SPECIES={turret:'反射砲台',lancer:'貫通射手',sentinel:'装甲兵',orb:'球形兵',cruciform:'十字砲台',starBattery:'星光砲台',bomber:'爆撃兵',midBoss:'中ボス'};
-Object.assign(ENEMY_ATTACKS,{plusLaser:{mult:.30,hits:2},crossLaser:{mult:.30,hits:2},move:{mult:0}});
-Object.assign(FRIENDSHIP_KINDS,{plusLaser:{name:'十字レーザー',label:'十字レーザー'},crossLaser:{name:'クロスレーザー',label:'クロスレーザー'},move:{name:'移動',label:'MOVE'}});
+Object.assign(ENEMY_ATTACKS,{plusLaser:{mult:.30,hits:2},crossLaser:{mult:.30,bounces:1},move:{mult:0}});
+Object.assign(FRIENDSHIP_KINDS,{plusLaser:{name:'十字レーザー',label:'十字レーザー'},crossLaser:{name:'反射クロスレーザー',label:'反射クロス'},move:{name:'移動',label:'MOVE'}});
 function variedFoe(kind,x,y,r=34,hp=6000){
  if(['turret','lancer','sentinel'].includes(kind)){
   const e=specialist(kind,x,y,r,hp);e.attacks=e.attacks.map(a=>({...a,countdown:2,interval:2,mult:.30}));return e;

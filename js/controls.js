@@ -193,6 +193,7 @@
     state.swordBoost=1;state.swordToucher=null;state.transPanelsUsed=new Set();state.containerLeft=(state.waves[state.wave].gimmicks?.containers||[]).map(c=>c.n);
     state.swordBonus=0;state.swordPanelsUsed=new Set();state.typePanelsUsed=new Set();state.touchedAllies=new Set();for(const u of state.units){const base=CHAR_BY_ID[u.charId]?.shotType;if(base)u.shotType=base;}resetPowerSwitches();
     if(state.phase!=='wave')for(const e of state.enemies){if(!e.alive||!e.weakPoint||!e.weakAngles?.length||e.weakMoveOnHit||e.weakPoint.internal||e.weakPoint.routeId)continue;e.weakStep=(e.weakStep+1)%e.weakAngles.length;e.weakPoint.angle=e.weakAngles[e.weakStep];const w=weakPosition(e);ring(w.x,w.y,'#dfaa19',40,.5);floatingText(e.x,e.y-e.r-45,'WEAK SHIFT','#b48d27',12);}
+    resetConvergenceWeakPoints();
     state.turn++;
     state.waveTurn++;
     for(const e of state.enemies)if(e.defenseExpiresAt!==undefined&&e.defenseExpiresAt<=state.turn)e.defenseMultiplier=1;

@@ -118,6 +118,21 @@
     ctx.fillStyle='#edfafe';ctx.beginPath();ctx.arc(0,0,5,0,TAU);ctx.fill();
   }
 
+  function drawThroughWall(w){
+    const vertical=w.side==='left'||w.side==='right',length=w.end-w.start;
+    const x=vertical?(w.side==='left'?FIELD.left:FIELD.right):w.start;
+    const y=vertical?w.start:(w.side==='top'?FIELD.top:FIELD.bottom);
+    ctx.save();ctx.translate(x,y);if(vertical)ctx.rotate(Math.PI/2);
+    const g=ctx.createLinearGradient(0,-9,0,9);g.addColorStop(0,'#126b9c');g.addColorStop(.32,'#49d9f4');g.addColorStop(.5,'#e7ffff');g.addColorStop(.72,'#79eeff');g.addColorStop(1,'#238ab5');
+    ctx.shadowColor='#59dfff';ctx.shadowBlur=12;ctx.fillStyle=g;ctx.fillRect(0,-6,length,12);ctx.shadowBlur=0;
+    ctx.strokeStyle='#c6fbff';ctx.lineWidth=1;ctx.strokeRect(.5,-6.5,length-1,13);
+    ctx.strokeStyle='#166c9e';ctx.lineWidth=2;
+    for(let i=8;i<length-8;i+=22){ctx.beginPath();ctx.moveTo(i-3,-4);ctx.lineTo(i+2,0);ctx.lineTo(i-3,4);ctx.stroke();}
+    ctx.fillStyle='#f3ffff';const phase=(state.clock*45)%length;
+    ctx.fillRect(Math.min(phase,length-8),-2,8,4);
+    for(const at of [0,length-5]){ctx.fillStyle='#204f72';ctx.fillRect(at,-10,5,20);ctx.fillStyle='#b6f7ff';ctx.fillRect(at+1,-7,3,14);}
+    ctx.restore();
+  }
   function drawGimmicks(){
     const g=state.waves[state.wave].gimmicks||{};ctx.save();ctx.textAlign='center';ctx.font='bold 10px Arial';
     drawBarrierFills();
@@ -190,6 +205,7 @@
     (g.warps||[]).forEach(drawWarpPair);
     for(const wall of g.walls||[])drawHazardWall(wall,false);
     for(const wall of g.slowWalls||[])drawHazardWall(wall,true);
+    for(const wall of g.throughWalls||[])drawThroughWall(wall);
     drawBarrierFrames();
     ctx.restore();
   }
@@ -454,7 +470,7 @@
     for (const w of weakPositions(enemy)) {
       const wx=w.x-x, wy=w.y-y;
       ctx.beginPath(); ctx.arc(wx,wy,w.r+4,0,TAU); ctx.fillStyle='#fff8d6'; ctx.fill();
-      ctx.strokeStyle='#e1b327';ctx.lineWidth=2;ctx.stroke();
+      ctx.strokeStyle=enemy.convergenceWeak?CONVERGENCE_COLORS[enemy.convergenceLevel??enemy.convergenceWeak.startLevel??0]:'#e1b327';ctx.lineWidth=enemy.convergenceWeak?5:2;ctx.stroke();
       polygon(wx,wy,10,4);ctx.fillStyle='#dfaa19';ctx.fill();
       ctx.font='bold 10px Arial';ctx.textAlign='center';ctx.fillStyle='#9a730b';
       ctx.fillText('×'+enemyWeakMultiplier(enemy),wx+29,wy+1);

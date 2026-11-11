@@ -119,7 +119,7 @@
           <span class="roster-name">${c.name}<small>${c.kana}</small></span>
           <span class="roster-meta">${c.type}</span>
           <span class="roster-abilities">${abilityNames(c)}</span>
-          <span class="roster-friend">主：${friendshipTitle(c.friendship)}<br>副：${friendshipTitle(c.secondary)}</span>
+          <span class="roster-friend"><span>主：${friendshipTitle(c.friendship)}</span><span>副：${friendshipTitle(c.secondary)}</span></span>
         </button>
         <button type="button" class="roster-toggle" data-toggle="${c.id}"${full ? ' disabled' : ''}>${inTeam ? '外す' : full ? '満員' : '加える'}</button>
       </div>`;

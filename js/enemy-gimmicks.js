@@ -7,13 +7,25 @@ function createEnemyRuntime(enemy,index,wave){
   return {...enemy,id:`w${wave}e${index}`,key:enemy.key||`enemy-${index}`,maxHp:enemy.hp,alive:true,transparent:!!enemy.startTransparent,flash:0,hitAt:-100,rotation:index*.2,weakStep:0,weakHitStep:0,
     weakPoint:initialWeakPoint(enemy),attacks,countdown:attacks.length?Math.min(...attacks.map(a=>a.remaining)):0};
 }
+const CONVERGENCE_MULTIPLIERS=[3,6,40];
+const CONVERGENCE_COLORS=['#477bd8','#ef8c21','#ed4147'];
+function resetConvergenceWeakPoints(){
+ for(const e of state.enemies)if(e.convergenceWeak){e.convergenceGone=new Set();e.convergenceLevel=e.convergenceWeak.startLevel??0;e.weakPoint={angle:e.convergenceWeak.angles[0],radius:15};}
+}
+function consumeConvergenceWeakPoint(enemy,hit){
+ const w=weakPositions(enemy).find(w=>weakHitOverlaps(w,hit));if(!w)return;
+ enemy.convergenceGone??=new Set();enemy.convergenceGone.add(w.convergenceIndex);
+ enemy.convergenceLevel=Math.min(2,(enemy.convergenceLevel??enemy.convergenceWeak.startLevel??0)+1);
+ if(enemy.convergenceGone.size===enemy.convergenceWeak.angles.length)enemy.weakPoint=null;
+}
 function initialWeakPoint(enemy){
   if(enemy.weakEnabled===false)return null;
+  if(enemy.convergenceWeak)return {angle:enemy.convergenceWeak.angles[0],radius:15};
   if(enemy.internalWeak)return {internal:true,angle:0,radius:enemy.weakRadius??12};
   if(enemy.weakPoint)return {...enemy.weakPoint};
   return enemy.boss?{angle:enemy.weakAngles?.[0]??enemy.weakAngle??Math.PI/2,radius:15}:null;
 }
-function enemyWeakMultiplier(enemy){return Math.max(1,enemy.weakMultiplier??state.waves[state.wave].weakMultiplier??state.stage.weakMultiplier??3);}
+function enemyWeakMultiplier(enemy){return enemy.convergenceWeak?CONVERGENCE_MULTIPLIERS[enemy.convergenceLevel??enemy.convergenceWeak.startLevel??0]:Math.max(1,enemy.weakMultiplier??state.waves[state.wave].weakMultiplier??state.stage.weakMultiplier??3);}
 function currentPhotonMultiplier(){return Math.max(1,state.waves[state.wave].photonMultiplier??state.stage.photonMultiplier??2);}
 function isRestrictedContact(unit,enemy){return !!enemy.restriction&&(isPiercing(unit)?enemy.restriction==='pierce':enemy.restriction==='reflect');}
 function contactRetention(unit,enemy){return bubblyRelax(unit,isRestrictedContact(unit,enemy)?.10:enemyHitRetention(unit));}
@@ -86,6 +98,7 @@ function applyEnemyEffect(effect,source){
   }
 }
 function setupEnemyGimmicks(){
+  resetConvergenceWeakPoints();
   state.crossSkullsFired=new Set();state.weakRouteSteps=new Map();
   if(state.waves[state.wave].gimmicks?.transPanels?.length)for(const e of state.enemies)e.stealthManaged=true;
   if(state.waves[state.wave].noWeakPoints??state.stage.noWeakPoints)for(const e of state.enemies)e.weakPoint=null;
@@ -172,7 +185,7 @@ function moveEnemy(enemy,attack){
   ring(enemy.x,enemy.y,'#7f8a97',enemy.r+30,.6);
 }
 function stageGimmickNamesRaw(stage){
-  const names=new Set(),map={damageLines:'ダメージライン',mines:'地雷',photons:'エナジーフォトン',gravity:'重力バリア',blocks:'ブロック',walls:'ダメージウォール',warps:'ワープ',boosts:'加速パネル',winds:'ウィンド',powerAreas:'パワーエリア',hearts:'ハートパネル',slowWalls:'減速壁',swords:'剣パネル',powerSwitches:'パワースイッチ',typePanels:'撃種変化パネル',transPanels:'透明パネル',containers:'フォトンコンテナ',barriers:'結界'};
+  const names=new Set(),map={throughWalls:'スルーウォール',damageLines:'ダメージライン',mines:'地雷',photons:'エナジーフォトン',gravity:'重力バリア',blocks:'ブロック',walls:'ダメージウォール',warps:'ワープ',boosts:'加速パネル',winds:'ウィンド',powerAreas:'パワーエリア',hearts:'ハートパネル',slowWalls:'減速壁',swords:'剣パネル',powerSwitches:'パワースイッチ',typePanels:'撃種変化パネル',transPanels:'透明パネル',containers:'フォトンコンテナ',barriers:'結界'};
   const addEffect=e=>{if(e.type==='transparent')names.add('透明化');if(e.type==='heartPanel')names.add('ハートパネル');if(e.type==='revive')names.add('蘇生');if(e.type==='photons')names.add('エナジーフォトン');if(e.type==='defenseDown')names.add('防御ダウン（'+(e.multiplier??2)+'倍）');if(e.type==='grantWeak'){names.add('弱点付与');if(e.internal)names.add('内部弱点');}if(e.type==='moveWeak')names.add('弱点移動');};
   for(const wave of stage.waves){
     if(stage.underwater)names.add('水中');
@@ -188,7 +201,7 @@ function stageGimmickNamesRaw(stage){
     if(weak!==3)names.add('弱点倍率アップ（'+weak+'倍）');if(photon!==2)names.add('フォトン倍率アップ（'+photon+'倍）');
     for(const e of [...wave.enemies,...(wave.reserves||[])]){
       if(e.retreatWhenAlone)names.add('撤退');if(e.counterEffects?.length){names.add('反撃モード');e.counterEffects.forEach(addEffect);}
-      if(e.gravity)names.add('重力バリア');if(e.startTransparent)names.add('透明化');if(e.sword)names.add('剣持ち敵（'+e.sword+'倍）');if(e.hpShare?.length)names.add('HP共有');if(e.midBoss)names.add('中ボス');if(e.attacks?.some(a=>a.kind==='move'))names.add('敵移動');if(e.restriction)names.add(e.restriction==='reflect'?'反射制限':'貫通制限');
+      if(e.convergenceWeak)names.add('収束弱点');if(e.gravity)names.add('重力バリア');if(e.startTransparent)names.add('透明化');if(e.sword)names.add('剣持ち敵（'+e.sword+'倍）');if(e.hpShare?.length)names.add('HP共有');if(e.midBoss)names.add('中ボス');if(e.attacks?.some(a=>a.kind==='move'))names.add('敵移動');if(e.restriction)names.add(e.restriction==='reflect'?'反射制限':'貫通制限');
       if(!e.boss&&e.weakPoint&&!e.weakPoint.internal)names.add('雑魚敵に弱点');if(e.internalWeak||e.weakPoint?.internal)names.add('内部弱点');if(e.noWeak)names.add('一部のボスは弱点なし');if(e.weakMoveOnHit)names.add('弱点移動');
       if(e.skullEffects?.length){names.add('ドクロ');e.skullEffects.forEach(addEffect);}
       if(e.weakMultiplier&&e.weakMultiplier!==3)names.add('弱点倍率アップ（'+e.weakMultiplier+'倍）');
@@ -197,13 +210,14 @@ function stageGimmickNamesRaw(stage){
   }
   // パワーエリアの倍率が既定（4倍）でないステージは、倍率も表示する。
   if(names.has('パワーエリア')&&stage.powerAreaMultiplier&&stage.powerAreaMultiplier!==4){names.delete('パワーエリア');names.add('パワーエリア（'+stage.powerAreaMultiplier+'倍）');}
+  for(const name of stage.extraGimmicks||[])names.add(name);
   return [...names].filter(n=>!(stage.hideGimmicks||[]).includes(n));
 }
 // ステージ選択画面のギミック表示：赤（危険）→青（強化）→灰色（その他）の順に並べ、色分けする。
 const GIMMICK_TONE_RED=['ダメージライン','ダメージウォール','重力バリア','地雷','ウィンド','減速壁','反射制限','貫通制限'];
 const GIMMICK_TONE_GREEN=['直殴り倍率アップ','弱点倍率アップ','フォトン倍率アップ','防御ダウン'];
 const GIMMICK_TONE_BLUE=['透明パネル','フォトンコンテナ','剣持ち敵','エナジーフォトン','パワーエリア','パワースイッチ','剣パネル','結界','HP共有','レーザージェネレーター','キューブ状態','触れた味方の数に応じて攻撃力アップ'];
-const GIMMICK_RED_BLOCK_STAGES=['3-5','6-2','8-5'];
+const GIMMICK_RED_BLOCK_STAGES=['3-5','6-2','8-5','10-1'];
 // ワープは原則として赤（危険）。対策が不要な 3-2・8-2 だけ青（強化）で表示する。
 const GIMMICK_BLUE_WARP_STAGES=['3-2','8-2'];
 function gimmickTone(name,stage){
