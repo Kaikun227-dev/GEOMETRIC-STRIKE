@@ -45,7 +45,7 @@
     {id:'lumen',name:'LUMEN',kana:'ルーメン',shape:'star',color:'#df60af',type:'反射 / バランス',hp:3900,atk:1160,speed:340,
       friendship:{kind:'reflectLaser',power:390,bounces:4}},
     {id:'crux',name:'CRUX',kana:'クルクス',shape:'cross',color:'#e35657',type:'反射 / 砲撃',hp:4200,atk:1040,speed:290,
-      friendship:{kind:'reflectCross',power:294,bounces:4}},
+      friendship:{kind:'reflectCross',power:395,bounces:4}},
     {id:'volt',name:'VOLT',kana:'ヴォルト',shape:'bolt',color:'#19ab9b',type:'反射 / スピード',hp:3600,atk:1120,speed:370,
       friendship:{kind:'plasma',power:264}},
     {id:'orbit',name:'ORBIT',kana:'オービット',shape:'pentagon',color:'#8aad30',type:'反射 / 砲撃',hp:4500,atk:1380,speed:260,
@@ -53,7 +53,7 @@
     {id:'lance',name:'LANCE',kana:'ランス',shape:'arrow',color:'#dc6849',type:'貫通 / バランス',hp:4200,atk:1220,speed:320,
       friendship:{kind:'pierce',power:340,count:12}},
     {id:'iris',name:'IRIS',kana:'アイリス',shape:'eye',color:'#6869d9',type:'反射 / パワー',hp:3800,atk:1580,speed:290,
-      friendship:{kind:'weakPierce',power:365}},
+      friendship:{kind:'weakPierce',power:465}},
     {id:'ripple',name:'RIPPLE',kana:'リプル',shape:'hourglass',color:'#cc6891',type:'反射 / バランス',hp:4400,atk:1150,speed:310,
       friendship:{kind:'roundBurst',power:470,radius:340,maxHits:4}},
     {id:'comet',name:'COMET',kana:'コメット',shape:'crescent',color:'#b156b8',type:'反射 / パワー',hp:4600,atk:1360,speed:250,
@@ -85,7 +85,7 @@
     {id:'suture',name:'SUTURE',kana:'スーチャー',shape:'chevron',color:'#ca7780',type:'貫通 / バランス',hp:4400,atk:1180,speed:335,
       friendship:{kind:'spread',power:132,ways:32,volleys:3}},
     {id:'lattice',name:'LATTICE',kana:'ラティス',shape:'dodecagon',color:'#6995c6',type:'貫通 / 砲撃',hp:4000,atk:1190,speed:310,
-      friendship:{kind:'reflectLaser',power:350,bounces:4}},
+      friendship:{kind:'reflectLaser',power:390,bounces:4}},
     {id:'basalt',name:'BASALT',kana:'バサルト',shape:'anvil',color:'#717788',type:'貫通 / パワー',hp:5000,atk:1450,speed:260,
       friendship:{kind:'explosion',power:360,radius:205,maxHits:3}},
     {id:'sparrow',name:'SPARROW',kana:'スパロー',shape:'dart',color:'#b3924a',type:'貫通 / スピード',hp:3850,atk:1180,speed:425,
@@ -147,7 +147,7 @@
     {id:'seraph',name:'SERAPH',kana:'セラフ',shape:'seraph',color:'#eeab0e',type:'反射 / バランス',hp:4400,atk:1200,speed:335,
       friendship:{kind:'shinePillar',power:999,radius:170,ticks:6}},
     {id:'razor',name:'RAZOR',kana:'レイザー',shape:'razor',color:'#4fb0a6',type:'反射 / バランス',hp:4200,atk:1170,speed:345,
-      friendship:{kind:'saw',power:213,count:4}},
+      friendship:{kind:'poisonSpread',power:130,ways:32,volleys:3}},
     {id:'phantom',name:'PHANTOM',kana:'ファントム',shape:'phantom',color:'#515be4',type:'貫通 / 砲撃',hp:4100,atk:1150,speed:300,
       friendship:{kind:'copy',power:0}},
     {id:'tread',name:'TREAD',kana:'トレッド',shape:'tread',color:'#e0873a',type:'貫通 / パワー',hp:4800,atk:1420,speed:270,
@@ -199,11 +199,18 @@
     {id:'voltcore',name:'VOLTCORE',kana:'ヴォルトコア',shape:'octastar',color:'#63d2d6',type:'反射 / パワー',hp:5100,atk:1530,speed:260,
       friendship:{kind:'plasmaBall',power:380}},
     {id:'fulmen',name:'FULMEN',kana:'フルメン',shape:'raidenBlades',color:'#d4a82f',type:'貫通 / バランス',hp:4500,atk:1260,speed:335,
-      friendship:{kind:'enhancedReflect',power:340,bounces:4}},
+      friendship:{kind:'enhancedReflect',power:460,bounces:4}},
     {id:'gyros',name:'GYROS',kana:'ジャイロス',shape:'gear',color:'#83a7a1',type:'反射 / スピード',hp:4200,atk:1160,speed:385,
       friendship:{kind:'crossWheel',power:520}},
-    {id:'aegisblade',name:'AEGIS BLADE',kana:'イージスブレイド',shape:'saber',color:'#7f69f8',type:'貫通 / 砲撃',hp:4400,atk:1200,speed:365,
-      friendship:{kind:'javelinOrbit',power:480}}
+    {id:'aegisblade',name:'AEGIS BLADE',kana:'イージスブレイド',shape:'saber',color:'#564ef6',type:'貫通 / 砲撃',hp:4400,atk:1200,speed:365,
+      friendship:{kind:'javelinOrbit',power:480}},
+    {id:'venora',name:'VENORA',kana:'ヴェノーラ',shape:'rosette',color:'#943ac1',type:'貫通 / スピード',hp:4100,atk:1180,speed:410,
+      friendship:{kind:'poisonHole',power:360}},
+    {id:'raika',name:'RAIKA',kana:'ライカ',shape:'bolt',color:'#55ca4d',type:'反射 / スピード',hp:4000,atk:1200,speed:405,
+      friendship:{kind:'copy',power:0}},
+    {id:'noctis',name:'NOCTIS',kana:'ノクティス',shape:'hexagon',color:'#cc94bc',type:'反射 / バランス',hp:4500,atk:1250,speed:340,friendship:{kind:'poisonBomb',
+      power:480,radius:250,maxHits:3}}
+
 
   ];
   // CHARACTERSと同じ順に並べる
@@ -240,9 +247,9 @@
     sparrow:{kind:'machinegun',power:82,count:50},
     kepler:{kind:'speedUp',power:0},
     helix:{kind:'plasma',power:195},
-    saber:{kind:'roundBurst',power:410,radius:340,maxHits:4},
+    saber:{kind:'markedPierce',power:420,count:1},
     tesla:{kind:'energyBall',power:580,radius:370,maxHits:4},
-    facet:{kind:'weakPierce',power:320},
+    facet:{kind:'weakPierce',power:420},
     aster:{kind:'pierce',power:280,count:8},
     nimbus:{kind:'explosion',power:350,radius:205,maxHits:3},
     seam:{kind:'relation',power:530},
@@ -266,7 +273,7 @@
     carom:{kind:'atkUp',power:0},
     vanguard:{kind:'crossBomb',power:330,count:3,radius:105,maxHits:2},
     seraph:{kind:'pierce',power:290,count:18},
-    razor:{kind:'relation',power:530},
+    razor:{kind:'wayLaser',power:240,count:8},
     phantom:{kind:'pierceHoming',power:210,count:12},
     tread:{kind:'eruption',power:480,radius:155},
     fizz:{kind:'bubblyGift',power:0},
@@ -285,7 +292,7 @@
     ionis:{kind:'pierceHoming',power:230,count:8},
     cirrus:{kind:'wayLaser',power:180,count:16},
     lyra:{kind:'eruption',power:480,radius:155},
-    rift:{kind:'enhancedScramble',power:345},
+    rift:{kind:'enhancedScramble',power:440},
     atlas:{kind:'heavyCannon',power:470},
     next:{kind:'machinegun',power:96,count:60},
     raiden:{kind:'pierceHoming',power:210,count:18,radius:180,maxHits:3},
@@ -295,6 +302,9 @@
     fulmen:{kind:'thunder',power:400,radius:520},
     gyros:{kind:'satellites',power:170,count:8},
     aegisblade:{kind:'javelinFollow',power:540},
+    venora:{kind:'weakPierce',power:465},
+    raika:{kind:'oathSwords',power:500,count:3},
+    noctis:{kind:'speedUp',power:0},
   };
   const BATTLE_STYLES = {
     balance: '被ダメージ20%軽減・直殴りダメージ20%アップ。',
@@ -349,14 +359,14 @@
     sms:['超マインスイーパー','地雷を安全に回収し、攻撃力相当の爆発を起こす。'],
     santiWind:['超アンチウィンド','風の移動を無効化。風を受けると自身のショット終了までスピード1.5倍。'],
     sasw:['超アンチ減速壁','減速壁無効。接触で1ショット1回加速。'],
-    ek:['感電キラー','1.5倍'],
-    ekM:['感電キラーM','2倍'],
-    ekL:['感電キラーL','2.5倍'],
-    ekEL:['感電キラーEL','3倍'],
-    fb:['友情ブースト','1.5倍'],
-    fbM:['友情ブーストM','2倍'],
-    fbL:['友情ブーストL','2.5倍'],
-    fbEL:['友情ブーストEL','3倍']
+    ek:['感電キラー','感電状態の敵に与ダメージ1.5倍'],
+    ekM:['感電キラーM','感電状態の敵に与ダメージ2倍'],
+    ekL:['感電キラーL','感電状態の敵に与ダメージ2.5倍'],
+    ekEL:['感電キラーEL','感電状態の敵に与ダメージ3倍'],
+    fb:['友情ブースト','友情の威力が1.5倍'],
+    fbM:['友情ブーストM','友情の威力が2倍'],
+    fbL:['友情ブーストL','友情の威力が2.5倍'],
+    fbEL:['友情ブーストEL','友情の威力が3倍']
   };
   const KILLER_TIERS={pk:{kind:"poison",mult:1.5},pkM:{kind:"poison",mult:2},pkL:{kind:"poison",mult:2.5},pkEL:{kind:"poison",mult:3},ak:{kind:'all',mult:1.5},akM:{kind:'all',mult:2},akL:{kind:'all',mult:2.5},akEL:{kind:'all',mult:3},gk:{kind:'gravity',mult:1.5},gkM:{kind:'gravity',mult:2},gkL:{kind:'gravity',mult:2.5},gkEL:{kind:'gravity',mult:3},fk:{kind:'first',mult:1.5},fkM:{kind:'first',mult:2},fkL:{kind:'first',mult:2.5},fkEL:{kind:'first',mult:3}};
   const WALL_BOOST_TABLE=[1.1,1.2,1.5,2.0],DRAIN_HEAL=100;
@@ -379,14 +389,14 @@
     crux: ['aw', 'ms','wb'],
     volt: ['agb', 'antiWind','pm'],
     orbit: ['aw', 'ms','fk'],
-    lance: ['adw', 'ab'],
+    lance: ['adw', 'ab','fb'],
     iris: ['agb', 'aw','gk'],
     ripple: ['agb','ab', 'regen'],
     comet: ['adw', 'ms'],
     pyre: ['adw', 'ab','dash'],
     arc: ['agb', 'aw','adl'],
     echo: ['adw','asw','pm'],
-    zephyr: ['aw', 'ms'],
+    zephyr: ['aw', 'ms','fb'],
     salvo: ['adw', 'agb','gk'],
     vesper: ['aw','ab','regen'],
     cobalt: ['ms', 'ab', 'fk'],
@@ -405,7 +415,7 @@
     tesla:['aw','antiWind','heal'],
     facet:['adw','saw','double'],
     aster:['adw','antiWind','pm'],
-    nimbus:['adw','asw','pm'],
+    nimbus:['adw','sasw','wb'],
     seam:['aw','asw','heal'],
     mirage:['agb','asw'],
     tempest:['antiWind','asw','pm'],
@@ -417,7 +427,7 @@
     rampage:['aw','asw','pm'],
     pulsar:['ms','sasw','pk'],
     mimic:['adw','agb','heal'],
-    neptune:['agb','asw','pa'],
+    neptune:['agb','asw','pa','fb'],
     cascade:['agb','ab','double'],
     fission:['adw','sms','sasw','bubblyMode'],
     bolide:['antiWind','asw','regen'],
@@ -453,9 +463,12 @@
     omega:['ab','sadl','akM','paM','barrierM','regen'],
     sigil:['saw','antiWind','asw','heal'],
     voltcore:['aw','ab','sadl','wb','dashL'],
-    fulmen:['adw','agb','antiWind','ek'],
+    fulmen:['adw','agb','antiWind','ek','fbM'],
     gyros:['sms','ab','adl','fb'],
-    aegisblade:['saw','sasw','adl','pk','ek','dashM']
+    aegisblade:['saw','sasw','adl','pk','ek','dashM'],
+    venora:['saw','adl','fb','drain','bubblyMode'],
+    raika:['sadw','agb','sms','ek'],
+    noctis:['antiWind','ab','sadl','double']
   };
   for (const c of CHARACTERS) {
     c.shotType = c.type.startsWith('貫通') ? 'pierce' : 'reflect';
@@ -541,7 +554,8 @@
     sonicCannon:{name:'音波砲',label:'SONIC CANNON',describe:()=> '手番キャラが停止するまでチャージ（'+SONIC_CHARGE_SECONDS+'秒で最大）。チャージに応じて音波の幅・威力が増し、ヒット回数は4〜16回になる。'},
     poisonSpread:{name:'毒拡散弾',label:'POISON SPREAD',describe:f=>f.ways+'方向へ毒弾を'+f.volleys+'回発射。'},
     poisonMeteor:{name:'毒メテオ',label:'POISON METEOR',describe:f=>'ランダムな敵へ毒のメテオを'+f.count+'個落とす。'},
-    poisonBomb:{name:'ドロップポイズンボム',label:'POISON BOMB',describe:()=> 'ランダムな位置へ毒のボムを1個投下する。'}
+    poisonHole:{name:'ポイズンフィールド',label:'POISON FIELD',describe:()=> '壁に触れるたび毒の円が拡大し、範囲内に攻撃。最大半径420。'},
+    poisonBomb:{name:'ポイズンドロップボム',label:'POISON BOMB',describe:()=> 'ランダムな位置へ毒のボムを2個投下する。'}
   };
   const friendshipTitle=f=>{const name=FRIENDSHIP_KINDS[f.kind].name;if(f.kind==='oathSwords'||f.kind==='markedPierce')return name+'（'+(f.count??3)+'）';if(f.kind==='poisonSpread')return name+'（'+f.ways+'×'+f.volleys+'）';if(f.kind==='poisonMeteor')return name+'（'+f.count+'）';if(f.kind==='wayLaser')return f.count+'方向レーザー';if(['reflectLaser','reflectCross','enhancedReflect'].includes(f.kind))return name+'（'+f.bounces+'）';if(['sniper','homing','meteor','pierce','dropBomb','splitShot','machinegun','drones','satellites','involute','crossBomb','counterRing','shockSplit','pierceHoming'].includes(f.kind))return name+'（'+(f.count??5)+'）';if(f.kind==='spread'||f.kind==='shotgun')return name+'（'+f.ways+'×'+f.volleys+'）';return name;};
 

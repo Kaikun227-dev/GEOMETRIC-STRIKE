@@ -432,6 +432,16 @@
       state.damageKind=effect.type;
       withDamageOwner(effect.side==='ally'?state.units[effect.ownerId]:null,()=>{
       if(effect.type==='friendshipActivation'||effect.type==='killerFx')alive=effect.age<effect.life;
+      else if(effect.type==='cannonOrb'){
+        const from={x:effect.x,y:effect.y};effect.x+=effect.vx*dt;effect.y+=effect.vy*dt;
+        let first=null,nearest=Infinity;
+        for(const enemy of livingTargets()){
+          const at=segmentCircleHit(from,effect,enemy,enemyCollisionRadius(enemy)+22);
+          if(at!==null&&at<nearest){nearest=at;first=enemy;}
+        }
+        if(first){damageEnemy(first,effect.damage,true,{hit:{from,to:effect,radius:22}});ring(effect.x,effect.y,'#72daff',48,.25);}
+        alive=!first&&effect.x>FIELD.left-22&&effect.x<FIELD.right+22&&effect.y>FIELD.top-22&&effect.y<FIELD.bottom+22;
+      }
       else if(NEW_COMBOS.includes(effect.type))alive=updateNewFriendship(effect,dt);
       else if(EXPANSION_COMBOS.includes(effect.type))alive=updateExpansionFriendship(effect,dt);
       else if (effect.type === 'wind') alive = updateWind(effect,dt);

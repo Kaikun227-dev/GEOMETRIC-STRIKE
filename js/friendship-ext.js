@@ -2,7 +2,7 @@
 // 新友情コンボ：クロスバウンドボム / アブソリュートクロスレイ / カウンターリング / ショットガン。
 // 発射は spawnNewFriendship（attacks.js の emitFriendship から呼ぶ）、更新は updateNewFriendship、描画は drawNewFriendship。
 // attacks.js の後、controls.js の前に読み込む。
-const NEW_COMBOS=['markedPierce','plasmaBall','armageddon','interference','dimensionRift','astralPress','blastHoming','oathSwords','heavyCannon','wallSnake','sakuraNova','sonicCannon','crossBomb','absoluteCross','counterRing','shotgun','shockSplit','wayLaser','pierceHoming','shinePillar','wheel','sakuraBurst','cornerMissile'];
+const NEW_COMBOS=['poisonHole','markedPierce','plasmaBall','armageddon','interference','dimensionRift','astralPress','blastHoming','oathSwords','heavyCannon','wallSnake','sakuraNova','sonicCannon','crossBomb','absoluteCross','counterRing','shotgun','shockSplit','wayLaser','pierceHoming','shinePillar','wheel','sakuraBurst','cornerMissile'];
 const CANNON_RADIUS=76,WALL_SNAKE_SCALE=3.6,WALL_SNAKE_LENGTH=130*WALL_SNAKE_SCALE,WALL_SNAKE_REACH=29*WALL_SNAKE_SCALE;
 const CROSS_BOMB_STEP=150,CROSS_BOMB_HOP=.34;
 // アブソリュートクロスレイ：出だしはゆっくり、その後に急加速（速度 = 初速 + 加速度×経過時間²、上限 speed）。
@@ -602,7 +602,7 @@ function spawnPoisonAttack(side,source,f,damage){
   const o={...f,damage,color:'#a561d4',poison:true};
   if(f.kind==='poisonSpread')spawnSpread(side,source,o);
   else if(f.kind==='poisonMeteor')spawnMeteor(side,source,o);
-  else queueEffect({type:'dropBomb',side,x:source.x,y:source.y,poison:true,bombs:[{x:FIELD.left+Math.random()*(FIELD.right-FIELD.left),y:FIELD.top+Math.random()*(FIELD.bottom-FIELD.top),delay:0,elapsed:0}],radius:f.radius??240,maxHits:f.maxHits??3,damage,color:o.color,age:0});
+  else queueEffect({type:'dropBomb',side,x:source.x,y:source.y,poison:true,bombs:Array.from({length:2},(_,i)=>({x:FIELD.left+Math.random()*(FIELD.right-FIELD.left),y:FIELD.top+Math.random()*(FIELD.bottom-FIELD.top),delay:i*.35,elapsed:0})),radius:f.radius??240,maxHits:f.maxHits??3,damage,color:o.color,age:0});
 }
 function updateSonicCannon(e,dt){
   if(e.phase==='charge'){
@@ -951,3 +951,47 @@ updateNewFriendship=function(e,dt){
 };
 const previousJavelinDraw=drawNewFriendship;
 drawNewFriendship=function(e){if(!['javelinOrbit','javelinFollow'].includes(e.type))return previousJavelinDraw(e);ctx.save();for(const [i,b] of e.blades.entries()){if(b.charge>0){ctx.strokeStyle=e.color;ctx.globalAlpha=.28;ctx.setLineDash([3,7]);ctx.beginPath();ctx.moveTo(b.x,b.y);const aimLength=distance(b,e.carrier);ctx.lineTo(b.x+Math.cos(b.angle)*aimLength,b.y+Math.sin(b.angle)*aimLength);ctx.stroke();ctx.setLineDash([]);}else if(e.phase==='fire'){ctx.globalAlpha=.45;ctx.strokeStyle=e.color;ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(b.x,b.y);ctx.lineTo(b.x-Math.cos(b.angle)*110,b.y-Math.sin(b.angle)*110);ctx.stroke();}ctx.save();ctx.globalAlpha=b.charge>0?.55:1;ctx.translate(b.x,b.y);ctx.rotate(b.angle-Math.PI/2);ctx.scale(e.type==='javelinOrbit'?.55:.65,e.type==='javelinOrbit'?1.15:1);if(e.phase==='orbit')ctx.translate(0,55);drawJavelinBlade(e.color,e.age,i,false);ctx.restore();}ctx.restore();};
+
+// Poison hole remains at its caster's activation position for the current shot.
+const beforePoisonHoleSpawn=spawnNewFriendship;
+spawnNewFriendship=function(ally,f,carrier,damage){
+ if(f.kind!=='poisonHole')return beforePoisonHoleSpawn(ally,f,carrier,damage);
+ queueEffect({type:'poisonHole',side:'ally',color:ally.color,ownerId:ally.id,x:ally.x,y:ally.y,radius:80,maxRadius:420,damage,age:0,pulse:0});return true;
+};
+const beforePoisonHoleWall=noteWallTouch;
+noteWallTouch=function(unit){beforePoisonHoleWall(unit);for(const e of state.effects){
+ if(e.type!=='poisonHole'||state.unitStopped)continue;
+ e.radius=Math.min(e.maxRadius,e.radius+25);e.pulse=1;
+ withDamageOwner(state.units.find(u=>u.id===e.ownerId),()=>{for(const target of state.enemies){
+ if(!target.alive||target.transparent||distance(e,target)>e.radius+target.r)continue;
+ damageEnemy(target,e.damage,true,{hit:{x:e.x,y:e.y,radius:e.radius}});applyPoison(target);
+ }});
+}};
+const beforePoisonHoleUpdate=updateNewFriendship;
+updateNewFriendship=function(e,dt){if(e.type!=='poisonHole')return beforePoisonHoleUpdate(e,dt);e.pulse=Math.max(0,e.pulse-dt*2);return state.phase==='moving'&&!state.unitStopped;};
+const beforePoisonHoleDraw=drawNewFriendship;
+drawNewFriendship=function(e){if(e.type!=='poisonHole')return beforePoisonHoleDraw(e);
+ ctx.save();ctx.translate(e.x,e.y);const r=e.radius,t=e.age,c=e.color||'#943ac1',p=e.pulse;
+ // The local gradient only changes when the field grows or its caster color changes.
+ if(!e.fieldGradient||e.fieldGradientRadius!==r||e.fieldGradientColor!==c){const g=ctx.createRadialGradient(0,0,0,0,0,r);g.addColorStop(0,c+'10');g.addColorStop(.65,'#7737a52b');g.addColorStop(.9,c+'60');g.addColorStop(1,c+'00');e.fieldGradient=g;e.fieldGradientRadius=r;e.fieldGradientColor=c;}
+ ctx.fillStyle=e.fieldGradient;ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.fill();
+ // Cache the soft halo as a small texture instead of blurring large paths every frame.
+ if(!e.fieldHalo||e.fieldHaloColor!==c){const canvas=document.createElement('canvas');canvas.width=canvas.height=256;const hc=canvas.getContext('2d'),g=hc.createRadialGradient(128,128,0,128,128,128);g.addColorStop(0,c+'00');g.addColorStop(.75,c+'00');g.addColorStop(.84,c+'18');g.addColorStop(.9,c+'68');g.addColorStop(.94,c+'20');g.addColorStop(1,c+'00');hc.fillStyle=g;hc.fillRect(0,0,256,256);e.fieldHalo=canvas;e.fieldHaloColor=c;}
+ ctx.shadowBlur=0;ctx.globalAlpha=.5+p*.5;const haloRadius=r/.9;ctx.drawImage(e.fieldHalo,-haloRadius,-haloRadius,haloRadius*2,haloRadius*2);
+ if(p>0){const waveRadius=(r+(1-p)*55)/.9;ctx.globalAlpha=p*.5;ctx.drawImage(e.fieldHalo,-waveRadius,-waveRadius,waveRadius*2,waveRadius*2);}
+ ctx.globalAlpha=1;
+ for(let k=0;k<3;k++){ctx.strokeStyle=k===1?'#b57ae0':c;ctx.globalAlpha=.55+p*.45;ctx.lineWidth=(k===1?1.5:2.5)+p*3;ctx.setLineDash(k===1?[3,9]:[r*.23,9]);ctx.lineDashOffset=t*(k===1?-16:22);ctx.beginPath();ctx.arc(0,0,r*(1-k*.055),0,TAU);ctx.stroke();}
+ ctx.setLineDash([]);
+ if(p>0){
+  // Broad colored rim, white-hot core and an outward shock ring on every wall touch.
+  ctx.globalAlpha=p*.65;ctx.strokeStyle=c;ctx.lineWidth=16*p+3;ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.stroke();
+  ctx.globalAlpha=p;ctx.strokeStyle='#fff4ff';ctx.lineWidth=2+p*3;ctx.beginPath();ctx.arc(0,0,r,0,TAU);ctx.stroke();
+  ctx.globalAlpha=p*.8;ctx.strokeStyle=c;ctx.lineWidth=1+p*3;ctx.beginPath();ctx.arc(0,0,r+(1-p)*55,0,TAU);ctx.stroke();
+  // Batch by color: two shadow passes instead of 24 individual blurred strokes.
+  ctx.lineWidth=2+p*2;
+  for(let group=0;group<2;group++){ctx.strokeStyle=group?c:'#ca85ee';ctx.beginPath();for(let i=0;i<24;i++){if(Number(i%3!==0)!==group)continue;const a=i*TAU/24+t*.08,rr=r+(1-p)*70,dx=Math.cos(a),dy=Math.sin(a);ctx.moveTo(dx*rr,dy*rr);ctx.lineTo(dx*(rr+6+p*12),dy*(rr+6+p*12));}ctx.stroke();}
+ }
+ // Keep the same rotating diamonds, combining their glow into two fill passes.
+ ctx.globalAlpha=.7+p*.3;
+ for(let group=0;group<2;group++){ctx.fillStyle=group?c:'#b57ae0';ctx.beginPath();for(let i=0;i<12;i++){if(Number(i%3!==0)!==group)continue;const a=i*TAU/12+t*.16,x=Math.cos(a)*r*.91,y=Math.sin(a)*r*.91;for(let j=0;j<4;j++){const b=a+j*TAU/4,dx=x+Math.cos(b)*Math.sqrt(18),dy=y+Math.sin(b)*Math.sqrt(18);if(j===0)ctx.moveTo(dx,dy);else ctx.lineTo(dx,dy);}ctx.closePath();}ctx.fill();}ctx.restore();
+};

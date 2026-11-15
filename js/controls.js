@@ -54,7 +54,7 @@
       let obstacle=null;
       if(!hasAbility(state.units[state.activeUnit],'ab'))for(const b of state.waves[state.wave].gimmicks?.blocks||[]){const hit=rayBlock(x,y,vx,vy,b,UNIT_RADIUS);if(hit&&(!obstacle||hit.t<obstacle.t))obstacle=hit;}
       if(cubeActive())for(const ally of state.units){if(ally===state.units[state.activeUnit])continue;const h=cubeHalf(ally),hit=rayBlock(x,y,vx,vy,{x:ally.x-h,y:ally.y-h,w:h*2,h:h*2},UNIT_RADIUS);if(hit&&(!obstacle||hit.t<obstacle.t))obstacle=hit;}
-      for(const c of state.waves[state.wave].gimmicks?.containers||[]){const hit=rayBlock(x,y,vx,vy,containerRect(c),UNIT_RADIUS);if(hit&&(!obstacle||hit.t<obstacle.t))obstacle=hit;}
+      for(const c of state.areaContainers||[]){const hit=rayBlock(x,y,vx,vy,containerRect(c),UNIT_RADIUS);if(hit&&(!obstacle||hit.t<obstacle.t))obstacle=hit;}
       for(const o of barriers){
         if(o.left<=0)continue;let hit=null;
         if(o.mode==='out')hit=rayBlock(x,y,vx,vy,o.b,UNIT_RADIUS);

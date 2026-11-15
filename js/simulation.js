@@ -22,7 +22,8 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
     setupEnemyGimmicks();
     state.winds=(g.winds||[]).map(w=>({...w,remaining:w.countdown??1,active:false}));
     state.pickups=[...(g.mines||[]).map(p=>({...p,kind:'mine'})),...(g.photons||[]).map(p=>({...p,kind:'photon'}))];
-    for(const u of state.units){if(hasAbility(u,'pm'))u.photons=4;u.boostTime=0;u.inGravity=false;u.blockGrace=new Set((g.blocks||[]).map((b,i)=>overlapsBlock(u,b)?i:-1).filter(i=>i>=0));u.containerGrace=new Set((g.containers||[]).map((c,i)=>overlapsBlock(u,containerRect(c))?i:-1).filter(i=>i>=0));}
+    state.areaContainers=[...(g.containers||[]),...(g.cannonContainers||[]).map(c=>({...c,cannon:true}))];
+    for(const u of state.units){u.photons=hasAbility(u,'pm')?4:0;u.boostTime=0;u.inGravity=false;u.blockGrace=new Set((g.blocks||[]).map((b,i)=>overlapsBlock(u,b)?i:-1).filter(i=>i>=0));u.containerGrace=new Set(state.areaContainers.map((c,i)=>overlapsBlock(u,containerRect(c))?i:-1).filter(i=>i>=0));}
   }
   // Wind devices pulse during the enemy turn, one device at a time.
   function beginWindTurn(){
@@ -301,7 +302,7 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
   // 獲得できる回数は箱の数字まで。フォトンが満タンの接触は回数を消費せず、回数は次の手番開始時（ターン終了時）に元へ戻る。
   const containerRect=c=>({x:c.x-c.r,y:c.y-c.r,w:c.r*2,h:c.r*2});
   function applyContainers(unit){
-    const cs=state.waves[state.wave].gimmicks?.containers||[];if(!cs.length)return;
+    const cs=state.areaContainers||[];if(!cs.length)return;
     state.containerLeft??=cs.map(c=>c.n);
     for(let i=0;i<cs.length;i++){
       const c=cs[i],b=containerRect(c);
@@ -309,8 +310,13 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
       const hit=boxNormal(unit,b);if(!hit)continue;const {nx,ny,push}=hit;
       unit.x+=nx*push;unit.y+=ny*push;
       const dot=unit.vx*nx+unit.vy*ny;if(dot>=0)continue;
+      if(c.cannon){
+        const speed=Math.hypot(unit.vx,unit.vy);
+        queueEffect({type:'cannonOrb',side:'ally',color:unit.color,ownerId:unit.id,x:c.x,y:c.y,vx:unit.vx/speed*280,vy:unit.vy/speed*280,
+          damage:effectiveAttack(unit)*(state.waves[state.wave].cannonMultiplier??state.stage.cannonMultiplier??2),age:0});
+      }
       unit.vx-=2*dot*nx;unit.vy-=2*dot*ny;burst(unit.x,unit.y,'#e8c14a',3,45);
-      if((state.containerLeft[i]||0)>0&&(unit.photons||0)<4){
+      if(!c.cannon&&(state.containerLeft[i]||0)>0&&(unit.photons||0)<4){
         unit.photons=(unit.photons||0)+1;state.containerLeft[i]--;
         floatingText(c.x,c.y-c.r-14,'PHOTON '+unit.photons+'/4','#b88a16',13);ring(c.x,c.y,'#d3a128',c.r+30,.35);tone(880,.05,'sine',.02,0,1180);
       }

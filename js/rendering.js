@@ -1,4 +1,55 @@
 'use strict';
+function drawCannonContainer({x,y,r}) {
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.scale(r/48,r/48);
+  ctx.fillStyle='#c4d8db';
+  ctx.strokeStyle='#78959e';
+  ctx.lineWidth=2.5;
+  ctx.fillRect(-46.75,-46.75,93.5,93.5);
+  ctx.strokeRect(-46.75,-46.75,93.5,93.5);
+  ctx.strokeStyle='#eef6f6';
+  ctx.lineWidth=1.5;
+  ctx.strokeRect(-41,-41,82,82);
+
+  ctx.beginPath();
+  ctx.arc(0,0,24,0,TAU);
+  ctx.fillStyle='#dce9ea';
+  ctx.strokeStyle='#91adb2';
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(-16,-6);
+  ctx.lineTo(0,-15);
+  ctx.lineTo(16,-6);
+  ctx.lineTo(16,6);
+  ctx.lineTo(0,15);
+  ctx.lineTo(-16,6);
+  ctx.closePath();
+  ctx.fillStyle='#74939e';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(0,0,9,8,0,0,TAU);
+  ctx.fillStyle='#4f707e';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(-5,-5);
+  ctx.quadraticCurveTo(0,-9,5,-5);
+  ctx.strokeStyle='#d8eeee';
+  ctx.stroke();
+
+  ctx.strokeStyle='#86a4aa';
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  for(let i=0;i<4;i++){
+    ctx.moveTo(0,-34);
+    ctx.lineTo(0,-29);
+    ctx.rotate(Math.PI/2);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
 // Canvas描画・リサイズ・アニメーションループ
 // index.html の defer スクリプト順で読み込む。共有する定義は README.md を参照。
   // ---------------------------------------------------------------------------
@@ -174,6 +225,7 @@
     (g.swords||[]).forEach((p,i)=>{ctx.save();ctx.translate(p.x,p.y);ctx.globalAlpha=state.swordPanelsUsed?.has(i)?.38:1;ctx.fillStyle='#fff0cb';ctx.strokeStyle='#bb8933';ctx.lineWidth=2;ctx.fillRect(-p.r,-p.r,p.r*2,p.r*2);ctx.strokeRect(-p.r,-p.r,p.r*2,p.r*2);ctx.beginPath();ctx.moveTo(0,-18);ctx.lineTo(6,-8);ctx.lineTo(3,9);ctx.lineTo(-3,9);ctx.lineTo(-6,-8);ctx.closePath();ctx.stroke();ctx.beginPath();ctx.moveTo(-10,9);ctx.lineTo(10,9);ctx.moveTo(0,9);ctx.lineTo(0,20);ctx.stroke();ctx.fillStyle='#98702d';ctx.fillText('+100%',0,p.r+13);ctx.restore();});
     (g.typePanels||[]).forEach((p,i)=>{ctx.save();ctx.translate(p.x,p.y);ctx.globalAlpha=state.typePanelsUsed?.has(i)?.38:1;const gr=ctx.createLinearGradient(-p.r,-p.r,p.r,p.r);gr.addColorStop(0,'#c3d3f2');gr.addColorStop(.47,'#eef2fb');gr.addColorStop(.53,'#f7c898');gr.addColorStop(1,'#e8975a');ctx.fillStyle=gr;ctx.strokeStyle='#33406f';ctx.lineWidth=2;ctx.fillRect(-p.r,-p.r,p.r*2,p.r*2);ctx.strokeRect(-p.r,-p.r,p.r*2,p.r*2);ctx.strokeStyle='#33406f';ctx.lineWidth=2.2;ctx.beginPath();ctx.moveTo(-12,-6);ctx.lineTo(10,-6);ctx.moveTo(5,-12);ctx.lineTo(11,-6);ctx.lineTo(5,0);ctx.moveTo(12,7);ctx.lineTo(-10,7);ctx.moveTo(-5,1);ctx.lineTo(-11,7);ctx.lineTo(-5,13);ctx.stroke();ctx.fillStyle='#3f5fae';ctx.font='bold 8px Arial';ctx.textAlign='center';ctx.fillText('撃種変化',0,p.r+13);ctx.restore();});
     (g.transPanels||[]).forEach((p,i)=>{ctx.save();ctx.translate(p.x,p.y);ctx.globalAlpha=state.transPanelsUsed?.has(i)?.38:1;const gr=ctx.createLinearGradient(0,-p.r,0,p.r);gr.addColorStop(0,'#c9c9fb');gr.addColorStop(1,'#6c6f9c');ctx.fillStyle=gr;ctx.strokeStyle='#2c3260';ctx.lineWidth=2;ctx.fillRect(-p.r,-p.r,p.r*2,p.r*2);ctx.strokeRect(-p.r,-p.r,p.r*2,p.r*2);ctx.strokeStyle='#ffffffb0';ctx.setLineDash([3,3]);ctx.strokeRect(-p.r+6,-p.r+6,p.r*2-12,p.r*2-12);ctx.setLineDash([]);ctx.fillStyle='#2f3668';ctx.font='bold 9px Arial';ctx.textAlign='center';ctx.fillText('透明',0,3);ctx.fillStyle='#5a609a';ctx.fillText('反転',0,p.r+13);ctx.restore();});
+    for(const container of g.cannonContainers||[])drawCannonContainer(container);
     (g.containers||[]).forEach((c,i)=>{const left=state.containerLeft?.[i]??c.n,empty=left<=0;ctx.save();ctx.translate(c.x,c.y);ctx.fillStyle=empty?'#efe6bd':'#fae15c';ctx.strokeStyle=empty?'#b3a56a':'#b8941f';ctx.lineWidth=2;ctx.fillRect(-c.r,-c.r,c.r*2,c.r*2);ctx.strokeRect(-c.r,-c.r,c.r*2,c.r*2);ctx.strokeStyle='#ffffffa0';ctx.lineWidth=1;ctx.strokeRect(-c.r+5,-c.r+5,c.r*2-10,c.r*2-10);ctx.fillStyle=empty?'#a39a73':'#6d5509';ctx.font='bold 26px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(Math.max(0,left)),0,2);ctx.font='bold 8px Arial';ctx.fillText('PHOTON',0,c.r-9);ctx.textBaseline='alphabetic';ctx.restore();});
     for(const p of state.heartPanels||[]){
       ctx.save();ctx.translate(p.x,p.y);ctx.fillStyle='#fce4ee';ctx.strokeStyle='#d67d9e';ctx.lineWidth=2;
@@ -422,12 +474,15 @@
     enemyPath(enemy, r, -Math.PI / 2 + wobble + (enemy.sides === 4 ? Math.PI / 4 : 0));
     ctx.fillStyle = enemy.flash ? '#fff8f4' : (enemy.tint||'#ee8c7f');
     if(enemy.restriction&&!enemy.flash){const gel=enemy.restriction==='reflect';const gradient=ctx.createLinearGradient(-r,-r,r,r);gradient.addColorStop(0,gel?'#d6f6fa':'#edf0f3');gradient.addColorStop(.4,gel?'#8ed6df':'#9ba8b6');gradient.addColorStop(1,gel?'#53adbf':'#586879');ctx.fillStyle=gradient;}
+    if(enemy.transparent)ctx.globalAlpha=.08;
     ctx.fill();
+    if(enemy.transparent)ctx.globalAlpha=.22;
     ctx.shadowBlur = 0;
     ctx.shadowOffsetY = 0;
     ctx.strokeStyle = '#d9776b';
     ctx.lineWidth = 1.3;
-    ctx.stroke();
+    if(enemy.transparent)ctx.setLineDash([5,5]);
+    ctx.stroke();ctx.setLineDash([]);
     enemyPath(enemy, r * 0.68, -Math.PI / 2 + wobble + (enemy.sides === 4 ? Math.PI / 4 : 0));
     ctx.strokeStyle = 'rgba(255,255,255,0.38)';
     ctx.lineWidth = 1;
@@ -485,6 +540,7 @@
     ctx.fillRect(-barWidth / 2, barY, barWidth, enemy.boss ? 5 : 3);
     ctx.fillStyle = '#d97d70';
     ctx.fillRect(-barWidth / 2, barY, barWidth * enemy.hp / enemy.maxHp, enemy.boss ? 5 : 3);
+    if(enemy.transparent&&!enemy.counterEffects?.length){ctx.save();ctx.globalAlpha=.85;ctx.fillStyle='#6c75a3';ctx.font='bold 12px Arial';ctx.textAlign='center';ctx.fillText('透明化',0,-r-20);ctx.restore();}
     ctx.restore();
   }
 
@@ -738,6 +794,17 @@ wing:[[-1,0.65],[-0.6,-0.65],[0,0.05],[0.6,-1],[1,-0.8],[0.6,0.35],[0,1]],
         ctx.lineWidth=4*(1-p)+1.5;for(const s of [-1,1]){ctx.beginPath();ctx.moveTo(-R2*s,-R2);ctx.lineTo(R2*s,R2);ctx.stroke();}
         ctx.fillStyle='#ffffff';ctx.globalAlpha=(1-p)*.8;ctx.beginPath();ctx.arc(0,0,effect.r*.28*(1-p)+4,0,TAU);ctx.fill();
       }
+      ctx.restore();return;
+    }
+    if(effect.type==='cannonOrb'){
+      const {x,y}=effect,r=22;
+      ctx.save();
+      ctx.fillStyle=ctx.strokeStyle=effect.color;
+      ctx.beginPath();ctx.arc(x,y,r,0,TAU);
+      ctx.globalAlpha=.22;ctx.fill();
+      ctx.globalAlpha=.9;ctx.lineWidth=2;ctx.stroke();
+      ctx.strokeStyle='#fff';ctx.lineCap='round';
+      ctx.beginPath();ctx.arc(x,y,r-5,3.65,4.45);ctx.stroke();
       ctx.restore();return;
     }
     if(NEW_COMBOS.includes(effect.type)){drawNewFriendship(effect);return;}

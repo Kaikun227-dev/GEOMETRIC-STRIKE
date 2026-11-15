@@ -823,9 +823,9 @@ const stage86={id:'8-6',name:'三十倍の起動と十八倍の弱点',weakMulti
   const enemies=[...a.pierce.map(([x,y],j)=>c7Restrict('pierce-'+j,'pierce',i+j,x,y,keys.filter(k=>k!=='pierce-'+j),rhp,arm)),
    ...a.reflect.map(([x,y],j)=>c7Restrict('reflect-'+j,'reflect',i+j+1,x,y,keys.filter(k=>k!=='reflect-'+j),rhp,{...arm,tint:'#65b9c9'})),
    ...a.normal.map(([x,y],j)=>c8Mob('weak-'+j,i+j,x,y,640000+i*30000,{...c8MobShape(i+j),tint:c8MobTint(i+j),weakPoint:null,internalWeak:true,weakRadius:12}))];
-  if(a.mid)enemies.push(c7Mid('mid',a.mid[0],a.mid[1],1200000,[0,C7H],[c7Attack('plusLaser',{mult:.22}),c7Attack('meteor',{count:3,mult:.2}),c7Attack('explosion',{radius:140,mult:.22})],{r:76,...arm}));
-  if(i===3)enemies.push(c7Boss('リミット',a.boss[0],a.boss[1],2000000,'#b0603c',[c7Attack('plusLaser',{mult:.2}),c7Attack('homing',{count:4,mult:.18}),c7Attack('explosion',{radius:140,mult:.2})],{r:68,weakAngles:[-C7H,C7P],...arm}));
-  if(i===4)enemies.push(c7Boss('リミット',a.boss[0],a.boss[1],3000000,'#b0603c',[c7Attack('crossLaser',{mult:.2}),c7Attack('meteor',{count:3,mult:.18}),c7Attack('vibration',{radius:170,push:70,mult:.25})],{r:68,weakAngles:[0,C7H],...arm}));
+  if(a.mid)enemies.push(c7Mid('mid',a.mid[0],a.mid[1],1200000,[0,C7H],[c7Attack('plusLaser',{mult:.22}),c7Attack('meteor',{count:3,mult:.2}),c7Attack('explosion',{radius:140,mult:.22})],{r:120,shape:'square',sides:4,...arm}));
+  if(i===3)enemies.push(c7Boss('リミット',a.boss[0],a.boss[1],2000000,'#b0603c',[c7Attack('plusLaser',{mult:.2}),c7Attack('homing',{count:4,mult:.18}),c7Attack('explosion',{radius:140,mult:.2})],{r:68,shape:'polygon',sides:6,weakAngles:[-C7H,C7P],...arm}));
+  if(i===4)enemies.push(c7Boss('リミット',a.boss[0],a.boss[1],3000000,'#b0603c',[c7Attack('crossLaser',{mult:.2}),c7Attack('meteor',{count:3,mult:.18}),c7Attack('vibration',{radius:170,push:70,mult:.25})],{r:68,shape:'polygon',sides:6,weakAngles:[0,C7H],...arm}));
   return {name:a.name,step:a.step,...(a.boss?{bossPhase:i-2}:{}),enemies,
    gimmicks:{slowWalls:['top','right','bottom','left'].map(c6Slow),powerSwitches:a.sw.map(([x,y,initial])=>({x,y,r:24,initial})),typePanels:c7Type(a.type)}};
  })};
@@ -1077,11 +1077,11 @@ const through102=[
  {name:'対岸の挟撃',step:'THROUGH 2',m:[[541,112,-C7H,108],[73,304,C7H,0],[73,426,-C7H,0],[78,635,C7H,108]],
   blocks:[[111,317,62,88]],through:[['top',28,194],['right',294,477],['bottom',426,592]]},
  {name:'双核の収束',step:'THROUGH 3',m:[],mid:[[154,375,174],[470,375,0]],
-  blocks:[[28,341,564,64]],boosts:[[310,172],[107,570],[501,570]],through:[['top',310,592],['bottom',28,310]]},
+  blocks:[[28,341,564,64]],boosts:[[310,172],[107,570],[501,570]],through:[['top',498,592],['bottom',28,122]]},
  {name:'境界王・ネクサス',step:'NEXUS / 1',m:[[97,121,-C7H,108],[527,121,-C7H,108]],boss:[310,598],
   through:[['top',205,413],['bottom',28,197],['bottom',423,592]]},
  {name:'収束する境界王',step:'NEXUS / 2',m:[],boss:[153,367],move:[327,594],converge:true,
-  boosts:[[105,123],[339,376]],through:[['top',255,409],['right',285,469],['bottom',28,154]]}
+  boosts:[[105,123],[339,376]],through:[['top',311.5,388.5],['right',324,416],['bottom',28,91]]}
 ];
 const stage102={id:'10-2',name:'境界を抜ける収束陣',directMultiplier:20,
  gimmickOrder:['ダメージウォール','重力バリア','ブロック','スルーウォール','加速パネル','収束弱点'],
@@ -1125,7 +1125,7 @@ const stage103={id:'10-3',name:'撃種反転の封鎖回廊',noWeakPoints:true,d
   const enemies=a.pink.map(([x,y],j)=>c8Mob('pink-'+j,j,x,y,240000+i*30000,
    {r:44,shape:'square',sides:4,weakEnabled:false,...((i<2||i===4)?{crossSkull:'defense'}:{})}));
   const blueKeys=a.blue.map((_,j)=>'blue-'+j),cyanKeys=a.cyan.map((_,j)=>'cyan-'+j);
-  a.blue.forEach(([x,y],j)=>enemies.push(c8Mob(blueKeys[j],j,x,y,i===4?7200000:2700000,
+  a.blue.forEach(([x,y],j)=>enemies.push(c8Mob(blueKeys[j],j,x,y,2700000,
    {r:42,shape:'starBattery',sides:8,tint:'#3976aa',weakEnabled:false,
     attacks:[c7Attack('poisonSpread',{ways:8,volleys:2,mult:.16,countdown:1,interval:2}),c7Attack('scramble',{mult:.16,countdown:3,interval:3})]})));
   a.cyan.forEach(([x,y],j)=>enemies.push(c7Restrict(cyanKeys[j],'reflect',j,x,y,cyanKeys.filter(key=>key!==cyanKeys[j]),150000+i*15000,
@@ -1143,6 +1143,113 @@ const stage103={id:'10-3',name:'撃種反転の封鎖回廊',noWeakPoints:true,d
  })};
 CHAPTER_TEN.push(stage103);STAGES.push(stage103);STAGE_BY_ID[stage103.id]=stage103;
 
+// ===== 第10章：10-4 幻影を断つ転送剣陣（道中3＋ボス2） =====
+// rev=蘇生役（同座標に剣パネル）、pink=開幕透明の通常敵、mid=[x,y,開幕透明,弱点角度]。
+// warps は紫・青・灰の順に同色同士を接続。図の囲みは透明指定だけで、結界は設置しない。
+const phantom104=[
+ {name:'透明な双門',step:'PHANTOM 1',rev:[[149,227],[393,248],[219,451],[453,494]],pink:[[473,83],[525,650]],
+  panels:[[58,324],[562,391]],swords:[[310,350]],warps:[[[103,428],[305,681]],[[115,108],[559,487]],[[563,89],[328,449]]],
+  lines:[[37,173,584,173],[37,550,584,550]]},
+ {name:'対角の幻影核',step:'PHANTOM 2',rev:[[465,227],[385,290],[317,363],[241,441],[152,513]],pink:[],mid:[[120,116,false,0],[489,620,true,C7P]],
+  panels:[[562,131],[58,612]],swords:[],warps:[[[457,82],[152,640]],[[62,254],[559,490]],[[282,278],[361,448]]],
+  lines:[[98,35,98,674],[521,35,521,674]]},
+ {name:'交差する幻影の刃',step:'PHANTOM 3',rev:[[116,165],[218,126],[316,85],[409,126],[506,167]],pink:[[109,627],[309,663],[510,627]],
+  panels:[[310,333],[310,568]],swords:[],warps:[[[312,262],[509,509]],[[523,72],[117,503]],[[111,75],[310,409]]],
+  lines:[[181,208,441,208,'gold'],[178,604,438,604,'gold'],[42,275,310,494],[310,494,580,275]]},
+ {name:'幻剣王・ファントム',step:'PHANTOM / 1',rev:[[305,457],[110,560],[511,560],[305,668]],pink:[],boss:[303,113],
+  panels:[[58,335],[562,335]],swords:[[169,230],[440,230]],warps:[[[532,98],[149,315]],[[308,349],[308,572]],[[83,100],[461,319]]],
+  lines:[[36,271,584,271],[36,392,584,392]]},
+ {name:'幻剣王の終端',step:'PHANTOM / 2',rev:[[218,129],[108,199],[503,541],[399,622]],pink:[[454,151],[174,582]],boss:[309,370],
+  panels:[[310,55],[310,685]],swords:[[194,291],[437,441]],warps:[[[103,447],[536,309]],[[112,95],[303,590]],[[314,151],[522,645]]],
+  lines:[[179,236,440,236],[179,493,440,493],[46,117,46,293,'gold'],[578,460,578,635,'gold']]}
+];
+const stage104={id:'10-4',name:'幻影を断つ転送剣陣',directMultiplier:24,weakMultiplier:9,
+ gimmickOrder:['ワープ','ダメージライン','透明パネル','剣パネル','直殴り倍率アップ（24倍）','弱点倍率アップ（18倍）'],
+ hint:'ワープ・ダメージライン・透明パネル・剣パネル。直殴り24倍、弱点9倍。紫の蘇生役の真下に剣パネルが隠れている。蘇生役は3ターンごとに他の蘇生役を全蘇生。全て倒すとクロスドクロで他の敵に弱点が出現する。透明パネルで実体と透明を切り替え、剣パネルを集めて弱点を狙おう。中ボス・ボスは八角形。',
+ waves:phantom104.map((a,i)=>{
+  const keys=a.rev.map((_,j)=>'reviver-'+j),enemies=a.rev.map(([x,y],j)=>{
+   const e=c8Mob(keys[j],j,x,y,90000+i*20000,{r:42,tint:'#b78be6',weakEnabled:false,crossSkull:'weak'});
+   return {...e,attacks:[...e.attacks,{kind:'revive',targets:keys.filter(k=>k!==keys[j]),countdown:3,interval:3}]};
+  });
+  const effects=[];
+  a.pink.forEach(([x,y],j)=>{
+   const key='pink-'+j;enemies.push(c8Mob(key,j,x,y,900000+i*300000,{r:42,startTransparent:true,weakEnabled:false}));
+   effects.push({type:'grantWeak',targets:[key],internal:true,radius:15});
+  });
+  (a.mid||[]).forEach(([x,y,startTransparent,angle],j)=>{
+   const key='mid-'+j;enemies.push(c7Mid(key,x,y,7000000,[angle],
+    [c7Attack('homing',{count:4,mult:.18}),c7Attack('reflectLaser',{bounces:2,mult:.16,countdown:3,interval:3})],
+    {r:80,shape:'polygon',sides:8,startTransparent,weakEnabled:false}));
+   effects.push({type:'grantWeak',targets:[key],angle,radius:15});
+  });
+  if(a.boss){enemies.push(c7Boss('ファントム',...a.boss,i===3?18000000:32000000,'#c95762',
+   [c7Attack('homing',{count:4,mult:.18}),c7Attack('scramble',{mult:.18,countdown:3,interval:3}),c7Attack('dropBomb',{count:2,mult:.18,countdown:4,interval:4})],
+   {r:88,shape:'polygon',sides:8,weakEnabled:false}));effects.push({type:'grantWeak',targets:['boss'],internal:true,radius:15});}
+  return {name:a.name,step:a.step,enemies,...(a.boss?{bossPhase:i-2}:{}),crossSkulls:[{id:'weak',members:{group:'weak'},effects}],
+   gimmicks:{warps:c7Warps(...a.warps),damageLines:a.lines.map(line=>damageLine(...line)),transPanels:c8Panels(a.panels),swords:c7Swords([...a.rev,...a.swords])}};
+ })};
+CHAPTER_TEN.push(stage104);STAGES.push(stage104);STAGE_BY_ID[stage104.id]=stage104;
+
+// ===== 第10章：10-5 地雷原の収束共鳴 =====
+// weak=[x,y,角度配列]、gray=貫通制限。2弱点は橙、ボスの3弱点は青で開始。
+const converge105=[
+ {name:'三核の地雷陣',step:'CONVERGE 1',mid:[[130,142,[0,C7H]],[485,142,[C7P,C7H]],[306,312,[C7P,0]]],gray:[[149,287],[479,287],[306,479]],pink:[],share:[]},
+ {name:'四隅の収束挟撃',step:'CONVERGE 2',mid:[],gray:[[173,361],[265,361],[359,363],[450,363]],pink:[[83,311,[-C7H,0]],[538,311,[-C7H,C7P]],[83,410,[0,C7H]],[538,410,[C7P,C7H]]],share:[]},
+ {name:'共鳴する地雷核',step:'CONVERGE 3',mid:[[183,370,[C7P,0]]],gray:[[269,144],[264,580]],pink:[],share:[[335,370,[-C7H,C7H]]]},
+ {name:'収束王・レゾルヴ',step:'RESOLVE / 1',mid:[],gray:[[308,322],[230,587],[391,588]],pink:[],share:[[83,493,[-C7H,C7H]],[538,497,[-C7H,C7H]]],boss:[305,201,[-C7H,C7P,0]]},
+ {name:'収束王の共鳴終端',step:'RESOLVE / 2',mid:[],gray:[[485,143],[241,222],[236,516],[478,589]],pink:[],share:[[160,152,[-C7H,C7P]],[142,586,[C7P,C7H]]],boss:[502,370,[-C7H,C7P,C7H]]}
+];
+const c105Weak=angles=>({convergenceWeak:{angles,startLevel:angles.length===3?0:1,multipliers:[6,9,64]}});
+const stage105={id:'10-5',name:'地雷原の収束共鳴',directMultiplier:24,
+ gimmickOrder:['ダメージウォール','地雷','貫通制限','収束弱点','直殴り倍率アップ（24倍）'],
+ hint:'4面ダメージウォール・地雷・貫通制限・収束弱点。直殴り24倍。収束弱点は青6倍→橙9倍→赤64倍。触れた弱点は消え、次の手番に復元。貫通制限は3ターンごとに互いを全蘇生。全滅するとクロスドクロで緑のHP共有敵の防御が6倍ダウン。緑の敵は中ボス／ボスとダメージを共有し、普通に倒せる。中ボスとボスが地雷を撒く。制限敵以外は四角形。',
+ waves:converge105.map((a,i)=>{
+  const keys=a.gray.map((_,j)=>'gray-'+j),shareKeys=a.share.map((_,j)=>'share-'+j),target=a.boss?'boss':'mid-0';
+  const enemies=a.gray.map(([x,y],j)=>c7Restrict(keys[j],'pierce',j,x,y,keys.filter(k=>k!==keys[j]),100000+i*25000,{weakEnabled:false,...(i===1?{r:34}:{}),...(shareKeys.length?{crossSkull:'defense'}:{})}));
+  a.pink.forEach(([x,y,angles],j)=>enemies.push(c8Mob('pink-'+j,j,x,y,2400000,{r:60,shape:'square',sides:4,...c105Weak(angles)})));
+  a.share.forEach(([x,y,angles],j)=>enemies.push(c8Mob(shareKeys[j],j,x,y,12000000,
+   {r:66,shape:'square',sides:4,tint:'#58893a',hpShare:[target],retreatWhenShareDead:true,...c105Weak(angles)})));
+  a.mid.forEach(([x,y,angles],j)=>enemies.push(c7Mid('mid-'+j,x,y,i===0?4000000:24000000,angles,
+   [c8Mines(4,1,2),c7Attack('homing',{count:3,mult:.16,countdown:2,interval:3})],{r:104,shape:'square',sides:4,...c105Weak(angles)})));
+  if(a.boss){const [x,y,angles]=a.boss;enemies.push(c7Boss('レゾルヴ',x,y,i===3?48000000:64000000,'#c95762',
+   [c8Mines(6,1,2),c7Attack('crossLaser',{mult:.18,countdown:2,interval:3}),c7Attack('dropBomb',{count:2,mult:.18,countdown:2,interval:3})],
+   {r:118,shape:'square',sides:4,...c105Weak(angles)}));}
+  return {name:a.name,step:a.step,enemies,...(a.boss?{bossPhase:i-2}:{}),
+   ...(shareKeys.length?{crossSkulls:[{id:'defense',members:{group:'defense'},effects:[{type:'defenseDown',targets:shareKeys,multiplier:6}]}]}:{}),
+   gimmicks:{walls:['top','right','bottom','left'].map(side=>c6Wall(side,650))}};
+ })};
+CHAPTER_TEN.push(stage105);STAGES.push(stage105);STAGE_BY_ID[stage105.id]=stage105;
+
+// 第10章 10-6：砲座の交差線
+const cannon106=[
+ {name:'横断する砲座', mobs:[[73,69],[429,162],[309,327],[309,410]], guns:[[188,475],[430,475]], blocks:[[28,406,564,130]], lines:[[36,142,298,142],[352,277,584,277],[36,691,584,691]]},
+ {name:'双砲の狭間', mobs:[[72,69],[548,69],[170,671],[451,671]], guns:[[170,368],[447,368]], blocks:[[119,28,381,300]], lines:[[110,276,110,452],[508,276,508,452],[181,549,441,549]],mid:[307,370],angles:[C7P,0]},
+ {name:'縦列砲撃', mobs:[[115,76],[474,170],[306,268],[115,428],[305,475],[546,670]], guns:[[305,170],[305,371],[305,569]],blocks:[[356,28,236,336],[28,377,225,335]],lines:[[206,38,206,676],[402,38,402,676]]},
+ {name:'砲撃王の防壁', mobs:[[74,122],[536,374],[74,617]], guns:[[299,237],[299,503]],blocks:[[28,118,237,502],[410,253,182,241]],lines:[[35,186,584,186],[38,552,584,552]],boss:[299,374],angles:[-C7H,C7H]},
+ {name:'動く砲撃王', mobs:[[72,286],[471,157],[471,416],[285,672]], guns:[[338,155],[480,288],[141,417],[283,549]],blocks:[[28,28,107,244],[178,188,264,328],[307,626,285,86]],lines:[[157,89,157,335],[252,37,584,37],[584,37,584,436],[307,602,567,602]],boss:[136,549],angles:[-C7H,0]}
+];
+const stage106={id:'10-6',name:'砲座の交差線',weakMultiplier:20,cannonMultiplier:100,
+ hint:'コンテナにぶつかると、入射方向へ攻撃力100倍の気弾を発射。道中2とボス戦では雑魚全滅で弱点が出現する。',
+ waves:cannon106.map((area,i)=>{
+  const target=area.mid?'mid':area.boss?'boss':null;
+  const enemies=area.mobs.map(([x,y],j)=>c8Mob('mob-'+j,j,x,y,300000,{r:50,shape:'square',sides:4,weakEnabled:false,...(target?{crossSkull:'weak'}:{})}));
+  const attacks=[c7Attack('homing',{count:5,mult:.18}),c7Attack('spread',{ways:12,volleys:2,mult:.16,countdown:3,interval:3})];
+  const shape={shape:'square',sides:4,r:104,weakEnabled:false,weakAngles:area.angles};
+  if(area.mid)enemies.push(c7Mid('mid',...area.mid,90000000,area.angles,attacks,shape));
+  if(area.boss){
+   if(i===4)attacks.push({kind:'move',to:{x:332,y:291},countdown:4,interval:4});
+   enemies.push(c7Boss('砲撃王',...area.boss,i===3?120000000:180000000,'#c95762',attacks,shape));
+  }
+  return {name:area.name,step:'CANNON / '+(i+1),enemies,...(area.boss?{bossPhase:i-2}:{}),
+   ...(target?{crossSkulls:c7WeakGrant(target,area.angles[0])}:{}),
+   gimmicks:{blocks:area.blocks.map(b=>block(...b)),damageLines:area.lines.map(l=>damageLine(...l)),cannonContainers:area.guns.map(([x,y])=>({x,y,r:33}))}};
+ })};
+CHAPTER_TEN.push(stage106);STAGES.push(stage106);STAGE_BY_ID[stage106.id]=stage106;
+
+
+
+
+
 
 
 //　↑ここまでを第1~10章のコード
@@ -1159,7 +1266,7 @@ const STAGE_DIFFICULTIES={
  '7-1':3,'7-2':4,'7-3':3,'7-4':5,'7-5':4,'7-6':6,
  '8-1':3,'8-2':3,'8-3':5,'8-4':5,'8-5':3,'8-6':6,
  '9-1':3,'9-2':4,'9-3':3,'9-4':6,'9-5':4,'9-6':5,
- '10-1':5,'10-2':5,'10-3':5
+ '10-1':5,'10-2':5,'10-3':5,'10-4':6,'10-5':6,'10-6':6,'10-EX':6
 };
 //↓ここからEXステージのコード
 
@@ -1243,3 +1350,76 @@ const stage3EX={id:'3-EX',name:'深海の七光宮',underwater:true,noWeakPoints
 // 中ボス・ボスも明示的に弱点を持たせず、蘇生や再生成時も維持する。
 for(const wave of stage3EX.waves)for(const e of wave.enemies){e.weakPoint=null;e.weakEnabled=false;e.noWeak=true;delete e.weakAngles;}
 for(const stage of [stage2EX,stage3EX]){STAGES.splice(STAGES.findIndex(s=>s.id===stage.id[0]+'-6')+1,0,stage);STAGE_BY_ID[stage.id]=stage;}
+
+// 第10章 EX：各エリアで攻略に使うギミックが切り替わる。
+const ex10Internal = {internal:true, angle:0, radius:14};
+// 10-EXの雑魚HP。エリアと敵の種類ごとに調整する。
+const ex10MobHp = {
+  area1: {normal:350000},
+  area2: {restriction:1500000},
+  area3: {reviver:500000},
+  boss1: {relay:150000},
+  boss2: {normal:1200000, restriction:1500000}
+};
+function ex10Mob(key,index,x,y,hp,extra={}) {
+  return c8Mob(key,index,x,y,hp,{weakPoint:{...ex10Internal},...extra});
+}
+function ex10Restrictions(coords,hp,transparent=false) {
+  const keys=coords.map((_,i)=>'ref-'+i);
+  return coords.map(([x,y],i)=>c7Restrict(keys[i],'reflect',i,x,y,
+    keys.filter(key=>key!==keys[i]),hp,{tint:'#60cddd',crossSkull:'weak',weakEnabled:false,startTransparent:transparent}));
+}
+function ex10Mid(x,y,sides,r,hp,angles,specialAttack) {
+  return c7Mid('mid',x,y,hp,angles,[
+    c7Attack('homing',{count:6,mult:.18,countdown:1,interval:3}),
+    specialAttack,
+    c7Attack('crossLaser',{mult:.2,countdown:3,interval:3})
+  ],
+    {shape:'polygon',sides,r,weakEnabled:false});
+}
+const stage10EX={
+ id:'10-EX',name:'五重奏の試練',directMultiplier:20,weakMultiplier:12,photonMultiplier:40,
+ gimmickOrder:['ダメージウォール','減速壁','反射制限','ワープ','ブロック','剣パネル','加速パネル','結界','フォトンコンテナ','内部弱点','透明パネル'],
+ hint:'左右にダメージウォール、上下に減速壁。道中はクロスドクロで中ボスの弱点を解放。道中2とボス2は剣持ち敵に触れて反射制限を倒そう。ボス1は弱点を順に追い、ボス2は透明パネルで攻撃対象を切り替える。',
+ waves:[
+  {name:'転送の剣陣',step:'MEDLEY 1',enemies:[
+    ex10Mob('left',0,90,86,ex10MobHp.area1.normal,{crossSkull:'weak'}),ex10Mob('right',1,529,86,ex10MobHp.area1.normal,{crossSkull:'weak'}),
+    ex10Mob('center',2,308,395,ex10MobHp.area1.normal,{crossSkull:'weak'}),ex10Mid(306,120,8,79,8500000,[C7P,0],
+      c7Attack('spread',{ways:16,volleys:3,mult:.14,countdown:2,interval:3}))],
+   crossSkulls:c7WeakGrant('mid',C7P),gimmicks:{
+    blocks:[150,275,404].map(x=>block(x,28,61,207)),
+    warps:c7Warps([[180,287],[434,58]],[[180,58],[434,287]]),swords:c7Swords([[95,446],[515,446],[306,547]])}},
+  {name:'結界の剣守',step:'MEDLEY 2',enemies:[
+    ...ex10Restrictions([[220,134],[399,134],[317,586]],ex10MobHp.area2.restriction),c8Sword('blade-a',112,245,30),c8Sword('blade-b',510,520,30),
+    ex10Mid(310,370,5,86,28000000,[],
+      c7Attack('reflectLaser',{bounces:3,mult:.21,countdown:2,interval:3}))],crossSkulls:c7WeakGrant('mid',0,ex10Internal),
+   gimmicks:{barriers:[{x:209,y:279,w:202,h:181,n:2}],boosts:c7Boosts([[109,505],[509,245]])}},
+  {name:'光子の双門',step:'MEDLEY 3',enemies:[
+    ...[[72,114],[72,613]].map(([x,y],i)=>ex10Mob('rev-'+i,i,x,y,ex10MobHp.area3.reviver,{weakPoint:null,weakEnabled:false,crossSkull:'weak',tint:'#b78be6',
+      attacks:[{kind:'revive',targets:['rev-'+(1-i)],countdown:3,interval:3},c7Attack('laser',{mult:.2})]})),
+    ex10Mid(513,360,6,80,22000000,[-C7H,C7H],
+      c7Attack('scramble',{mult:.17,countdown:2,interval:3}))],crossSkulls:c7WeakGrant('mid',-C7H),
+   gimmicks:{containers:c8Containers([[61,240,1],[61,482,1]])}},
+  {name:'巡る四つの弱点',step:'MEDLEY / 1',bossPhase:1,enemies:[
+    ...[[488,339],[313,459],[132,588]].map(([x,y],i)=>ex10Mob('relay-'+i,i,x,y,ex10MobHp.boss1.relay,{weakPoint:null,weakEnabled:false,routeWeak:true})),
+    c7Boss('メドレー',309,144,18000000,'#c95762',[
+      c7Vibe({countdown:1,interval:3}),
+      c7Attack('crossLaser',{mult:.2,countdown:2,interval:3}),
+      c7Attack('reflectLaser',{bounces:3,mult:.22,countdown:3,interval:3}),
+      {kind:'revive',targets:['relay-0','relay-1','relay-2'],limit:3,countdown:4,interval:4}],
+      {shape:'square',sides:4,r:104,weakEnabled:false,routeWeak:true})],
+   weakRoutes:[{id:'relay',positions:[...['relay-0','relay-1','relay-2'].map(target=>({target,...ex10Internal})),{target:'boss',angle:-C7H,radius:15}]}],
+   gimmicks:{typePanels:c7Type([[309,52]])}},
+  {name:'幻影の剣王',step:'MEDLEY / 2',bossPhase:2,enemies:[
+    ex10Mob('upper',0,503,111,ex10MobHp.boss2.normal),ex10Mob('lower',1,97,624,ex10MobHp.boss2.normal),...ex10Restrictions([[83,339],[540,384]],ex10MobHp.boss2.restriction,true),
+    c8Sword('blade-a',414,182,30,{startTransparent:true}),c8Sword('blade-b',185,560,30,{startTransparent:true}),
+    c7Boss('メドレー',137,176,36000000,'#c95762',[
+      c7Attack('homing',{count:8,mult:.18,countdown:1,interval:3}),
+      c7Attack('wayLaser',{count:8,mult:.19,countdown:2,interval:3}),
+      c7Attack('scramble',{mult:.17,countdown:3,interval:3}),
+      {kind:'move',to:{x:478,y:564},countdown:3,interval:3}],
+      {shape:'square',sides:4,r:104,weakEnabled:false})],crossSkulls:c7WeakGrant('boss',0,ex10Internal),
+   gimmicks:{boosts:c7Boosts([[306,370]]),transPanels:c8Panels([[263,71],[546,232],[70,508],[334,663]])}}
+ ].map(wave=>({...wave,gimmicks:{...wave.gimmicks,walls:['left','right'].map(side=>c6Wall(side,650)),slowWalls:['top','bottom'].map(c6Slow)}}))
+};
+CHAPTER_TEN.push(stage10EX);STAGES.push(stage10EX);STAGE_BY_ID[stage10EX.id]=stage10EX;
