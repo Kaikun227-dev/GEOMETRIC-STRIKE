@@ -410,7 +410,8 @@
     const weak=!shared&&hitsWeak(enemy,options.hit)&&(!enemy.weakPoint?.internal||friendship||owner&&isPiercing(owner));
     const multiplier=enemyWeakMultiplier(enemy);
     const killer=shared?{mult:1,kind:null}:killerMultiplier(owner,enemy);
-    const damage=shared?Math.max(0,Math.round(amount)):Math.round(amount*powerAuraMultiplier(owner)*killer.mult*powerAreaMultiplier(owner)*touchPowerMultiplier(owner)*(state.swordBoost||1)*(friendship?powerSwitchMultiplier():1)*(weak?(options.weakBonusOnly?multiplier-1:multiplier):1)*(enemy.defenseMultiplier||1)*(enemy.switchArmor&&!state.powerSwitchActive?enemy.switchArmor:1)*(options.laserGenerator?1:enemyRestrictionMultiplier(enemy,owner,friendship))*(friendship?1:enemy.armor??1));
+    const resolvedDamage=shared?Math.max(0,Math.round(amount)):Math.round(amount*powerAuraMultiplier(owner)*killer.mult*powerAreaMultiplier(owner)*touchPowerMultiplier(owner)*(state.swordBoost||1)*(friendship?powerSwitchMultiplier():1)*(weak?(options.weakBonusOnly?multiplier-1:multiplier):1)*(enemy.defenseMultiplier||1)*(enemy.switchArmor&&!state.powerSwitchActive?enemy.switchArmor:1)*(options.laserGenerator?1:enemyRestrictionMultiplier(enemy,owner,friendship))*(friendship?1:enemy.armor??1));
+    const damage = !options.poisonTick && resolvedDamage > 0 && resolvedDamage <= enemy.hardenThreshold ? 1 : resolvedDamage;
     if (weak) { floatingText(enemy.x, enemy.y - enemy.r - 38, 'WEAK ×'+multiplier, '#c79816', 15); const point=weakPositions(enemy).find(w=>weakHitOverlaps(w,options.hit));ring(point.x,point.y,enemy.convergenceWeak?CONVERGENCE_COLORS[enemy.convergenceLevel??enemy.convergenceWeak.startLevel??0]:'#e1b327',36,.3); }
     if(killer.mult>1)killerEffect(enemy,killer,friendship);
     else if(!friendship&&!shared&&options.shockKiller)floatingText(enemy.x,enemy.y-enemy.r-58,'KILLER','#348fe5',15);

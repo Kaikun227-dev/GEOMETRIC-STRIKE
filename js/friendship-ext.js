@@ -592,7 +592,7 @@ function applyPoison(target,ally=false){
 }
 function tickEnemyPoison(){
   for(const e of state.enemies){if(!e.alive||!(e.poisonTurns>0))continue;
-    damageEnemy(e,Math.max(1,Math.round(e.maxHp*.01)),false,{poisonTick:true,charge:0});e.poisonTurns--;
+    damageEnemy(e,1000+Math.max(1,Math.round(e.maxHp*.01)),false,{poisonTick:true,charge:0});e.poisonTurns--;
   }
 }
 function tickAllyPoison(){
