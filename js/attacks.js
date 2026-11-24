@@ -653,6 +653,7 @@
     if (!enemy.alive || state.phase !== 'enemy') return; // 透明な敵・剣持ち敵も攻撃する
     attack.remaining = attack.interval;
     const spec = { ...ENEMY_ATTACKS[attack.kind], ...attack };
+    if(attack.kind==='reflectCross'||attack.kind==='crossLaser')spec.bounces=2;
     const base = enemy.boss ? 1150 : 370 + state.wave * 70;
     const damage = spec.damage ?? base * spec.mult;
     const target = state.units[state.activeUnit];

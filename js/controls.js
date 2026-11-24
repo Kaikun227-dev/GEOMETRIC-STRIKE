@@ -109,6 +109,7 @@
     state.aiming = null;
     state.shotCount++;
     state.shotDirection={vx:dx,vy:dy};
+    for(const unit of state.units){unit.powerUpWalls=new Set();unit.usedPowerUpWalls=new Set();unit.enemyPowerContacts=new Set();}
     state.atkUp=1;state.firstTouchId=null;state.wallSides=new Set();for(const u of state.units)u.bubblyGift=false;
     state.swordPanelsUsed=new Set();state.swordBonus=0;state.typePanelsUsed=new Set();state.touchedAllies=new Set();state.slowWallContacts=new Map();state.swordBoost=1;state.swordToucher=null;state.transPanelsUsed=new Set();
     state.boostPanelsUsed=new Set();state.warpCooldown=0;state.hazardContacts={};
@@ -189,6 +190,7 @@
       for(const u of state.units){u.weakAttack=0;u.lineStacks=0;u.superWallAttack=0;}
     for(const e of state.enemies)if(e.transparent&&!e.stealthManaged){e.transparent=false;allowSpawnExit(e);}
     resetBarriers();state.laserGens=[];
+    for(const unit of state.units){unit.powerUpWalls=new Set();unit.usedPowerUpWalls=new Set();unit.enemyPowerContacts=new Set();}
     state.atkUp=1;state.firstTouchId=null;state.wallSides=new Set();for(const u of state.units)u.bubblyGift=false;
     state.swordBoost=1;state.swordToucher=null;state.transPanelsUsed=new Set();state.containerLeft=(state.waves[state.wave].gimmicks?.containers||[]).map(c=>c.n);
     state.swordBonus=0;state.swordPanelsUsed=new Set();state.typePanelsUsed=new Set();state.touchedAllies=new Set();for(const u of state.units){const base=CHAR_BY_ID[u.charId]?.shotType;if(base)u.shotType=base;}resetPowerSwitches();
@@ -196,6 +198,7 @@
     resetConvergenceWeakPoints();
     state.turn++;
     state.waveTurn++;
+    for(const e of state.enemies)if(e.counterExpiresAt!==undefined&&e.counterExpiresAt<=state.turn){e.counterEffects=[];delete e.counterExpiresAt;}
     for(const e of state.enemies)if(e.defenseExpiresAt!==undefined&&e.defenseExpiresAt<=state.turn)e.defenseMultiplier=1;
     state.activeUnit = (state.activeUnit + 1) % state.units.length;
     state.phase = 'ready';
@@ -241,12 +244,14 @@
     setupArea();
     state.effects = [];
     const last = state.wave === state.waves.length - 1;
-    state.notice = { title: state.waves[state.wave].bossPhase ? 'BOSS '+state.waves[state.wave].bossPhase+' / 2' : last ? 'FINAL WAVE' : `WAVE ${pad2(state.wave + 1)}`, sub: state.waves[state.wave].name, remaining: 2, max: 2 };
+    state.notice = { title: state.waves[state.wave].bossPhase ? 'BOSS '+state.waves[state.wave].bossPhase+' / '+state.waves.filter(w=>w.bossPhase).length : last ? 'FINAL WAVE' : `WAVE ${pad2(state.wave + 1)}`, sub: state.waves[state.wave].name, remaining: 2, max: 2 };
     readyNextTurn();
   }
 
   function endGame(won) {
     const chipDrops=won?awardChips():[];
+    const clearResult=won?recordStageClear(state.stage):null;
+    const clearMessage=clearResult && !clearResult.saved ? " ／ クリア記録・初回報酬の保存に失敗しました。再挑戦してください。" : clearResult?.first ? (stageRewardText(state.stage.id) ? " ／ 初回報酬："+stageRewardText(state.stage.id) : " ／ 初クリア！") : "";
     state.phase = won ? 'victory' : 'gameover';
     state.phaseTimer = -1;
     state.aiming = null;
@@ -255,7 +260,7 @@
     showOverlay({
       eyebrow: won ? 'MISSION COMPLETE' : 'TRY AGAIN',
       title: won ? '完璧な、軌道。' : '次の一撃に、可能性を。',
-      copy: won ? `${state.waves.length}つのウェーブを突破。 チップ：${chipDrops.length?chipDrops.map(chipName).join("、"):"ドロップなし"}${state.chipSaveFailed?"（保存に失敗しました）":""}` : '味方の上を通り抜けると友情コンボが発動。壁の反射を使って、次の軌道を見つけよう。',
+      copy: won ? `${state.waves.length}つのウェーブを突破。${clearMessage} チップ：${chipDrops.length?chipDrops.map(chipName).join("、"):"ドロップなし"}${state.chipSaveFailed?"（保存に失敗しました）":""}` : '味方の上を通り抜けると友情コンボが発動。壁の反射を使って、次の軌道を見つけよう。',
       stats: `SCORE ${String(state.score).padStart(6, '0')}　/　MAX ${state.maxCombo} HITS　/　${state.shotCount} SHOTS`,
       primary: 'もう一度プレイ', onPrimary: resetGame,
       secondary: 'フィールドを見る', onSecondary: () => { hideOverlay(); updateUI(); },
@@ -408,7 +413,8 @@
   window.addEventListener('keydown', event => {
     if (screen !== 'battle') {
       if (event.key === 'Escape' && screen === 'formation') { event.preventDefault(); confirmFormation(); }
-      else if (event.key === 'Escape' && screen === 'stage') { event.preventDefault(); showScreen('title'); }
+      else if (event.key === 'Escape' && screen === 'category') { event.preventDefault(); showScreen('title'); }
+      else if (event.key === 'Escape' && screen === 'stage') { event.preventDefault(); showScreen('category'); }
       return;
     }
     if (event.key === 'Tab' && state.paused && $('game-overlay') && !$('game-overlay').hidden) {

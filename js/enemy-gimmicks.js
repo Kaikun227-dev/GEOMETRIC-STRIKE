@@ -54,6 +54,22 @@ function reviveEnemies(targets,hpRatio=1,restoreRetreat=true,limit=Infinity){
 }
 function applyEnemyEffect(effect,source){
   if(!effect)return;
+  if(effect.type==='toggleWeak'){
+    for(const e of selectEffectTargets(effect.targets||'all')){
+      if(!e.alive||!e.toggleWeakPoint)continue;
+      e.weakPoint=e.weakPoint?null:{...e.toggleWeakPoint};
+      floatingText(e.x,e.y-e.r-30,e.weakPoint?'WEAK ON':'WEAK OFF','#b48b27',13);
+      ring(e.x,e.y,e.weakPoint?'#e1b327':'#8c83a6',e.r+20,.3);
+    }return;
+  }
+  if(effect.type==='enableCounter'){
+    source.counterEffects=source.timedCounterEffects||[];
+    source.counterExpiresAt=state.turn+(effect.durationTurns??1)+1;
+    floatingText(source.x,source.y-source.r-30,'反撃モード','#548dbb',15);return;
+  }
+  if(effect.type==='reveal'){
+    for(const e of selectEffectTargets(effect.targets)){e.transparent=false;e.startTransparent=false;e.stealthManaged=false;allowSpawnExit(e);}return;
+  }
   if(effect.type==='transparent'){for(const e of effect.targets?selectEffectTargets(effect.targets):[source])e.transparent=true;return;}
   if(effect.type==='counterShot'){
     const target=state.units[state.activeUnit];
@@ -86,7 +102,9 @@ function applyEnemyEffect(effect,source){
   }
   if(effect.type==='moveWeak'){advanceWeakPoint(source);return;}
   for(const e of selectEffectTargets(effect.targets)){
-    if(effect.type==='defenseDown'){
+    if(effect.type==='removeWeak'){
+      e.weakPoint=null;
+    }else if(effect.type==='defenseDown'){
       e.defenseMultiplier=Math.max(e.defenseMultiplier||1,effect.multiplier??2);if(effect.durationTurns)e.defenseExpiresAt=Math.max(e.defenseExpiresAt||0,state.turn+effect.durationTurns+1);
       if(e.alive){ring(e.x,e.y,'#9265b3',e.r+28,.6);floatingText(e.x,e.y-e.r-32,'DEF DOWN ×'+e.defenseMultiplier,'#8863ad',13);}
     }else if(effect.type==='grantWeak'){
@@ -125,6 +143,18 @@ function advanceWeakPoint(enemy){
   ring(enemy.x,enemy.y,'#e1b327',enemy.r+30,.4);
 }
 function resolveEnemyDefeat(enemy){
+  if(!enemy.alive&&!enemy.retreated&&enemy.retreatAllOnDefeat!==false&&(enemy.boss||enemy.midBoss)){
+    for(const remaining of state.enemies){
+      if(!remaining.alive)continue;
+      remaining.alive=false;
+      remaining.hp=0;
+      remaining.retreated=true;
+      floatingText(remaining.x,remaining.y-45,'撤退','#7c92a8',17);
+      ring(remaining.x,remaining.y,'#8da6c3',95,.6);
+    }
+    state.attackQueue=[];
+    return;
+  }
   for(const effect of enemy.skullEffects||[]){if(enemy.retreated&&effect.notOnRetreat)continue;applyEnemyEffect(effect,enemy);if(effect.once)enemy.skullEffects=enemy.skullEffects.filter(candidate=>candidate!==effect);}
   for(const group of state.waves[state.wave].crossSkulls||[]){
     if(state.crossSkullsFired.has(group.id))continue;
@@ -136,7 +166,7 @@ function resolveEnemyDefeat(enemy){
   }
 }
 // 剣持ち敵：直接触れた手番キャラの攻撃力（友情コンボ含む）がそのターンだけ上がる。複数の剣持ち敵に触れても上がるのは1ターンに1回まで。
-// 剣持ち敵そのものはダメージを受けず（倒せず）、他の敵が全滅すると撤退する（retreatWhenAlone）。
+// 剣持ち敵はダメージを受けてもHPが1残り、他の敵が全滅すると撤退する（retreatWhenAlone）。
 function touchSwordEnemy(unit,enemy){
   if(!enemy?.sword||(state.swordBoost||1)>1)return;
   state.swordBoost=enemy.sword;state.swordToucher=unit.id;
@@ -185,10 +215,11 @@ function moveEnemy(enemy,attack){
   ring(enemy.x,enemy.y,'#7f8a97',enemy.r+30,.6);
 }
 function stageGimmickNamesRaw(stage){
-  const names=new Set(),map={throughWalls:'スルーウォール',damageLines:'ダメージライン',mines:'地雷',photons:'エナジーフォトン',gravity:'重力バリア',blocks:'ブロック',walls:'ダメージウォール',warps:'ワープ',boosts:'加速パネル',winds:'ウィンド',powerAreas:'パワーエリア',hearts:'ハートパネル',slowWalls:'減速壁',swords:'剣パネル',powerSwitches:'パワースイッチ',typePanels:'撃種変化パネル',transPanels:'透明パネル',containers:'フォトンコンテナ',barriers:'結界'};
+  const names=new Set(),map={powerUpWalls:'パワーアップウォール',throughWalls:'スルーウォール',damageLines:'ダメージライン',mines:'地雷',photons:'エナジーフォトン',gravity:'重力バリア',blocks:'ブロック',walls:'ダメージウォール',warps:'ワープ',boosts:'加速パネル',winds:'ウィンド',powerAreas:'パワーエリア',hearts:'ハートパネル',slowWalls:'減速壁',swords:'剣パネル',powerSwitches:'パワースイッチ',typePanels:'撃種変化パネル',transPanels:'透明パネル',containers:'フォトンコンテナ',barriers:'結界'};
   const addEffect=e=>{if(e.type==='transparent')names.add('透明化');if(e.type==='heartPanel')names.add('ハートパネル');if(e.type==='revive')names.add('蘇生');if(e.type==='photons')names.add('エナジーフォトン');if(e.type==='defenseDown')names.add('防御ダウン（'+(e.multiplier??2)+'倍）');if(e.type==='grantWeak'){names.add('弱点付与');if(e.internal)names.add('内部弱点');}if(e.type==='moveWeak')names.add('弱点移動');};
   for(const wave of stage.waves){
     if(stage.underwater)names.add('水中');
+    if(wave.enemyTouchMultiplier??stage.enemyTouchMultiplier)names.add('敵に触れる度に攻撃力アップ（'+(wave.enemyTouchMultiplier??stage.enemyTouchMultiplier)+'）');
     if(wave.cube??stage.cube)names.add('キューブ状態');if(wave.touchPower??stage.touchPower)names.add('触れた味方の数に応じて攻撃力アップ');
     if(wave.laserMultipliers||stage.laserMultipliers)names.add('レーザージェネレーター');
     if(wave.noWeakPoints??stage.noWeakPoints)names.add('全敵弱点なし');if(wave.switchMultiplier||stage.switchMultiplier)names.add('パワースイッチ（'+(wave.switchMultiplier??stage.switchMultiplier)+'倍）');
@@ -201,7 +232,7 @@ function stageGimmickNamesRaw(stage){
     const weak=wave.weakMultiplier??stage.weakMultiplier??3,photon=wave.photonMultiplier??stage.photonMultiplier??2;
     if(weak!==3)names.add('弱点倍率アップ（'+weak+'倍）');if(photon!==2)names.add('フォトン倍率アップ（'+photon+'倍）');
     for(const e of [...wave.enemies,...(wave.reserves||[])]){
-      if(e.retreatWhenAlone)names.add('撤退');if(e.counterEffects?.length){names.add('反撃モード');e.counterEffects.forEach(addEffect);}
+      if(e.retreatWhenAlone)names.add('撤退');if(e.counterEffects?.length||e.timedCounterEffects?.length){names.add('反撃モード');(e.counterEffects||e.timedCounterEffects).forEach(addEffect);}
       if(e.convergenceWeak)names.add('収束弱点');if(e.gravity)names.add('重力バリア');if(e.startTransparent)names.add('透明化');if(e.sword)names.add('剣持ち敵（'+e.sword+'倍）');if(e.hpShare?.length)names.add('HP共有');if(e.midBoss)names.add('中ボス');if(e.attacks?.some(a=>a.kind==='move'))names.add('敵移動');if(e.restriction)names.add(e.restriction==='reflect'?'反射制限':'貫通制限');
       if(!e.boss&&e.weakPoint&&!e.weakPoint.internal)names.add('雑魚敵に弱点');if(e.internalWeak||e.weakPoint?.internal)names.add('内部弱点');if(e.noWeak)names.add('一部のボスは弱点なし');if(e.weakMoveOnHit)names.add('弱点移動');
       if(e.skullEffects?.length){names.add('ドクロ');e.skullEffects.forEach(addEffect);}
@@ -218,7 +249,7 @@ function stageGimmickNamesRaw(stage){
 const GIMMICK_TONE_RED=['ダメージライン','ダメージウォール','重力バリア','地雷','ウィンド','減速壁','反射制限','貫通制限'];
 const GIMMICK_TONE_GREEN=['直殴り倍率アップ','弱点倍率アップ','フォトン倍率アップ','防御ダウン'];
 const GIMMICK_TONE_BLUE=['透明パネル','フォトンコンテナ','剣持ち敵','エナジーフォトン','パワーエリア','パワースイッチ','剣パネル','結界','HP共有','レーザージェネレーター','キューブ状態','触れた味方の数に応じて攻撃力アップ'];
-const GIMMICK_RED_BLOCK_STAGES=['3-5','6-2','8-5','10-1','10-6'];
+const GIMMICK_RED_BLOCK_STAGES=['3-5','6-2','8-5','10-1','10-6','6-EX'];
 // ワープは原則として赤（危険）。対策が不要な 3-2・8-2 だけ青（強化）で表示する。
 const GIMMICK_BLUE_WARP_STAGES=['3-2','8-2','10-EX'];
 function gimmickTone(name,stage){

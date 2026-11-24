@@ -257,6 +257,57 @@ function drawCannonContainer({x,y,r}) {
     (g.warps||[]).forEach(drawWarpPair);
     for(const wall of g.walls||[])drawHazardWall(wall,false);
     for(const wall of g.slowWalls||[])drawHazardWall(wall,true);
+    // Keep power-up walls visible above overlapping hazard walls.
+    for(const [index,wall] of (g.powerUpWalls||[]).entries()){
+      const horizontal=['top','bottom'].includes(wall.side);
+      const x=horizontal?wall.start:wall.side==='left'?FIELD.left:FIELD.right;
+      const y=horizontal?(wall.side==='top'?FIELD.top:FIELD.bottom):wall.start;
+      const length=wall.end-wall.start;
+      const used=state.units[state.activeUnit]?.usedPowerUpWalls?.has(index);
+      ctx.save();
+      ctx.translate(x,y);
+      if(!horizontal)ctx.rotate(Math.PI/2);
+      // Cut corners and inset rails give the wall a slim mechanical silhouette.
+      ctx.beginPath();
+      ctx.moveTo(0,0);ctx.lineTo(6,-6);ctx.lineTo(length-6,-6);
+      ctx.lineTo(length,0);ctx.lineTo(length-6,6);ctx.lineTo(6,6);
+      ctx.closePath();
+      ctx.fillStyle=used?'#687781':'#6e582d';
+      ctx.strokeStyle=used?'#98a6ae':'#d1aa58';
+      ctx.lineWidth=1;
+      ctx.fill();ctx.stroke();
+      const gradient=ctx.createLinearGradient(0,-4,0,4);
+      gradient.addColorStop(0,used?'#83919a':'#de9c2c');
+      gradient.addColorStop(.5,used?'#a5b0b6':'#fff2b8');
+      gradient.addColorStop(1,used?'#74838e':'#edae3c');
+      ctx.fillStyle=gradient;
+      ctx.fillRect(8,-3,length-16,6);
+      ctx.strokeStyle=used?'#53636f':'#fff6d5';
+      ctx.lineWidth=1;
+      ctx.beginPath();
+      ctx.moveTo(10,-4.5);ctx.lineTo(length-10,-4.5);
+      ctx.moveTo(10,4.5);ctx.lineTo(length-10,4.5);
+      ctx.stroke();
+      ctx.strokeStyle=used?'#596976':'#b87c25';
+      ctx.beginPath();
+      for(let offset=16;offset<length-12;offset+=24){
+        if(used){
+          ctx.moveTo(offset-3,-2);ctx.lineTo(offset+3,2);
+          ctx.moveTo(offset-3,2);ctx.lineTo(offset+3,-2);
+        }else{
+          ctx.moveTo(offset-3,-2);ctx.lineTo(offset,0);ctx.lineTo(offset-3,2);
+          ctx.moveTo(offset+1,-2);ctx.lineTo(offset+4,0);ctx.lineTo(offset+1,2);
+        }
+      }
+      ctx.stroke();
+      // Small endpoint lamps use the same state as the one-use-per-turn rule.
+      ctx.fillStyle=used?'#435564':'#fff5c5';
+      for(const end of [4,length-4]){
+        ctx.beginPath();ctx.moveTo(end, -2);ctx.lineTo(end+2,0);
+        ctx.lineTo(end,2);ctx.lineTo(end-2,0);ctx.closePath();ctx.fill();
+      }
+      ctx.restore();
+    }
     for(const wall of g.throughWalls||[])drawThroughWall(wall);
     drawBarrierFrames();
     ctx.restore();
@@ -447,10 +498,7 @@ function drawCannonContainer({x,y,r}) {
     else polygon(0,0,radius,enemy.sides,rotation);
   }
   function drawEnemy(enemy) {
-    if (!enemy.alive) {
-      if(enemy.restriction&&!state.crossSkullsFired?.has(enemy.crossSkull)){ctx.save();ctx.strokeStyle='#aaa2b966';ctx.setLineDash([4,6]);ctx.beginPath();ctx.arc(enemy.x,enemy.y,enemy.r,0,TAU);ctx.stroke();ctx.fillStyle='#9991a6';ctx.textAlign='center';ctx.font='10px Arial';ctx.fillText('蘇生待ち',enemy.x,enemy.y+3);ctx.restore();}
-      return;
-    }
+    if (!enemy.alive) return;
     const { x, y, r } = enemy;
     const wobble = Math.sin(state.clock * 1.4 + enemy.rotation) * 0.035;
     ctx.save();
@@ -520,7 +568,7 @@ function drawCannonContainer({x,y,r}) {
       ctx.fillStyle = attack.remaining <= 1 ? '#fff' : '#b3584d';
       ctx.fillText(String(Math.max(0, attack.remaining)), bx, by);
       ctx.font = '9px Arial'; ctx.fillStyle = '#a9675c';
-      ctx.fillText(({ sniper: '狙撃', laser: '光線', homing: '追尾', explosion: '爆発', meteor: '隕石', spread: '拡散', mines:'地雷', photons:'光子',vibration:'振動',reflectLaser:'反射(2)',pierce:'貫通(3)',revive:'蘇生',move:'移動',effect:'効果',plusLaser:'十字',crossLaser:'クロス',wayLaser:attack.count?attack.count+'方向':'多方向',scramble:'スクランブル',reflectCross:'反射クロス',dropBomb:'ボム',poisonSpread:'毒拡散',poisonMeteor:'毒隕石',poisonBomb:'毒ボム' })[attack.kind] || FRIENDSHIP_KINDS[attack.kind]?.name || '攻撃', bx, by-20, 40);
+      ctx.fillText(({ sniper: '狙撃', laser: '光線', homing: '追尾', explosion: '爆発', meteor: '隕石', spread: '拡散', mines:'地雷', photons:'光子',vibration:'振動',reflectLaser:'反射(2)',pierce:'貫通(3)',revive:'蘇生',move:'移動',effect:attack.effects?.some(e=>e.type==='enableCounter')?'反撃':'効果',plusLaser:'十字',crossLaser:'クロス',wayLaser:attack.count?attack.count+'方向':'多方向',scramble:'スクランブル',reflectCross:'反射クロス',dropBomb:'ボム',poisonSpread:'毒拡散',poisonMeteor:'毒隕石',poisonBomb:'毒ボム' })[attack.kind] || FRIENDSHIP_KINDS[attack.kind]?.name || '攻撃', bx, by-20, 40);
     });
     for (const w of weakPositions(enemy)) {
       const wx=w.x-x, wy=w.y-y;
@@ -831,7 +879,7 @@ wing:[[-1,0.65],[-0.6,-0.65],[0,0.05],[0.6,-1],[1,-0.8],[0.6,0.35],[0,1]],
         for(let i=0;i<32;i++){const age=t-i*.008;if(age<0)continue;const vx=Math.sin(i*17.3)*(95+i*3),vy=-150-(i%7)*26,x=e.x+vx*age,y=e.y+vy*age+170*age*age;ctx.globalAlpha=fade*clamp(1-age/1.5,0,1);ctx.fillStyle=i%3?e.color:'#fff6c9';polygon(x,y,3+i%4,4,t*5+i);ctx.fill();}
         for(let i=0;i<8;i++){const age=Math.max(0,t-.15-i*.035);ctx.globalAlpha=fade*.16*clamp(age*3,0,1);ctx.fillStyle='#74666d';ctx.beginPath();ctx.arc(e.x+Math.sin(i*5)*55*(1+age),e.y-120-age*100,15+age*32,0,TAU);ctx.fill();}
       }
-      else {ctx.globalAlpha=.09;ctx.beginPath();ctx.moveTo(e.x,e.y);ctx.arc(e.x,e.y,e.radius,e.angle-Math.PI/3,e.angle+Math.PI/3);ctx.closePath();ctx.fill();ctx.globalAlpha=clamp((.95-e.age)*2,0,1);ctx.lineWidth=3;for(let i=0;i<11;i++){const a=e.angle-Math.PI/3+i*Math.PI/15;ctx.beginPath();ctx.moveTo(e.x,e.y);for(let j=1;j<=8;j++){const d=e.radius*j/8,wiggle=Math.sin(i*7+j*3+e.age*35)*9;ctx.lineTo(e.x+Math.cos(a)*d-Math.sin(a)*wiggle,e.y+Math.sin(a)*d+Math.cos(a)*wiggle);}ctx.stroke();}}
+      else if(e.type==='thunder')drawThunderWave(e);
       ctx.restore();return;
     }
     if(effect.type==='reflectBeam'||effect.type==='plasma'){
@@ -1078,4 +1126,32 @@ function drawShockKiller(e){
  for(let i=0;i<6;i++){const a=i*TAU/6+.2,from={x:e.x+Math.cos(a)*reach,y:e.y+Math.sin(a)*reach},to={x:e.x+Math.cos(a+2)*8,y:e.y+Math.sin(a+2)*8};ctx.globalAlpha=fade*.25;revisedLightning(from,to,'#24c4ff',seed+i,9);ctx.globalAlpha=fade;revisedLightning(from,to,i%2?'#ffffff':'#fff17a',seed+i,2.3);}
  ctx.globalAlpha=fade;ctx.strokeStyle='#64ddff';ctx.lineWidth=2;ctx.beginPath();for(let i=0;i<=6;i++){const a=i*TAU/6,r=e.r+12+p*24;if(i)ctx.lineTo(e.x+Math.cos(a)*r,e.y+Math.sin(a)*r);else ctx.moveTo(e.x+r,e.y);}ctx.stroke();
  ctx.restore();
+}
+// Electric fan: stepped branching discharges, white-hot cores and a jagged advancing front.
+// Batch paths and avoid per-bolt blur. Damage/angle/range remain in updateNewCombo.
+function drawThunderWave(e){
+ const progress=clamp(e.age/.95,0,1),fade=clamp((.95-e.age)/.28,0,1),r=Math.max(0,e.radius),frame=Math.floor(e.age*22);
+ if(r<1||fade<=0)return;
+ if(e.thunderFrame!==frame){
+  e.thunderFrame=frame;e.thunderPaths=[];
+  for(let i=0;i<9;i++){
+   const angle=-Math.PI/3+i*Math.PI/12,pts=[{x:0,y:0}];
+   for(let j=1;j<=9;j++){const d=j/9,w=j===9?0:Math.sin(i*37+j*19+frame*11)*.045*Math.sin(j/9*Math.PI);pts.push({x:Math.cos(angle)*d-Math.sin(angle)*w,y:Math.sin(angle)*d+Math.cos(angle)*w});}
+   e.thunderPaths.push(pts);
+   for(const j of [4,7]){const p=pts[j],sign=(i+j)%2?1:-1,a=angle+sign*.35,branch=[p];for(let k=1;k<=3;k++){const d=k*.055,w=Math.sin(i*13+j*7+k*17+frame)*.018;branch.push({x:p.x+Math.cos(a)*d-Math.sin(a)*w,y:p.y+Math.sin(a)*d+Math.cos(a)*w});}e.thunderPaths.push(branch);}
+  }
+ }
+ ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.angle);ctx.shadowBlur=0;ctx.lineJoin='miter';ctx.lineCap='round';
+ // A faint fan keeps the attack area readable beneath the forks.
+ ctx.globalAlpha=fade*.045;ctx.fillStyle=e.color;ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,r,-Math.PI/3,Math.PI/3);ctx.closePath();ctx.fill();
+ ctx.beginPath();for(const pts of e.thunderPaths){ctx.moveTo(pts[0].x*r,pts[0].y*r);for(let i=1;i<pts.length;i++)ctx.lineTo(pts[i].x*r,pts[i].y*r);}
+ const flash=.78+.22*Math.sin(frame*2.7);
+ for(const [width,alpha,color] of [[9,.13,e.color],[3.5,.85,e.color],[1.15,.95,'#ffffff']]){ctx.lineWidth=width;ctx.globalAlpha=fade*alpha*flash;ctx.strokeStyle=color;ctx.stroke();}
+ // Broken lightning crest and tiny T-shaped sparks ride the leading edge.
+ ctx.beginPath();for(let i=0;i<=36;i++){const a=-Math.PI/3+i*Math.PI/54,rr=r-(i%3===0?0:6+Math.abs(Math.sin(i*19+frame))*10),x=Math.cos(a)*rr,y=Math.sin(a)*rr;if(i%9===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}
+ ctx.strokeStyle=e.color;ctx.globalAlpha=fade*.8;ctx.lineWidth=2.5;ctx.stroke();
+ ctx.beginPath();for(let i=0;i<9;i++){const a=-Math.PI/3+i*Math.PI/12,x=Math.cos(a)*r,y=Math.sin(a)*r,d=3+(i+frame)%4;ctx.moveTo(x-d,y);ctx.lineTo(x+d,y);ctx.moveTo(x,y-d);ctx.lineTo(x,y+d);}
+ ctx.strokeStyle='#ffffff';ctx.globalAlpha=fade*.9;ctx.lineWidth=1.5;ctx.stroke();
+ // Short origin flash fades before the advancing bolts dominate.
+ ctx.globalAlpha=fade*clamp(1-progress*3,0,1);ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(0,0,5+Math.sin(progress*Math.PI)*8,0,TAU);ctx.fill();ctx.restore();
 }

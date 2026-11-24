@@ -4,7 +4,7 @@
   // ---------------------------------------------------------------------------
   // SCREENS: title / formation / stage select / battle
   // ---------------------------------------------------------------------------
-  const SCREEN_NAMES = ['title', 'formation', 'stage', 'battle', 'maker'];
+  const SCREEN_NAMES = ['title', 'category', 'formation', 'stage', 'battle', 'maker'];
 
   function showScreen(name, options = {}) {
     if (!SCREEN_NAMES.includes(name)) return;
@@ -16,19 +16,24 @@
     if (name === 'stage') renderStageSelect();
     if (name === 'battle') resize();
     if (options.focus !== false) {
-      const target = { title: $('title-start'), formation: $('formation-heading'), stage: $('stage-heading'), battle: canvas, maker: $('maker-heading') }[name];
+      const target = { title: $('title-start'), category: $('category-heading'), formation: $('formation-heading'), stage: $('stage-heading'), battle: canvas, maker: $('maker-heading') }[name];
       if (target) target.focus({ preventScroll: true });
     }
     if (options.scroll !== false) window.scrollTo(0, 0);
   }
 
   function startBattle(stageId) {
+    if (!isStageUnlocked(stageId)) return;
+    team = team.filter(isCharacterUnlocked);
     if (!team.length) { formationReturn = 'stage'; showScreen('formation'); return; }
     selectedStageId = (STAGE_BY_ID[stageId] || STAGES[0]).id;
     playStage(STAGE_BY_ID[selectedStageId]);
   }
 
   function playStage(stage) {
+    if (!stage.maker && !isStageUnlocked(stage.id)) return;
+    team = team.filter(isCharacterUnlocked);
+    if (!team.length) { formationReturn = "stage"; showScreen("formation"); return; }
     currentStage = stage;
     previousTime = 0;
     resetGame();
@@ -121,7 +126,7 @@
           <span class="roster-abilities">${abilityNames(c)}</span>
           <span class="roster-friend"><span>主：${friendshipTitle(c.friendship)}</span><span>副：${friendshipTitle(c.secondary)}</span></span>
         </button>
-        <button type="button" class="roster-toggle" data-toggle="${c.id}"${full ? ' disabled' : ''}>${inTeam ? '外す' : full ? '満員' : '加える'}</button>
+        <button type="button" class="roster-toggle" data-toggle="${c.id}"${full || !isCharacterUnlocked(c.id) ? ' disabled' : ''}>${!isCharacterUnlocked(c.id) ? CHARACTER_UNLOCKS[c.id]+'クリアで解放' : inTeam ? '外す' : full ? '満員' : '加える'}</button>
       </div>`;
     }).join('');
 
@@ -136,13 +141,14 @@
       <div class="detail-head"><span class="detail-avatar">${shapeHTML(c, 'big')}</span>
         <div><p class="eyebrow">STATUS</p><h3>${c.name}<small>${c.kana}</small></h3><div class="detail-type">${c.type}<details class="type-help"><summary aria-label="撃種と戦型の説明">？</summary><p>${BATTLE_STYLES[c.battleStyle]}<br>${isPiercing(c)?"敵を貫通して移動。":"敵に当たると反射。"} 敵接触後の速度：${Math.round(enemyHitRetention(c)*100)}%。</p></details></div></div></div>
       <div class="ability-box">${c.abilities.map(id=>'<p><strong>'+ABILITIES[id][0]+'</strong><br>'+ABILITIES[id][1]+'</p>').join('')}</div>
-      ${chipEditor(c)}<dl class="stat-list">${statRow('HP', c.hp, 6000)}${statRow('攻撃', c.atk, 2000)}${statRow('スピード', c.speed, 400)}</dl>
+      ${isCharacterUnlocked(c.id) ? chipEditor(c) : ""}<dl class="stat-list">${statRow('HP', c.hp, 6000)}${statRow('攻撃', c.atk, 2000)}${statRow('スピード', c.speed, 400)}</dl>
       <div class="friend-box"><p class="friend-label">友情コンボ</p><p class="friend-name">${friendshipTitle(f)} <span class="friend-power">基礎威力 ${Math.round(f.power*(c.chipFriendMultiplier||1)*friendBoost(c))}</span></p><p class="friend-desc">${FRIENDSHIP_KINDS[f.kind].describe(f)}</p></div>
       <div class="friend-box"><p class="friend-label">副友情コンボ</p><p class="friend-name">${friendshipTitle(c.secondary)} <span class="friend-power">基礎威力 ${Math.round(c.secondary.power*(c.chipFriendMultiplier||1)*friendBoost(c))}</span></p><p class="friend-desc">${FRIENDSHIP_KINDS[c.secondary.kind].describe(c.secondary)}</p></div>
-      <button type="button" class="${inTeam ? 'outline-button' : 'primary-button'} wide-button" data-detail-toggle="${c.id}"${full ? ' disabled' : ''}>${inTeam ? '編成から外す' : full ? '編成がいっぱいです' : '編成に加える'}</button>`;
+      <button type="button" class="${inTeam ? 'outline-button' : 'primary-button'} wide-button" data-detail-toggle="${c.id}"${full || !isCharacterUnlocked(c.id) ? ' disabled' : ''}>${!isCharacterUnlocked(c.id) ? CHARACTER_UNLOCKS[c.id]+'クリアで解放' : inTeam ? '編成から外す' : full ? '編成がいっぱいです' : '編成に加える'}</button>`;
   }
 
   function toggleMember(id) {
+    if (!isCharacterUnlocked(id)) { setFormationNote(CHARACTER_UNLOCKS[id] + "クリアで解放されます。"); return; }
     const index = team.indexOf(id);
     if (index >= 0) {
       team.splice(index, 1);
@@ -189,6 +195,7 @@
 
   const chapterSelections={};
   function selectChapter(chapter,focus=false){
+    if (!isChapterUnlocked(chapter)) return;
     chapterSelections[selectedStageId.split('-')[0]]=selectedStageId;
     selectedStageId=chapterSelections[chapter]||STAGES.find(s=>s.id.split('-')[0]===chapter).id;
     renderStageSelect();if(focus)$('chapter-tab-'+chapter).focus();
@@ -203,8 +210,11 @@
   function renderStageSelect() {
     if (!STAGE_BY_ID[selectedStageId]) selectedStageId = STAGES[0].id;
     const chapter=selectedStageId.split('-')[0];
-    const chapters=[...new Set(STAGES.map(s=>s.id.split('-')[0]))];
-    $('chapter-tabs').innerHTML=chapters.map(id=>'<button type="button" role="tab" id="chapter-tab-'+id+'" data-chapter="'+id+'" aria-controls="stage-panel" aria-selected="'+(id===chapter)+'" tabindex="'+(id===chapter?0:-1)+'">第'+id+'章</button>').join('');
+    const special=STAGE_BY_ID[selectedStageId].category==='special';
+    const chapters=[...new Set(STAGES.filter(s=>special?s.category==='special':!s.category).map(s=>s.id.split('-')[0]))];
+    $('chapter-tabs').innerHTML=chapters.map(id=>'<button type="button" role="tab" id="chapter-tab-'+id+'" data-chapter="'+id+'" aria-controls="stage-panel" aria-selected="'+(id===chapter)+'" tabindex="'+(id===chapter?0:-1)+'"'+(isChapterUnlocked(id)?'':' disabled title="合計'+((Number(id)-1)*4)+'ステージクリアで解放"')+'>'+(id==='S'?'スペシャル':'第'+id+'章')+(isChapterUnlocked(id)?'':' 🔒')+'</button>').join('');
+    setText('chapter-progress', `合計 ${totalClearCount()} ステージ CLEAR（EX含む） ｜ ${Number(chapter)<10 ? '合計'+(Number(chapter)*4)+'クリアで第'+(Number(chapter)+1)+'章解放 ｜ ' : ''}この章の通常ステージ ${chapterClearCount(chapter)} / ${chapterStages(chapter).length}：全てクリアでEX解放`);
+    if(special)setText('chapter-progress','高難易度チャレンジ ｜ スペシャルステージ');
     $('stage-panel').setAttribute('aria-labelledby','chapter-tab-'+chapter);
     $('stage-list').innerHTML = STAGES.filter(s=>s.id.split('-')[0]===chapter).map(stage => {
       const selected = stage.id === selectedStageId;
@@ -212,14 +222,15 @@
       return `<button type="button" class="stage-card${selected ? ' is-selected' : ''}" role="listitem" data-stage="${stage.id}" aria-pressed="${selected}">
         <span class="stage-identity"><span class="stage-number">${stage.id}</span>${stageDifficultyHTML(stage)}</span>
         <span class="stage-body"><strong>STAGE ${stage.id}</strong><span class="stage-name">${stage.name}</span>
-        <small>${stage.waves.length}ウェーブ</small></span>
+        <small>${stage.waves.length}ウェーブ ／ ${isStageCleared(stage.id) ? "CLEAR ✓" : isStageUnlocked(stage.id) ? "未クリア" : "🔒 通常ステージを全てクリアで解放"}</small></span>
         <span class="stage-best"><small>BEST</small>${String(bestScore).padStart(6, '0')}</span></button>`;
     }).join('');
 
     const stage = STAGE_BY_ID[selectedStageId];
+    $('stage-start').disabled = !isStageUnlocked(stage.id);
     $('stage-detail').innerHTML = `<div class="section-label"><h3>STAGE ${stage.id}</h3><span class="tag">${stage.waves.length} WAVES</span></div>
-      <p class="stage-detail-name">${stage.name}</p><p class="style-ability stage-gimmicks">${gimmickListHTML(stage)}</p>
-      <ol class="stage-waves">${stage.waves.map((w, i) => `<li><span>${pad2(i + 1)}</span>${w.name}${w.bossPhase ? '<em>BOSS '+w.bossPhase+'/2</em>' : w.enemies.some(e => e.boss) ? '<em>BOSS</em>' : ''}</li>`).join('')}</ol>`;
+      <p class="stage-detail-name">${stage.name}</p>${stageReward(stage.id) ? `<p class="stage-reward">${isStageCleared(stage.id) ? "獲得済み" : "初回クリア報酬"}：${stageRewardText(stage.id)}</p>` : ""}${!isStageUnlocked(stage.id) ? "<p>🔒 この章の通常ステージを全てクリアすると挑戦できます。</p>" : ""}<p class="style-ability stage-gimmicks">${gimmickListHTML(stage)}</p>
+      <ol class="stage-waves">${stage.waves.map((w, i) => `<li><span>${pad2(i + 1)}</span>${w.name}${w.bossPhase ? '<em>BOSS '+w.bossPhase+'/'+stage.waves.filter(w=>w.bossPhase).length+'</em>' : w.enemies.some(e => e.boss) ? '<em>BOSS</em>' : ''}</li>`).join('')}</ol>`;
 
     $('stage-team').innerHTML = team.map(id => { const c = CHAR_BY_ID[id]; return `<span class="stage-team-member" style="${colorVars(c.color)}" title="${c.name}"><span class="roster-avatar">${shapeHTML(c)}</span><span>${c.name}</span></span>`; }).join('');
     setText('stage-team-hp', `HP ${fmt(teamHp(team))}`);
@@ -233,7 +244,7 @@
   }
 
   $('chapter-tabs').addEventListener('click',event=>{const tab=event.target.closest('[data-chapter]');if(tab)selectChapter(tab.dataset.chapter,true);});
-  $('chapter-tabs').addEventListener('keydown',event=>{const tabs=[...$('chapter-tabs').querySelectorAll('[data-chapter]')],i=tabs.indexOf(event.target);if(i<0)return;let n=i;if(event.key==='ArrowRight')n=(i+1)%tabs.length;else if(event.key==='ArrowLeft')n=(i+tabs.length-1)%tabs.length;else if(event.key==='Home')n=0;else if(event.key==='End')n=tabs.length-1;else return;event.preventDefault();selectChapter(tabs[n].dataset.chapter,true);});
+  $('chapter-tabs').addEventListener('keydown',event=>{const tabs=[...$('chapter-tabs').querySelectorAll('[data-chapter]:not(:disabled)')],i=tabs.indexOf(event.target);if(i<0)return;let n=i;if(event.key==='ArrowRight')n=(i+1)%tabs.length;else if(event.key==='ArrowLeft')n=(i+tabs.length-1)%tabs.length;else if(event.key==='Home')n=0;else if(event.key==='End')n=tabs.length-1;else return;event.preventDefault();selectChapter(tabs[n].dataset.chapter,true);});
   const stageList = $('stage-list');
   if (stageList) {
     stageList.addEventListener('click', event => {
@@ -280,6 +291,13 @@
     }
   });
   if ($('stage-formation')) $('stage-formation').addEventListener('click', () => { formationReturn = 'stage'; showScreen('formation'); });
-  if ($('stage-back')) $('stage-back').addEventListener('click', () => showScreen('title'));
-  if ($('title-start')) $('title-start').addEventListener('click', () => { unlockAudio(); showScreen('stage'); });
+  if ($('stage-back')) $('stage-back').addEventListener('click', () => showScreen('category'));
+  if ($('title-start')) $('title-start').addEventListener('click', () => { unlockAudio(); showScreen('category'); });
   if ($('title-formation')) $('title-formation').addEventListener('click', () => { formationReturn = 'title'; showScreen('formation'); });
+
+  $('category-back').addEventListener('click',()=>showScreen('title'));
+  document.querySelectorAll('[data-category]:not(:disabled)').forEach(button=>button.addEventListener('click',()=>{
+    const special=button.dataset.category==='special';
+    if((STAGE_BY_ID[selectedStageId]?.category==='special')!==special)selectedStageId=special?'S-1':'1-1';
+    showScreen('stage');
+  }));

@@ -9,6 +9,25 @@ if(state.phase!=='moving'||state.unitStopped||unit!==state.units[state.activeUni
 unit.superUsed??=new Set();if(unit.superUsed.has(id))return;unit.superUsed.add(id);action();
 }
 function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56e8bb',85,.45);floatingText(unit.x,unit.y-45,'SUPER SPEED','#36ab89',13);}
+function powerUpWallMultiplier(unit){
+  const count=unit?.powerUpWalls?.size||0;
+  const multipliers=state.waves[state.wave].powerUpWallMultipliers??state.stage.powerUpWallMultipliers??[5,20,50];
+  return count ? multipliers[Math.min(count,multipliers.length)-1] : 1;
+}
+function touchPowerUpWalls(unit,sides){
+  const walls=state.waves[state.wave].gimmicks?.powerUpWalls||[];
+  unit.powerUpWalls??=new Set();
+  unit.usedPowerUpWalls??=new Set();
+  walls.forEach((wall,index)=>{
+    const position=['top','bottom'].includes(wall.side)?unit.x:unit.y;
+    if(!sides.includes(wall.side)||position<wall.start||position>wall.end||unit.usedPowerUpWalls.has(index))return;
+    unit.usedPowerUpWalls.add(index);
+    unit.powerUpWalls.add(index);
+    const mult=powerUpWallMultiplier(unit);
+    floatingText(unit.x,unit.y-45,'POWER ×'+mult,'#d29827',15);
+    ring(unit.x,unit.y,'#efbb48',45,.3);
+  });
+}
   function setupArea(){
     for(const u of state.units){u.barrierHp=hasAbility(u,'barrierM')?5000:hasAbility(u,'barrier')?2000:(u.chipBarrier||0);u.weakAttack=0;u.lineStacks=0;u.superWallAttack=0;u.superUsed=new Set();}
     const g=state.waves[state.wave].gimmicks||{};
@@ -17,6 +36,7 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
     setupBarriers(g);state.laserGens=[];
     state.swordPanelsUsed=new Set();state.swordBonus=0;state.typePanelsUsed=new Set();state.touchedAllies=new Set();for(const u of state.units){const base=CHAR_BY_ID[u.charId]?.shotType;if(base)u.shotType=base;}state.powerSwitchActive=false;state.powerSwitchContacts=new Set();state.powerSwitches=(g.powerSwitches||[]).map((p,i)=>({...p,state:p.initial??i%3,locked:false}));state.slowWallContacts=new Map();
     for(const u of state.units)u.heartContacts=new Set();
+    for(const unit of state.units){unit.powerUpWalls=new Set();unit.usedPowerUpWalls=new Set();unit.enemyPowerContacts=new Set();}
     state.atkUp=1;state.firstTouchId=null;state.wallSides=new Set();for(const u of state.units)u.bubblyGift=false;
     state.swordBoost=1;state.swordToucher=null;state.transPanelsUsed=new Set();state.containerLeft=(g.containers||[]).map(c=>c.n);
     setupEnemyGimmicks();
@@ -504,6 +524,15 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
   const wallBoostMultiplier=unit=>hasAbility(unit,'wb')?(WALL_BOOST_TABLE[(state.wallSides?.size||0)-1]||1):1;
   // 敵への接触時：ファーストキラー用の「最初に触れた敵」の記録、ドレインの回復。
   function onEnemyTouch(unit,enemy){
+    const touchMultiplier=state.waves[state.wave].enemyTouchMultiplier??state.stage.enemyTouchMultiplier??1;
+    if(touchMultiplier>1){
+      unit.enemyPowerContacts??=new Set();
+      if(!unit.enemyPowerContacts.has(enemy.id)){
+        unit.enemyPowerContacts.add(enemy.id);
+        floatingText(unit.x,unit.y-56,'ATK ×'+Math.pow(touchMultiplier,unit.enemyPowerContacts.size),'#347cbb',17);
+        ring(unit.x,unit.y,'#63b8e5',58,.35);
+      }
+    }
     sakuraTouch(unit,enemy);
     for(const e of state.effects)if(e.type==='markedPierce'&&e.phase==='wait'&&e.carrier===unit)e.marks.set(enemy.id,enemy);
     if(state.firstTouchId==null&&!enemy.sword)state.firstTouchId=enemy.id;
@@ -572,6 +601,7 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
       if (unit.y < FIELD.top + unit.r) { unit.y = FIELD.top + unit.r; unit.vy = Math.abs(unit.vy); wallHit = true; hitSides.push('top'); }
       if (unit.y > FIELD.bottom - unit.r) { unit.y = FIELD.bottom - unit.r; unit.vy = -Math.abs(unit.vy); wallHit = true; hitSides.push('bottom'); }
       if (wallHit) {
+        touchPowerUpWalls(unit,hitSides);
         state.wallSides??=new Set();const sidesBefore=state.wallSides.size;for(const sd of hitSides)state.wallSides.add(sd);
         if(hasAbility(unit,'wb')&&state.wallSides.size>sidesBefore)floatingText(unit.x,unit.y-52,'WALL ×'+WALL_BOOST_TABLE[state.wallSides.size-1],unit.color,14);
         noteWallTouch(unit);
@@ -607,7 +637,7 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
           if(!contact){
             onEnemyTouch(unit,enemy);
             const retention=contactRetention(unit,enemy);unit.vx*=retention;unit.vy*=retention;
-            if(enemy.sword){touchSwordEnemy(unit,enemy);unit.enemyContacts.set(enemy.id,{amount:0,weak:swordWeakHit(enemy,hit),sword:true});continue;}
+            if(enemy.sword)touchSwordEnemy(unit,enemy);
             const baseAmount=directHitDamage(unit,1),amount=baseAmount*consumePhoton(unit);contact={amount:baseAmount,attack:effectiveAttack(unit),weak:hitsWeak(enemy,hit)};
             unit.enemyContacts.set(enemy.id,contact);
             damageEnemy(enemy,amount,false,{hit,owner:unit});
@@ -615,7 +645,7 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
             damageEnemy(enemy,contact.amount*(effectiveAttack(unit)/contact.attack)*consumePhoton(unit),false,{hit,owner:unit,charge:0});
           }else if(!enemy.convergenceWeak&&!contact.weak&&hitsWeak(enemy,hit)){
             // 弱点追加分は胴体のフォトン倍率を引き継がず、残りのフォトンを別に1個消費する。追加減速はしない。
-            contact.weak=true;if(contact.sword)swordWeakHit(enemy,hit);else damageEnemy(enemy,contact.amount*(effectiveAttack(unit)/contact.attack)*consumePhoton(unit),false,{hit,owner:unit,weakBonusOnly:true,charge:0});
+            contact.weak=true;damageEnemy(enemy,contact.amount*(effectiveAttack(unit)/contact.attack)*consumePhoton(unit),false,{hit,owner:unit,weakBonusOnly:true,charge:0});
           }
           continue;
         }
@@ -625,8 +655,8 @@ function superAccelerate(unit){unit.vx*=1.5;unit.vy*=1.5;ring(unit.x,unit.y,'#56
           const reflected=reflectVelocity(unit.vx,unit.vy,nx,ny),retention=contactRetention(unit,enemy);
           unit.vx=reflected.x*retention;unit.vy=reflected.y*retention;
           enemy.hitAt=state.clock;state.lastHitEnemyId=enemy.id;onEnemyTouch(unit,enemy);
-          if(enemy.sword){touchSwordEnemy(unit,enemy);swordWeakHit(enemy,{x:unit.x,y:unit.y,radius:unit.r});}
-          else damageEnemy(enemy,directHitDamage(unit),false,{hit:{x:unit.x,y:unit.y,radius:unit.r},owner:unit});
+          if(enemy.sword)touchSwordEnemy(unit,enemy);
+          damageEnemy(enemy,directHitDamage(unit),false,{hit:{x:unit.x,y:unit.y,radius:unit.r},owner:unit});
           state.shake=Math.max(state.shake,state.skillShot?4:1.5);
         }
       }

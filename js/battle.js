@@ -86,7 +86,7 @@
       const raw = JSON.parse(localStorage.getItem(TEAM_KEY));
       if (Array.isArray(raw)) {
         const migrated = raw.map(id => id === 'floria' ? 'next' : id);
-        const ids = migrated.filter((id, i) => CHAR_BY_ID[id] && migrated.indexOf(id) === i).slice(0, MAX_TEAM);
+        const ids = migrated.filter((id, i) => isCharacterUnlocked(id) && migrated.indexOf(id) === i).slice(0, MAX_TEAM);
         if (ids.length) return ids;
       }
     } catch (_) {}
@@ -402,21 +402,30 @@
     ring(enemy.x,enemy.y,color,enemy.r+46,.4);if(k.kind==='all'){ALL_KILLER_COLORS.forEach((c,i)=>{ring(enemy.x,enemy.y,c,enemy.r+30+i*14,.35+i*.06);burst(enemy.x,enemy.y,c,6,230);});}else burst(enemy.x,enemy.y,color,16,230);state.shake=Math.max(state.shake,5);
     queueEffect({type:'killerFx',side:'ally',x:enemy.x,y:enemy.y,r:enemy.r,kind:k.kind,color,age:0,life:.5});
   }
+  function enemyTouchMultiplier(owner){
+    if(!owner||owner.id!==state.units[state.activeUnit]?.id)return 1;
+    return Math.pow(state.waves[state.wave].enemyTouchMultiplier??state.stage.enemyTouchMultiplier??1,owner.enemyPowerContacts?.size||0);
+  }
   function damageEnemy(enemy, amount, friendship = false, options = {}) {
-    if (!enemy.alive||(enemy.transparent&&!options.poisonTick)||enemy.sword||enemy.summoner) return; // 剣持ち敵はダメージを受けない（他の敵が全滅すると撤退）
+    if (!enemy.alive||(enemy.transparent&&!options.poisonTick)) return;
     // HP共有で他の敵から反映されたダメージ（sharedFrom）：倍率・弱点・キラーは再計算せず、受けたダメージ量をそのまま受ける。
     const shared=!!options.sharedFrom||!!options.poisonTick;
     const owner=options.owner||state.damageOwner||(!friendship?state.units[state.activeUnit]:null);
     const weak=!shared&&hitsWeak(enemy,options.hit)&&(!enemy.weakPoint?.internal||friendship||owner&&isPiercing(owner));
     const multiplier=enemyWeakMultiplier(enemy);
     const killer=shared?{mult:1,kind:null}:killerMultiplier(owner,enemy);
-    const resolvedDamage=shared?Math.max(0,Math.round(amount)):Math.round(amount*powerAuraMultiplier(owner)*killer.mult*powerAreaMultiplier(owner)*touchPowerMultiplier(owner)*(state.swordBoost||1)*(friendship?powerSwitchMultiplier():1)*(weak?(options.weakBonusOnly?multiplier-1:multiplier):1)*(enemy.defenseMultiplier||1)*(enemy.switchArmor&&!state.powerSwitchActive?enemy.switchArmor:1)*(options.laserGenerator?1:enemyRestrictionMultiplier(enemy,owner,friendship))*(friendship?1:enemy.armor??1));
+    if(!shared&&!friendship&&owner?.powerUpWalls?.size){
+      amount*=powerUpWallMultiplier(owner);
+      owner.powerUpWalls.clear();
+    }
+    const resolvedDamage=shared?Math.max(0,Math.round(amount)):Math.round(amount*enemyTouchMultiplier(owner)*powerAuraMultiplier(owner)*killer.mult*powerAreaMultiplier(owner)*touchPowerMultiplier(owner)*(state.swordBoost||1)*(friendship?powerSwitchMultiplier():1)*(weak?(options.weakBonusOnly?multiplier-1:multiplier):1)*(enemy.defenseMultiplier||1)*(enemy.switchArmor&&!state.powerSwitchActive?enemy.switchArmor:1)*(options.laserGenerator?1:enemyRestrictionMultiplier(enemy,owner,friendship))*(friendship?1:enemy.armor??1));
     const damage = !options.poisonTick && resolvedDamage > 0 && resolvedDamage <= enemy.hardenThreshold ? 1 : resolvedDamage;
     if (weak) { floatingText(enemy.x, enemy.y - enemy.r - 38, 'WEAK ×'+multiplier, '#c79816', 15); const point=weakPositions(enemy).find(w=>weakHitOverlaps(w,options.hit));ring(point.x,point.y,enemy.convergenceWeak?CONVERGENCE_COLORS[enemy.convergenceLevel??enemy.convergenceWeak.startLevel??0]:'#e1b327',36,.3); }
     if(killer.mult>1)killerEffect(enemy,killer,friendship);
     else if(!friendship&&!shared&&options.shockKiller)floatingText(enemy.x,enemy.y-enemy.r-58,'KILLER','#348fe5',15);
-    const actualDamage = Math.min(enemy.hp, damage);
-    enemy.hp = Math.max(0, enemy.hp - damage);
+    const minimumHp = (enemy.cannotBeDefeated||enemy.sword||enemy.summoner) ? 1 : 0;
+    const actualDamage = Math.min(enemy.hp - minimumHp, damage);
+    enemy.hp = Math.max(minimumHp, enemy.hp - damage);
     enemy.flash = 0.15;
     if (!scoreDisabled()&&!enemy.hpShare?.length) state.score += actualDamage; // HP共有元の得点は、反映先の敵が受けたダメージ分に含める（二重加算しない）
     if(shared){
@@ -450,14 +459,7 @@
       tone(150, 0.22, 'triangle', 0.04, 0, 45);
       rememberBest();
       resolveEnemyDefeat(enemy);
-      if(enemy.boss&&state.waves[state.wave].bossPhase){
-        for(const minion of state.enemies){
-          if(!minion.alive||minion.boss||minion.midBoss||minion.retreatWhenShareDead)continue;
-          minion.alive=false;minion.hp=0;
-          if(!scoreDisabled())state.score+=1000;
-          chargeSkill(7);
-        }
-      }
+
     }
     if(!options.poisonTick&&enemy.alive&&damage>0&&enemy.counterEffects?.length&&!enemy.counterResolving&&enemy.counterUsedTurn!==state.turn){
       enemy.counterUsedTurn=state.turn;enemy.counterResolving=true;floatingText(enemy.x,enemy.y-enemy.r-55,'COUNTER','#598cc4',14);
