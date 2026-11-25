@@ -209,9 +209,19 @@
     {id:'raika',name:'RAIKA',kana:'ライカ',shape:'bolt',color:'#55ca4d',type:'反射 / スピード',hp:4000,atk:1200,speed:405,
       friendship:{kind:'copy',power:0}},
     {id:'noctis',name:'NOCTIS',kana:'ノクティス',shape:'hexagon',color:'#cc94bc',type:'反射 / バランス',hp:4500,atk:1250,speed:340,friendship:{kind:'poisonBomb',
-      power:480,radius:250,maxHits:3}}
-
-
+      power:480,radius:250,maxHits:3}},
+    {id:'rampart',name:'RAMPART',kana:'ランパート',shape:'rampartFort',color:'#368f9d',type:'反射 / バランス',hp:4600,atk:1240,speed:340,
+      friendship:{kind:'laserTurret',power:350,count:6}},
+    {id:'fusillade',name:'FUSILLADE',kana:'フュジレイド',shape:'fusilladeSalvo',color:'#d36b98',type:'貫通 / 砲撃',hp:4100,atk:1160,speed:330,
+      friendship:{kind:'allRangeBullet',power:135}},
+    {id:'globus',name:'GLOBUS',kana:'グローバス',shape:'globusGlobe',color:'#65bca5',type:'貫通 / バランス',hp:4400,atk:1230,speed:335,
+      friendship:{kind:'bomber',power:310,count:6}},
+    {id:'aerion',name:'AERION',kana:'エアリオン',shape:'aerionWings',color:'#e49c49',type:'貫通 / スピード',hp:4100,atk:1170,speed:405,
+      friendship:{kind:'boundSphere',power:600}},
+    {id:'neo',name:'NEO',kana:'ネオ',shape:'neoRing',color:'#52bfe0',type:'反射 / 砲撃',hp:4400,atk:1180,speed:335,
+      friendship:{kind:'reflectionRing',power:280}},
+    {id:'maestro',name:'MAESTRO',kana:'マエストロ',shape:'maestroBaton',color:'#debe4b',type:'貫通 / 砲撃',hp:4300,atk:1200,speed:340,
+      friendship:{kind:'markedPierce',power:420,count:5}}
   ];
   // CHARACTERSと同じ順に並べる
   const SECONDARIES = {
@@ -304,7 +314,13 @@
     aegisblade:{kind:'javelinFollow',power:540},
     venora:{kind:'weakPierce',power:465},
     raika:{kind:'oathSwords',power:500,count:3},
-    noctis:{kind:'speedUp',power:0},
+    noctis:{kind:'homing',power: 320,count: 12},
+    rampart:{kind:'atkSpeedUp',power:0},
+    fusillade:{kind:'discharge',power:390},
+    globus:{kind:'bubblyGift',power:0},
+    aerion:{kind:'speedUp',power:0},
+    neo:{kind:'explosion',power:420,radius:260,maxHits:4},
+    maestro:{kind:'bomber',power:310,count:8},
   };
   const BATTLE_STYLES = {
     balance: '被ダメージ20%軽減・直殴りダメージ20%アップ。',
@@ -383,7 +399,7 @@
     axis: ['agb', 'ms','fk'],
     prism: ['adw', 'aw'],
     burst: ['agb','aw','regen'],
-    galaxy: ['agb', 'aw'],
+    galaxy: ['sagb', 'aw'],
     gold: ['ms','pm','double'],
     lumen: ['adw', 'agb','drain'],
     crux: ['aw', 'ms','wb'],
@@ -416,7 +432,7 @@
     facet:['adw','saw','double'],
     aster:['adw','antiWind','pm'],
     nimbus:['adw','sasw','wb'],
-    seam:['aw','asw','heal'],
+    seam:['aw','sasw','heal'],
     mirage:['agb','asw'],
     tempest:['antiWind','asw','pm'],
     dynamo:['agb','asw','regen'],
@@ -468,7 +484,13 @@
     aegisblade:['saw','sasw','adl','pk','ek','dashM'],
     venora:['saw','adl','fb','drain','bubblyMode'],
     raika:['sadw','agb','sms','ek'],
-    noctis:['antiWind','ab','sadl','double']
+    noctis:['antiWind','ab','sadl','double'],
+    rampart:['sagb','aw','adl','gk','wb'],
+    fusillade:['ms','saw','asw','fbM'],
+    globus:['aw','sasw','ek','bubblyMode','dashL'],
+    aerion:['sadw','saw','asw','regen','double'],
+    neo:['sadw','ms','sadl','fb','akM','barrierM'],
+    maestro:['sadw','santiWind','sasw','fb','dashM','wb']
   };
   for (const c of CHARACTERS) {
     c.shotType = c.type.startsWith('貫通') ? 'pierce' : 'reflect';
@@ -489,6 +511,11 @@
   const DEFAULT_TEAM = ['nova', 'axis', 'prism', 'burst'];
 
   const FRIENDSHIP_KINDS = {
+    reflectionRing:{name:'リフレクションリング',label:'REFLECTION RING',describe:()=> '手番キャラの現在位置を狙って小さな貫通リングを連射。壁で最大3回反射。手番停止で連射終了。'},
+    bomber:{name:'爆撃機',label:'BOMBER',describe:f=>'手番キャラの進行方向を基準に、周囲'+f.count+'方向へ爆撃機を発進。直進しながら連続爆発を起こし、味方の友情も誘発する。'},
+    boundSphere:{name:'バウンドスフィア',label:'BOUND SPHERE',describe:()=> '近くの敵へスフィアを発射。敵・構造物を貫通し、敵に当たるたびに巨大化。壁で最大8回反射する。'},
+    laserTurret:{name:'レーザータレット',label:'LASER TURRET',describe:f=>'周囲へ'+f.count+'個のタレットを射出して壁に設置。手番キャラが敵に触れるたび、接触位置へ一斉にレーザーを放つ。手番停止で撤去。'},
+    allRangeBullet:{name:'オールレンジバレット',label:'ALL RANGE BULLET',describe:()=> '周囲64方向からランダムに選んだ方向へ、細長い貫通弾を計100発発射する。'},
     armageddon:{name:'アルマゲドン',label:'ARMAGEDDON',describe:()=> '上空の裂け目から巨大機械が出現。光線が中央下で特殊爆発を起こし、全ての敵とその弱点を攻撃。'},
     interference:{name:'ボルトサークル',label:'VOLT CIRCLE',describe:()=> '2つの光輪と交点の雷撃が、接触中は約0.12秒間隔で継続ダメージ。中心が近い場合は共鳴リング。'},
     dimensionRift:{name:'ディメンションブレイク',label:'DIMENSION BREAK',describe:()=> '敵の密集地に3回の切断後、広範囲の次元破砕。'},
@@ -557,7 +584,7 @@
     poisonHole:{name:'ポイズンフィールド',label:'POISON FIELD',describe:()=> '壁に触れるたび毒の円が拡大し、範囲内に攻撃。最大半径420。'},
     poisonBomb:{name:'ポイズンドロップボム',label:'POISON BOMB',describe:()=> 'ランダムな位置へ毒のボムを2個投下する。'}
   };
-  const friendshipTitle=f=>{const name=FRIENDSHIP_KINDS[f.kind].name;if(f.kind==='oathSwords'||f.kind==='markedPierce')return name+'（'+(f.count??3)+'）';if(f.kind==='poisonSpread')return name+'（'+f.ways+'×'+f.volleys+'）';if(f.kind==='poisonMeteor')return name+'（'+f.count+'）';if(f.kind==='wayLaser')return f.count+'方向レーザー';if(['reflectLaser','reflectCross','enhancedReflect'].includes(f.kind))return name+'（'+f.bounces+'）';if(['sniper','homing','meteor','pierce','dropBomb','splitShot','machinegun','drones','satellites','involute','crossBomb','counterRing','shockSplit','pierceHoming'].includes(f.kind))return name+'（'+(f.count??5)+'）';if(f.kind==='spread'||f.kind==='shotgun')return name+'（'+f.ways+'×'+f.volleys+'）';return name;};
+  const friendshipTitle=f=>{const name=FRIENDSHIP_KINDS[f.kind].name;if(f.kind==='oathSwords'||f.kind==='markedPierce')return name+'（'+(f.count??3)+'）';if(f.kind==='poisonSpread')return name+'（'+f.ways+'×'+f.volleys+'）';if(f.kind==='poisonMeteor')return name+'（'+f.count+'）';if(f.kind==='wayLaser')return f.count+'方向レーザー';if(['reflectLaser','reflectCross','enhancedReflect'].includes(f.kind))return name+'（'+f.bounces+'）';if(['bomber','laserTurret','sniper','homing','meteor','pierce','dropBomb','splitShot','machinegun','drones','satellites','involute','crossBomb','counterRing','shockSplit','pierceHoming'].includes(f.kind))return name+'（'+(f.count??5)+'）';if(f.kind==='spread'||f.kind==='shotgun')return name+'（'+f.ways+'×'+f.volleys+'）';return name;};
 
   // 敵の攻撃。mult は基本ダメージ（ウェーブごとに上昇）に対する倍率。
   // 敵データ側の attacks: [{ kind, ...上書き }] で個別に調整できます。

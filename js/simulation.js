@@ -524,12 +524,12 @@ function touchPowerUpWalls(unit,sides){
   const wallBoostMultiplier=unit=>hasAbility(unit,'wb')?(WALL_BOOST_TABLE[(state.wallSides?.size||0)-1]||1):1;
   // 敵への接触時：ファーストキラー用の「最初に触れた敵」の記録、ドレインの回復。
   function onEnemyTouch(unit,enemy){
-    const touchMultiplier=state.waves[state.wave].enemyTouchMultiplier??state.stage.enemyTouchMultiplier??1;
-    if(touchMultiplier>1){
+    const touchMultiplier=state.waves[state.wave].enemyTouchMultiplier??state.stage.enemyTouchMultiplier??0;
+    if(touchMultiplier>0){
       unit.enemyPowerContacts??=new Set();
       if(!unit.enemyPowerContacts.has(enemy.id)){
         unit.enemyPowerContacts.add(enemy.id);
-        floatingText(unit.x,unit.y-56,'ATK ×'+Math.pow(touchMultiplier,unit.enemyPowerContacts.size),'#347cbb',17);
+        floatingText(unit.x,unit.y-56,'ATK ×'+enemyTouchMultiplier(unit),'#347cbb',17);
         ring(unit.x,unit.y,'#63b8e5',58,.35);
       }
     }

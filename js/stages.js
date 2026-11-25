@@ -1501,7 +1501,7 @@ const touch8EXLayouts=[
   warps:[[[311,238],[507,633]],[[193,400],[476,112]],[[107,571],[490,378]]]}
 ];
 const stage8EX={id:'8-EX',name:'接触を繋ぐ連鎖王',enemyTouchMultiplier:2,
- hint:'異なる敵に触れるたび攻撃力が2倍ずつ累積。同じ敵は各手番1回まで。貫通制限を全て倒して高HP敵を召喚し、接触数を稼ごう。高HP敵は倒せず、他の敵が全滅すると撤退する。',
+ hint:'異なる敵に触れるたび直殴り攻撃力が+200％ずつ加算（1体で3倍、2体で5倍）。同じ敵は各手番1回まで。貫通制限を全て倒して高HP敵を召喚し、接触数を稼ごう。高HP敵は倒せず、他の敵が全滅すると撤退する。',
  waves:touch8EXLayouts.map((a,i)=>{
   const square={shape:'square',sides:4};
   const enemies=a.m.map(([x,y],j)=>c8Mob('mob-'+j,j,x,y,100000+i*50000,{...square,r:48,gravity:105}));
@@ -1669,20 +1669,20 @@ const special1Layouts=[
  {name:'反転王・隠された終局',boss:[151,193],pink:[],high:[[64,62],[43,429],[554,363]],restrict:[[492,282],[98,515]],shares:[[300,396,1],[511,682,1]],stars:[],purple:[[197,140,1,0],[404,626,0,Math.PI]],summon:[574,91],boost:[[404,197],[192,586]],warp:[[155,358],[428,455],[484,98],[95,686],[369,275],[236,514]]}
 ];
 const special1Point=([x,y])=>[28+x*.94,28+y*.90];
-const stageS1={id:'S-1',category:'special',name:'反転する連撃の深淵',enemyTouchMultiplier:3,directMultiplier:10,weakMultiplier:20,
- hint:'異なる敵に触れるたび攻撃力が3倍ずつ累積。青い敵と紫の敵の反撃で弱点がON／OFF反転する。緑の敵は中ボス・ボスとHP共有。黄色の星型敵と紫の敵も倒せる。蘇生役は4ターンごとに雑魚・共有敵・制限敵を蘇生。ボス3は紫の敵を全て倒すと姿を現す。',
+const stageS1={id:'S-1',category:'special',name:'反転する連撃の深淵',enemyTouchMultiplier:3,directMultiplier:20,weakMultiplier:12,
+ hint:'異なる敵に触れるたび直殴り攻撃力が+300％ずつ加算（1体で4倍、2体で7倍）。青い敵と紫の敵の反撃で弱点がON／OFF反転する。緑の敵は中ボス・ボスとHP共有。黄色の星型敵と紫の敵も倒せる。蘇生役は4ターンごとに雑魚・共有敵・制限敵を蘇生。ボス3は紫の敵を全て倒すと姿を現す。',
  waves:special1Layouts.map((a,i)=>{
   const target=a.mid?'mid':'boss',toggle=[{type:'toggleWeak',targets:'all'}];
   const weak=(on,external=false,angle=0)=>{const point={internal:!external,angle,radius:16};return {toggleWeakPoint:point,weakEnabled:!!on,...(on?{weakPoint:{...point}}:{})};};
   const mob=(key,j,point,hp,extra={})=>c8Mob(key,j,...special1Point(point),hp,{r:43,shape:'square',sides:4,weakEnabled:false,...extra});
-  const enemies=a.pink.map((p,j)=>mob('mob-'+j,j,p,7500000+i*90000,{shape:'polygon',sides:6}));
+  const enemies=a.pink.map((p,j)=>mob('mob-'+j,j,p,400000+i*50000,{shape:'polygon',sides:6}));
   enemies.push(...a.high.map((p,j)=>mob('high-'+j,j,p,1e12,{shape:'circle',sides:0,tint:'#367db1',cannotBeDefeated:true,retreatWhenAlone:true,counterEffects:toggle})));
-  enemies.push(...a.restrict.map((p,j)=>({...c7Restrict('restrict-'+j,'reflect',j,...special1Point(p),[],3000000+i*30000),attacks:[c7Attack('homing',{count:3,mult:.16,countdown:1,interval:2})]})));
-  const shares=a.shares.map(([x,y,on],j)=>mob('share-'+j,j,[x,y],13500000+i*225000,{shape:'polygon',sides:6,tint:'#58893a',hpShare:[target],retreatWhenShareDead:true,...weak(on)}));
+  enemies.push(...a.restrict.map((p,j)=>({...c7Restrict('restrict-'+j,'reflect',j,...special1Point(p),[],200000+i*20000),attacks:[c7Attack('homing',{count:3,mult:.16,countdown:1,interval:2})]})));
+  const shares=a.shares.map(([x,y,on],j)=>mob('share-'+j,j,[x,y],4000000+i*200000,{shape:'polygon',sides:6,tint:'#58893a',hpShare:[target],retreatWhenShareDead:true,...weak(on)}));
   const reserves=i===7?shares:[];if(i!==7)enemies.push(...shares);
-  enemies.push(...a.stars.map(([x,y,on],j)=>mob('star-'+j,j,[x,y],36000000+i*300000,{shape:'starBattery',sides:8,r:78,tint:'#d4b535',...weak(on),attacks:[c7Attack('reflectCross',{mult:.15,countdown:1,interval:3}),c7Attack('meteor',{count:4,mult:.2,countdown:2,interval:3})]})));
+  enemies.push(...a.stars.map(([x,y,on],j)=>mob('star-'+j,j,[x,y],8000000+i*200000,{shape:'starBattery',sides:8,r:78,tint:'#d4b535',...weak(on),attacks:[c7Attack('reflectCross',{mult:.15,countdown:1,interval:3}),c7Attack('meteor',{count:4,mult:.2,countdown:2,interval:3})]})));
   const purpleKeys=a.purple.map((_,j)=>'purple-'+j);
-  enemies.push(...a.purple.map(([x,y,on,angle],j)=>mob(purpleKeys[j],j,[x,y],28500000+i*150000,{shape:'polygon',sides:8,r:74,tint:'#a27bc5',counterEffects:toggle,...weak(on,true,angle),
+  enemies.push(...a.purple.map(([x,y,on,angle],j)=>mob(purpleKeys[j],j,[x,y],6000000+i*150000,{shape:'polygon',sides:8,r:74,tint:'#a27bc5',counterEffects:toggle,...weak(on,true,angle),
    ...(i===7?{crossSkull:'reveal'}:{}),attacks:[{kind:'revive',targets:purpleKeys.filter(k=>k!==purpleKeys[j]),countdown:2,interval:2},c7Attack('spread',{ways:8,volleys:2,mult:.12,countdown:1,interval:2})]})));
   const revivalTargets=[...enemies.filter(e=>e.key.startsWith('mob-')||e.key.startsWith('share-')||e.key.startsWith('restrict-')).map(e=>e.key),...reserves.map(e=>e.key)];
   enemies.push(mob('summoner',0,a.summon,1e12,{r:18,tint:'#c7ae31',summoner:true,retreatWhenAlone:true,attacks:[{kind:'revive',targets:revivalTargets,countdown:4,interval:4}]}));
@@ -1702,7 +1702,7 @@ const stageS1={id:'S-1',category:'special',name:'反転する連撃の深淵',en
    if(i!==0)pattern.push({kind:'effect',countdown:3,interval:4,effects:[{type:'enableCounter',durationTurns:1}]});
    const extra={shape:'polygon',sides:i===0?5:7,r:a.boss?108:92,tint:i===0?'#367db1':'#666975',...(i===0?{weakEnabled:false}:{...weak(false),timedCounterEffects:toggle}),...(i===7?{startTransparent:true,stealthManaged:true}:{})};
    const pos=special1Point(a.mid||a.boss);
-   enemies.push(a.mid?c7Mid('mid',...pos,i===0?240000000:360000000,[],pattern,extra):c7Boss('反転王',...pos,[48000000,57000000,69000000][i-5],'#565967',pattern,extra));
+   enemies.push(a.mid?c7Mid('mid',...pos,i===0?12000000:18000000,[],pattern,extra):c7Boss('反転王',...pos,[24000000,30000000,36000000][i-5],'#565967',pattern,extra));
   }
   const crossSkulls=i===7?[{id:'reveal',members:purpleKeys,effects:[{type:'reveal',targets:['boss']},{type:'summon',keys:reserves.map(e=>e.key)}]}]:[];
   const w=a.warp.map(special1Point);

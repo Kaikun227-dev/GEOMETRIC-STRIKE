@@ -368,6 +368,13 @@ body:not([data-screen="battle"]) .page-footer{padding-top:34px}
 @media(max-width:740px){.roster{grid-template-columns:1fr}.roster-main{padding:14px}.roster-abilities{min-height:0}.char-detail{scroll-margin-top:12px}.type-help p{position:fixed;left:5vw;right:auto;top:22vh;width:90vw;max-width:90vw}.formation-layout{gap:16px}.roster-filters{padding:14px}.stat-list{margin:16px 0}.friend-box{padding:14px}}
 
 /* Dedicated character silhouettes: shared coordinates with CHARACTER_OUTLINES. */
+.shape-rampartFort,.shape-fusilladeSalvo,.shape-globusGlobe,.shape-aerionWings,.shape-neoRing,.shape-maestroBaton{background:var(--c);border:0;border-radius:0;transform:none}
+.shape-rampartFort{clip-path:polygon(5% 7.5%,27.5% 7.5%,27.5% 22.5%,42.5% 22.5%,42.5% 7.5%,57.5% 7.5%,57.5% 22.5%,72.5% 22.5%,72.5% 7.5%,95% 7.5%,95% 57.5%,100% 57.5%,86% 100%,14% 100%,0% 57.5%,5% 57.5%)}
+.shape-fusilladeSalvo{clip-path:polygon(50% 0%,61% 26%,79% 11%,76% 37.5%,97.5% 25%,84% 46%,100% 54%,74% 65%,89% 89%,59% 74%,44% 97.5%,40% 67.5%,9% 81%,26% 54%,6% 17.5%,37.5% 32.5%)}
+.shape-globusGlobe{clip-path:polygon(50% 0%,72.5% 5%,90% 17.5%,99% 37.5%,99% 60%,90% 79%,72.5% 89%,61% 90%,61% 95%,76% 95%,81% 100%,19% 100%,24% 95%,39% 95%,39% 90%,27.5% 89%,10% 79%,1% 60%,1% 37.5%,10% 17.5%,27.5% 5%)}
+.shape-aerionWings{clip-path:polygon(50% 10%,40% 37.5%,0% 0%,12.5% 46%,29% 54%,42% 58%,46% 97.5%,54% 97.5%,58% 58%,71% 54%,87.5% 46%,100% 0%,60% 37.5%)}
+.shape-neoRing{clip-path:polygon(50% 0%,77.5% 9%,92.5% 32.5%,87.5% 57.5%,72.5% 71%,57.5% 71%,52.5% 60%,70% 57.5%,79% 42.5%,72.5% 26%,54% 17.5%,34% 22.5%,21% 40%,21% 61%,35% 76%,55% 81%,72.5% 75%,82.5% 86%,62.5% 99%,36% 95%,11% 78%,0% 52.5%,9% 22.5%,30% 4%)}
+.shape-maestroBaton{clip-path:polygon(2.5% 72.5%,17.5% 59%,27.5% 69%,64% 32.5%,54% 14%,70% 0%,87.5% 9%,97.5% 25%,86% 41%,71.5% 45%,60% 54%,76% 69%,69% 84%,55% 89%,40% 76%,46% 67%,31% 52.5%,14% 84%)}
 .shape-riftSigil{background:var(--c);border:0;border-radius:0;transform:none;clip-path:polygon(17.50% 0.00%,65.00% 0.00%,52.50% 32.50%,87.50% 22.50%,67.50% 55.00%,82.50% 100.00%,35.00% 100.00%,47.50% 67.50%,12.50% 77.50%,32.50% 45.00%)}
 .shape-atlasPillar{background:var(--c);border:0;border-radius:0;transform:none;clip-path:polygon(0.00% 7.50%,100.00% 7.50%,100.00% 25.00%,70.00% 25.00%,70.00% 77.50%,90.00% 77.50%,90.00% 97.50%,10.00% 97.50%,10.00% 77.50%,30.00% 77.50%,30.00% 25.00%,0.00% 25.00%)}
 .shape-vesperComet{background:var(--c);border:0;border-radius:0;transform:none;clip-path:polygon(100.00% 0.00%,82.50% 62.50%,60.00% 92.50%,27.50% 100.00%,0.00% 72.50%,7.50% 40.00%,37.50% 17.50%,55.00% 2.50%,47.50% 37.50%,67.50% 27.50%,57.50% 57.50%,77.50% 45.00%)}
