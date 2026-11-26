@@ -1504,7 +1504,7 @@ const stage8EX={id:'8-EX',name:'接触を繋ぐ連鎖王',enemyTouchMultiplier:2
  hint:'異なる敵に触れるたび直殴り攻撃力が+200％ずつ加算（1体で3倍、2体で5倍）。同じ敵は各手番1回まで。貫通制限を全て倒して高HP敵を召喚し、接触数を稼ごう。高HP敵は倒せず、他の敵が全滅すると撤退する。',
  waves:touch8EXLayouts.map((a,i)=>{
   const square={shape:'square',sides:4};
-  const enemies=a.m.map(([x,y],j)=>c8Mob('mob-'+j,j,x,y,100000+i*50000,{...square,r:48,gravity:105}));
+  const enemies=a.m.map(([x,y],j)=>c8Mob('mob-'+j,j,x,y,60000+i*50000,{...square,r:48,gravity:105}));
   const keys=a.c.map((_,j)=>'seal-'+j);
   enemies.push(...a.c.map(([x,y],j)=>({...sealGrey(keys[j],j,x,y,keys.filter(k=>k!==keys[j])),hp:22000+i*4000})));
   const reserves=a.high.map(([x,y],j)=>c8Mob('high-'+j,j,x,y,1e12,{...square,r:48,tint:'#367db1',cannotBeDefeated:true,retreatWhenAlone:true}));
@@ -1522,8 +1522,8 @@ const stage8EX={id:'8-EX',name:'接触を繋ぐ連鎖王',enemyTouchMultiplier:2
     c7Attack('scramble',{mult:.14,countdown:3,interval:3})
   ];
   if(a.move)attacks.push({kind:'move',to:{x:a.move[0],y:a.move[1]},countdown:4,interval:4});
-  if(a.mid)enemies.push(c7Mid('mid',...a.mid,1600000,[0,Math.PI],attacks,{...square,r:96,gravity:175}));
-  if(a.boss)enemies.push(c7Boss('連鎖王',...a.boss,i===3?3200000:4800000,'#c95762',attacks,{...square,r:100,gravity:195,weakAngles:a.weak,weakPoint:{angle:a.weak[0],radius:16}}));
+  if(a.mid)enemies.push(c7Mid('mid',...a.mid,1200000,[0,Math.PI],attacks,{...square,r:96,gravity:175}));
+  if(a.boss)enemies.push(c7Boss('連鎖王',...a.boss,i===3?1800000:2400000,'#c95762',attacks,{...square,r:100,gravity:195,weakAngles:a.weak,weakPoint:{angle:a.weak[0],radius:16}}));
   return {name:a.name,step:'CONTACT / '+(i+1),...(a.boss?{bossPhase:i-2}:{}),enemies,reserves,
    crossSkulls:[{id:'seal',members:keys,effects:[{type:'summon',keys:reserves.map(e=>e.key)}]}],
    gimmicks:{warps:c7Warps(...a.warps),boosts:a.boost.map(([x,y])=>({x,y,r:28}))}};

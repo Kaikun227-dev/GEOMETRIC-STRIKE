@@ -175,7 +175,7 @@
     setText('progress-range', `01 — ${pad2(state.waves.length)}`);
     const list = $('unit-list');
     if (list) {
-      list.innerHTML = state.units.map((unit, i) => `<div class="unit-card" data-unit="${i}" style="${colorVars(unit.color)}"><div class="unit-avatar">${shapeHTML(unit)}<span class="unit-number">${pad2(i + 1)}</span></div><div class="unit-info"><h3>${unit.name} <span>${unit.kana}</span></h3><p>${unit.type}</p><p class="unit-abilities">${abilityNames(unit)}</p><p class="unit-friendships"><span>主：${friendshipTitle(unit.friendship)}</span>${unit.secondary ? `<span>副：${friendshipTitle(unit.secondary)}</span>` : ''}</p><p class="photon-count" data-photons="${i}"></p></div><span class="unit-turn">WAIT</span></div>`).join('');
+      list.innerHTML = state.units.map((unit, i) => `<div class="unit-card" data-unit="${i}" style="${colorVars(unit.color)}"><div class="unit-avatar">${shapeHTML(unit)}<span class="unit-number">${pad2(i + 1)}</span></div><div class="unit-info"><h3>${escapeHTML(unit.name)} <span>${escapeHTML(unit.kana)}</span></h3><p>${unit.type}</p><p class="unit-abilities">${abilityNames(unit)}</p><p class="unit-friendships"><span>主：${friendshipTitle(unit.friendship)}</span>${unit.secondary ? `<span>副：${friendshipTitle(unit.secondary)}</span>` : ''}</p><p class="photon-count" data-photons="${i}"></p></div><span class="unit-turn">WAIT</span></div>`).join('');
     }
     const steps = $('wave-steps');
     if (steps) {

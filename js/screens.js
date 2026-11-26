@@ -4,7 +4,7 @@
   // ---------------------------------------------------------------------------
   // SCREENS: title / formation / stage select / battle
   // ---------------------------------------------------------------------------
-  const SCREEN_NAMES = ['title', 'category', 'formation', 'stage', 'battle', 'maker'];
+  const SCREEN_NAMES = ['title', 'mycharacters', 'category', 'formation', 'stage', 'battle', 'maker'];
 
   function showScreen(name, options = {}) {
     if (!SCREEN_NAMES.includes(name)) return;
@@ -12,11 +12,12 @@
     screen = name;
     SCREEN_NAMES.forEach(n => { const el = $(`screen-${n}`); if (el) el.hidden = n !== name; });
     document.body.dataset.screen = name;
+    if (name === 'mycharacters') renderMyCharacters();
     if (name === 'formation') renderFormation();
     if (name === 'stage') renderStageSelect();
     if (name === 'battle') resize();
     if (options.focus !== false) {
-      const target = { title: $('title-start'), category: $('category-heading'), formation: $('formation-heading'), stage: $('stage-heading'), battle: canvas, maker: $('maker-heading') }[name];
+      const target = { mycharacters: $('mycharacters-heading'), title: $('title-start'), category: $('category-heading'), formation: $('formation-heading'), stage: $('stage-heading'), battle: canvas, maker: $('maker-heading') }[name];
       if (target) target.focus({ preventScroll: true });
     }
     if (options.scroll !== false) window.scrollTo(0, 0);
@@ -103,14 +104,14 @@
       if (!id) return `<li class="team-slot is-empty"><span class="slot-order">${i + 1}</span><span class="slot-empty">空き</span></li>`;
       const c = CHAR_BY_ID[id];
       return `<li class="team-slot${id === selectedCharId ? ' is-selected' : ''}" style="${colorVars(c.color)}">
-        <button type="button" class="slot-body" data-inspect="${id}" aria-label="${c.name}のステータスを見る（${i + 1}番手）">
+        <button type="button" class="slot-body" data-inspect="${id}" aria-label="${escapeHTML(c.name)}のステータスを見る（${i + 1}番手）">
           <span class="slot-order">${i + 1}</span><span class="slot-avatar">${shapeHTML(c)}</span>
-          <span class="slot-name">${c.name}<small>${c.kana}</small></span>
+          <span class="slot-name">${escapeHTML(c.name)}<small>${escapeHTML(c.kana)}</small></span>
         </button>
         <span class="slot-tools">
-          <button type="button" data-move="${i}" data-dir="-1" aria-label="${c.name}を前に出す"${i === 0 ? ' disabled' : ''}>◀</button>
-          <button type="button" data-move="${i}" data-dir="1" aria-label="${c.name}を後ろに下げる"${i === team.length - 1 ? ' disabled' : ''}>▶</button>
-          <button type="button" data-remove="${id}" aria-label="${c.name}を編成から外す">×</button>
+          <button type="button" data-move="${i}" data-dir="-1" aria-label="${escapeHTML(c.name)}を前に出す"${i === 0 ? ' disabled' : ''}>◀</button>
+          <button type="button" data-move="${i}" data-dir="1" aria-label="${escapeHTML(c.name)}を後ろに下げる"${i === team.length - 1 ? ' disabled' : ''}>▶</button>
+          <button type="button" data-remove="${id}" aria-label="${escapeHTML(c.name)}を編成から外す">×</button>
         </span></li>`;
     }).join('');
 
@@ -119,9 +120,9 @@
       const inTeam = team.includes(c.id);
       const full = !inTeam && team.length >= MAX_TEAM;
       return `<div class="roster-card${inTeam ? ' in-team' : ''}${c.id === selectedCharId ? ' is-selected' : ''}" style="${colorVars(c.color)}">
-        <button type="button" class="roster-main" data-inspect="${c.id}" aria-label="${c.name}のステータスを見る">
+        <button type="button" class="roster-main" data-inspect="${c.id}" aria-label="${escapeHTML(c.name)}のステータスを見る">
           <span class="roster-avatar">${shapeHTML(c)}</span>
-          <span class="roster-name">${c.name}<small>${c.kana}</small></span>
+          <span class="roster-name">${escapeHTML(c.name)}<small>${escapeHTML(c.kana)}</small></span>
           <span class="roster-meta">${c.type}</span>
           <span class="roster-abilities">${abilityNames(c)}</span>
           <span class="roster-friend"><span>主：${friendshipTitle(c.friendship)}</span><span>副：${friendshipTitle(c.secondary)}</span></span>
@@ -139,7 +140,7 @@
     detail.setAttribute('style', colorVars(c.color));
     detail.innerHTML = `
       <div class="detail-head"><span class="detail-avatar">${shapeHTML(c, 'big')}</span>
-        <div><p class="eyebrow">STATUS</p><h3>${c.name}<small>${c.kana}</small></h3><div class="detail-type">${c.type}<details class="type-help"><summary aria-label="撃種と戦型の説明">？</summary><p>${BATTLE_STYLES[c.battleStyle]}<br>${isPiercing(c)?"敵を貫通して移動。":"敵に当たると反射。"} 敵接触後の速度：${Math.round(enemyHitRetention(c)*100)}%。</p></details></div></div></div>
+        <div><p class="eyebrow">STATUS</p><h3>${escapeHTML(c.name)}<small>${escapeHTML(c.kana)}</small></h3><div class="detail-type">${c.type}<details class="type-help"><summary aria-label="撃種と戦型の説明">？</summary><p>${BATTLE_STYLES[c.battleStyle]}<br>${isPiercing(c)?"敵を貫通して移動。":"敵に当たると反射。"} 敵接触後の速度：${Math.round(enemyHitRetention(c)*100)}%。</p></details></div></div></div>
       <div class="ability-box">${c.abilities.map(id=>'<p><strong>'+ABILITIES[id][0]+'</strong><br>'+ABILITIES[id][1]+'</p>').join('')}</div>
       ${isCharacterUnlocked(c.id) ? chipEditor(c) : ""}<dl class="stat-list">${statRow('HP', c.hp, 6000)}${statRow('攻撃', c.atk, 2000)}${statRow('スピード', c.speed, 400)}</dl>
       <div class="friend-box"><p class="friend-label">友情コンボ</p><p class="friend-name">${friendshipTitle(f)} <span class="friend-power">基礎威力 ${Math.round(f.power*(c.chipFriendMultiplier||1)*friendBoost(c))}</span></p><p class="friend-desc">${FRIENDSHIP_KINDS[f.kind].describe(f)}</p></div>
@@ -229,10 +230,10 @@
     const stage = STAGE_BY_ID[selectedStageId];
     $('stage-start').disabled = !isStageUnlocked(stage.id);
     $('stage-detail').innerHTML = `<div class="section-label"><h3>STAGE ${stage.id}</h3><span class="tag">${stage.waves.length} WAVES</span></div>
-      <p class="stage-detail-name">${stage.name}</p>${stageReward(stage.id) ? `<p class="stage-reward">${isStageCleared(stage.id) ? "獲得済み" : "初回クリア報酬"}：${stageRewardText(stage.id)}</p>` : ""}${!isStageUnlocked(stage.id) ? "<p>🔒 この章の通常ステージを全てクリアすると挑戦できます。</p>" : ""}<p class="style-ability stage-gimmicks">${gimmickListHTML(stage)}</p>
+      <p class="stage-detail-name">${stage.name}</p>${stageReward(stage.id) ? `<p class="stage-reward">${isStageCleared(stage.id) ? "獲得済み" : "初回クリア報酬"}：${escapeHTML(stageRewardText(stage.id))}</p>` : ""}${!isStageUnlocked(stage.id) ? "<p>🔒 この章の通常ステージを全てクリアすると挑戦できます。</p>" : ""}<p class="style-ability stage-gimmicks">${gimmickListHTML(stage)}</p>
       <ol class="stage-waves">${stage.waves.map((w, i) => `<li><span>${pad2(i + 1)}</span>${w.name}${w.bossPhase ? '<em>BOSS '+w.bossPhase+'/'+stage.waves.filter(w=>w.bossPhase).length+'</em>' : w.enemies.some(e => e.boss) ? '<em>BOSS</em>' : ''}</li>`).join('')}</ol>`;
 
-    $('stage-team').innerHTML = team.map(id => { const c = CHAR_BY_ID[id]; return `<span class="stage-team-member" style="${colorVars(c.color)}" title="${c.name}"><span class="roster-avatar">${shapeHTML(c)}</span><span>${c.name}</span></span>`; }).join('');
+    $('stage-team').innerHTML = team.map(id => { const c = CHAR_BY_ID[id]; return `<span class="stage-team-member" style="${colorVars(c.color)}" title="${escapeHTML(c.name)}"><span class="roster-avatar">${shapeHTML(c)}</span><span>${escapeHTML(c.name)}</span></span>`; }).join('');
     setText('stage-team-hp', `HP ${fmt(teamHp(team))}`);
     const settings = getStageSettings();
     $('stage-setting-invincible').checked = settings.invincible;

@@ -2,6 +2,7 @@
 // Clear flags and first-clear rewards share one save with the inventory so they
 // cannot be persisted separately (and grant a reward twice after a reload).
 const CHARACTER_UNLOCKS = {eclipse:'5-EX', blossom:'6-EX', sonata:'7-EX', aegisblade:'8-EX', omega:'9-EX', neo:'10-EX', maestro:'S-1'};
+MY_CHARACTER_IDS.forEach((id,i)=>CHARACTER_UNLOCKS[id]=(i+1)+'-EX');
 const savedClears = chipSave.progress?.cleared;
 const savedSpecialBonus = chipSave.progress?.specialFriendL === true;
 chipSave.progress = {cleared: Array.isArray(savedClears) ? [...new Set(savedClears.filter(id => STAGE_BY_ID[id]))] : [], specialFriendL:savedSpecialBonus};
@@ -24,12 +25,12 @@ function stageReward(id) {
   if(id==='S-1'&&STAGE_BY_ID[id])return {expansions:0,character:'maestro',chips:{'friend:2':3}};
   if (!STAGE_BY_ID[id] || !id.endsWith('-EX')) return null;
   const chapter = Number(id.split('-')[0]);
-  return {expansions: chapter <= 3 ? 2 : chapter <= 6 ? 3 : chapter <= 9 ? 4 : 5,
+  return {myCharacter:chapter<=4?MY_CHARACTER_IDS[chapter-1]:null,expansions: chapter <= 3 ? 2 : chapter <= 6 ? 3 : chapter <= 9 ? 4 : 5,
     character: Object.keys(CHARACTER_UNLOCKS).find(key => CHARACTER_UNLOCKS[key] === id)};
 }
 function stageRewardText(id) {
   const reward = stageReward(id);
-  return reward ? [reward.expansions ? `拡張 ×${reward.expansions}` : '', reward.character ? CHAR_BY_ID[reward.character].kana : '', reward.chips ? '友撃L ×3' : ''].filter(Boolean).join(' ／ ') : '';
+  return reward ? [reward.expansions ? `拡張 ×${reward.expansions}` : '', reward.character ? CHAR_BY_ID[reward.character].kana : '', reward.chips ? '友撃L ×3' : '', reward.myCharacter ? CHAR_BY_ID[reward.myCharacter].kana : ''].filter(Boolean).join(' ／ ') : '';
 }
 // New reward for previously cleared S-1 saves: inventory and claim marker commit together.
 function grantSpecialClearBonus() {
@@ -59,3 +60,5 @@ function recordStageClear(stage) {
   }
   return {first:true, saved:true};
 }
+
+loadMyCharacters();

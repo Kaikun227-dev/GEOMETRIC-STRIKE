@@ -403,7 +403,7 @@
         if(e.travel>=1){e.phase='shoot';e.aim={x:e.target.x,y:e.target.y};e.drones.forEach(d=>d.trail=[]);}return true;
       }
       e.wait-=dt;
-      if(e.wait<=0&&e.fired<e.count*2){const d=e.drones[e.fired%e.count];e.fired++;e.wait+=e.shotInterval;d.shots++;const end=rayEnd(d.x,d.y,e.aim.x-d.x,e.aim.y-d.y);damageAlongSegment(d,end,16,e.damage,.35);state.beams.push({x1:d.x,y1:d.y,x2:end.x,y2:end.y,color:e.color,width:6,coreWidth:2,life:.24,max:.24});}
+      if(e.wait<=0&&e.fired<e.count*2){const d=e.drones[e.fired%e.count];e.fired++;e.wait+=e.shotInterval;d.shots++;const end=rayEnd(d.x,d.y,e.aim.x-d.x,e.aim.y-d.y);damageAlongSegment(d,end,16,e.damage,.35);state.beams.push({x1:d.x,y1:d.y,x2:end.x,y2:end.y,color:e.color,width:16,coreWidth:5,life:.24,max:.24});}
       if(e.fired>=e.count*2){if(e.stage>=1)return false;e.stage++;if(!chooseDroneTarget(e))return false;}
       return true;
     }

@@ -250,6 +250,7 @@
 
   function endGame(won) {
     const chipDrops=won?awardChips():[];
+    const fragmentDrops=won?awardFragments():[];
     const clearResult=won?recordStageClear(state.stage):null;
     const clearMessage=clearResult && !clearResult.saved ? " ／ クリア記録・初回報酬の保存に失敗しました。再挑戦してください。" : clearResult?.first ? (stageRewardText(state.stage.id) ? " ／ 初回報酬："+stageRewardText(state.stage.id) : " ／ 初クリア！") : "";
     state.phase = won ? 'victory' : 'gameover';
@@ -260,7 +261,7 @@
     showOverlay({
       eyebrow: won ? 'MISSION COMPLETE' : 'TRY AGAIN',
       title: won ? '完璧な、軌道。' : '次の一撃に、可能性を。',
-      copy: won ? `${state.waves.length}つのウェーブを突破。${clearMessage} チップ：${chipDrops.length?chipDrops.map(chipName).join("、"):"ドロップなし"}${state.chipSaveFailed?"（保存に失敗しました）":""}` : '味方の上を通り抜けると友情コンボが発動。壁の反射を使って、次の軌道を見つけよう。',
+      copy: won ? `${state.waves.length}つのウェーブを突破。${clearMessage} チップ：${chipDrops.length?chipDrops.map(chipName).join("、"):"ドロップなし"}${state.chipSaveFailed?"（保存に失敗しました）":""} ／ 友情の欠片：${fragmentDrops.length?fragmentDrops.map(fragmentLabel).join("、"):"ドロップなし"}${state.fragmentSaveFailed?"（欠片の保存に失敗しました）":""}` : '味方の上を通り抜けると友情コンボが発動。壁の反射を使って、次の軌道を見つけよう。',
       stats: `SCORE ${String(state.score).padStart(6, '0')}　/　MAX ${state.maxCombo} HITS　/　${state.shotCount} SHOTS`,
       primary: 'もう一度プレイ', onPrimary: resetGame,
       secondary: 'フィールドを見る', onSecondary: () => { hideOverlay(); updateUI(); },

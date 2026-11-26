@@ -14,3 +14,5 @@
   const $ = id => document.getElementById(id);
   const pad2 = n => String(n).padStart(2, '0');
   const fmt = n => Math.round(n).toLocaleString('en-US');
+
+const escapeHTML=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

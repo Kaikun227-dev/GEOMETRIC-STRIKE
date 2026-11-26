@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="styles.css">
   <script src="js/core.js" defer></script>
   <script src="js/data.js" defer></script>
+  <script src="js/friendship-fragments.js" defer></script>
+  <script src="js/my-characters.js" defer></script>
   <script src="js/chips.js" defer></script>
   <script src="js/enemies.js" defer></script>
   <script src="js/stages.js" defer></script>
@@ -16,12 +18,10 @@
   <script src="js/progression.js" defer></script>
   <script src="js/battle.js" defer></script>
   <script src="js/attacks.js" defer></script>
-  <script src="js/friendship-ext.js" defer></script>
+  <script src="js/friendship.js" defer></script>
   <script src="js/controls.js" defer></script>
   <script src="js/simulation.js" defer></script>
   <script src="js/rendering.js" defer></script>
-  <script src="js/friendship-arsenal.js" defer></script>
-  <script src="js/friendship-cosmic.js" defer></script>
   <script src="js/screens.js" defer></script>
   <script src="js/maker.js" defer></script>
   <script src="game.js" defer></script>
@@ -74,9 +74,14 @@
     </section>
 
     <!-- 2. FORMATION -->
+    <section class="screen" id="screen-mycharacters" aria-labelledby="mycharacters-heading" hidden>
+      <div class="screen-head"><div><p class="eyebrow">MY CHARACTERS</p><h2 id="mycharacters-heading" tabindex="-1">マイキャラ</h2><p>1-EX〜4-EXをクリアすると、それぞれ1体ずつ入手できます。</p></div><button id="mycharacters-back" class="outline-button" type="button">戻る</button></div>
+      <p>アビリティは1体につき最大5つ。同じアビリティはマイキャラ全体で1体のみ使用できます。通常版・超版、無印・Mはそれぞれ別のアビリティです。</p>
+      <div id="mycharacters-tabs" class="mycharacters-tabs"></div><div id="mycharacters-editor"></div><p id="mycharacters-status" role="status"></p>
+    </section>
     <section class="screen formation-screen" id="screen-formation" data-screen="formation" aria-labelledby="formation-heading" hidden>
       <div class="screen-head">
-        <div><p class="eyebrow"><span class="tiny-line"></span> FORMATION</p><h2 id="formation-heading" tabindex="-1">編成</h2><p class="screen-sub">最大4体まで選べます。出番は左のキャラから順に回ります。編成を空にもできますが、1体以上いないと決定できません。</p></div>
+        <div><p class="eyebrow"><span class="tiny-line"></span> FORMATION</p><h2 id="formation-heading" tabindex="-1">編成</h2><button id="formation-mycharacters" class="outline-button" type="button">マイキャラを編集</button><p class="screen-sub">最大4体まで選べます。出番は左のキャラから順に回ります。編成を空にもできますが、1体以上いないと決定できません。</p></div>
         <div class="team-total"><span>チームHP</span><strong id="formation-hp">12,000</strong></div>
       </div>
       <div class="formation-layout">

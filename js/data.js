@@ -191,7 +191,7 @@
     {id:'next',name:'NEXT',kana:'ネクスト',shape:'vesperComet',color:'#df73a3',type:'貫通 / バランス',hp:4200,atk:1250,speed:340,
       friendship:{kind:'blastHoming',power:330}},
     {id:'raiden',name:'RAIDEN',kana:'ライデン',shape:'raidenBlades',color:'#4e89db',type:'貫通 / スピード',hp:4450,atk:1140,speed:442,
-      friendship:{kind:'oathSwords',power:440,count:5}},
+      friendship:{kind:'oathSwords',power:500,count:5}},
     {id:'aegisblade',name:'AEGIS BLADE',kana:'イージスブレイド',shape:'saber',color:'#564ef6',type:'貫通 / 砲撃',hp:4400,atk:1200,speed:365,
       friendship:{kind:'javelinOrbit',power:480}},
     {id:'sigil',name:'SIGIL',kana:'シジル',shape:'sixstar',color:'#b795ed',type:'貫通 / バランス',hp:4500,atk:1240,speed:335,
@@ -212,7 +212,7 @@
       power:480,radius:250,maxHits:3}},
     {id:'rampart',name:'RAMPART',kana:'ランパート',shape:'rampartFort',color:'#368f9d',type:'反射 / バランス',hp:4600,atk:1240,speed:340,
       friendship:{kind:'laserTurret',power:350,count:6}},
-    {id:'fusillade',name:'FUSILLADE',kana:'フュジレイド',shape:'fusilladeSalvo',color:'#d36b98',type:'貫通 / 砲撃',hp:4100,atk:1160,speed:330,
+    {id:'fusillade',name:'FUSILLADE',kana:'フュジレイド',shape:'fusilladeSalvo',color:'#d36b98',type:'反射 / 砲撃',hp:4100,atk:1160,speed:330,
       friendship:{kind:'allRangeBullet',power:135}},
     {id:'globus',name:'GLOBUS',kana:'グローバス',shape:'globusGlobe',color:'#65bca5',type:'貫通 / バランス',hp:4400,atk:1230,speed:335,
       friendship:{kind:'bomber',power:310,count:6}},
@@ -313,7 +313,7 @@
     gyros:{kind:'satellites',power:170,count:8},
     aegisblade:{kind:'javelinFollow',power:540},
     venora:{kind:'weakPierce',power:465},
-    raika:{kind:'oathSwords',power:500,count:3},
+    raika:{kind:'oathSwords',power:500,count:5},
     noctis:{kind:'homing',power: 320,count: 12},
     rampart:{kind:'atkSpeedUp',power:0},
     fusillade:{kind:'discharge',power:390},
@@ -486,7 +486,7 @@
     raika:['sadw','agb','sms','ek'],
     noctis:['antiWind','ab','sadl','double'],
     rampart:['sagb','aw','adl','gk','wb'],
-    fusillade:['ms','saw','asw','fbM'],
+    fusillade:['sadw','agb','saw','fbM','dash'],
     globus:['aw','sasw','ek','bubblyMode','dashL'],
     aerion:['sadw','saw','asw','regen','double'],
     neo:['sadw','ms','sadl','fb','akM','barrierM'],
@@ -511,9 +511,9 @@
   const DEFAULT_TEAM = ['nova', 'axis', 'prism', 'burst'];
 
   const FRIENDSHIP_KINDS = {
-    reflectionRing:{name:'リフレクションリング',label:'REFLECTION RING',describe:()=> '手番キャラの現在位置を狙って小さな貫通リングを連射。壁で最大3回反射。手番停止で連射終了。'},
-    bomber:{name:'爆撃機',label:'BOMBER',describe:f=>'手番キャラの進行方向を基準に、周囲'+f.count+'方向へ爆撃機を発進。直進しながら連続爆発を起こし、味方の友情も誘発する。'},
-    boundSphere:{name:'バウンドスフィア',label:'BOUND SPHERE',describe:()=> '近くの敵へスフィアを発射。敵・構造物を貫通し、敵に当たるたびに巨大化。壁で最大8回反射する。'},
+    reflectionRing:{name:'リフレクションリング',label:'REFLECTION RING',describe:()=> '手番キャラの現在位置を狙って小さな貫通リングを連射。壁で最大3回反射。'},
+    bomber:{name:'爆撃弾',label:'BOMBER',describe:f=>'手番キャラの進行方向を基準に、周囲'+f.count+'方向へ爆撃弾を発進。直進しながら連続爆発を起こし、味方の友情も誘発する。'},
+    boundSphere:{name:'バウンドスフィア',label:'BOUND SPHERE',describe:()=> '手番キャラの進行方向へ発動キャラの色のスフィアを発射。敵・構造物を貫通し、命中ごとに半径+8、威力+10％（加算）。壁で最大8回反射する。'},
     laserTurret:{name:'レーザータレット',label:'LASER TURRET',describe:f=>'周囲へ'+f.count+'個のタレットを射出して壁に設置。手番キャラが敵に触れるたび、接触位置へ一斉にレーザーを放つ。手番停止で撤去。'},
     allRangeBullet:{name:'オールレンジバレット',label:'ALL RANGE BULLET',describe:()=> '周囲64方向からランダムに選んだ方向へ、細長い貫通弾を計100発発射する。'},
     armageddon:{name:'アルマゲドン',label:'ARMAGEDDON',describe:()=> '上空の裂け目から巨大機械が出現。光線が中央下で特殊爆発を起こし、全ての敵とその弱点を攻撃。'},
@@ -568,7 +568,7 @@
     crossWheel:{name:'クロスホイール',label:'CROSS WHEEL',describe:()=> 'X字の4方向へホイールを発射。'},
     javelinOrbit:{name:'ジャベリンソード・衛星型',label:'JAVELIN ORBIT',describe:()=> '手番キャラの周囲に4本の剣。敵への接触で最大8本へ増加。停止後、現在HP最多の敵へ威力3倍で一斉発射。'},
     javelinFollow:{name:'ジャベリンソード・追従型',label:'JAVELIN FOLLOW',describe:()=> '手番キャラを狙う予兆の後、方向を固定して高速の剣を3wayで繰り返し発射。'},
-    markedPierce:{name:'追撃貫通弾',label:'MARKED PIERCE',describe:f=>'接触した敵に撃破後も残る魔法陣を付与。停止後、各マークへ狭い'+(f.count||3)+'方向の貫通弾を3斉射。'},
+    markedPierce:{name:'追撃貫通弾',label:'MARKED PIERCE',describe:f=>'接触した敵に撃破後も残る魔法陣を付与。停止後、各マークへ狭い'+(f.count||3)+'方向の貫通弾を放つ。'},
     plasmaBall:{name:'プラズマボール',label:'PLASMA BALL',describe:()=> '発動時に現在HPが最も多い敵を狙い、その中心で停止し、拡大しながら連続攻撃。壁に届くと電撃を放ち大ダメージ。'},
     energyBall:{name:'バーストボール',label:'BURST BALL',describe:()=> '触れたキャラの進行方向へ弾を発射。敵に命中すると広範囲に激しく爆発する。'},
     meteor: { name: 'メテオ', label: 'METEOR', describe: f => `ランダムな敵へ順番に${f.count}個のメテオを落とす。` },
@@ -581,10 +581,10 @@
     sonicCannon:{name:'音波砲',label:'SONIC CANNON',describe:()=> '手番キャラが停止するまでチャージ（'+SONIC_CHARGE_SECONDS+'秒で最大）。チャージに応じて音波の幅・威力が増し、ヒット回数は4〜16回になる。'},
     poisonSpread:{name:'毒拡散弾',label:'POISON SPREAD',describe:f=>f.ways+'方向へ毒弾を'+f.volleys+'回発射。'},
     poisonMeteor:{name:'毒メテオ',label:'POISON METEOR',describe:f=>'ランダムな敵へ毒のメテオを'+f.count+'個落とす。'},
-    poisonHole:{name:'ポイズンフィールド',label:'POISON FIELD',describe:()=> '壁に触れるたび毒の円が拡大し、範囲内に攻撃。最大半径420。'},
-    poisonBomb:{name:'ポイズンドロップボム',label:'POISON BOMB',describe:()=> 'ランダムな位置へ毒のボムを2個投下する。'}
+    poisonHole:{name:'ポイズンフィールド',label:'POISON FIELD',describe:()=> '壁に触れるたび毒の円が拡大し、範囲内に攻撃。'},
+    poisonBomb:{name:'ポイズンドロップボム',label:'POISON BOMB',describe:()=> 'ランダムな位置へ毒の爆弾を2個投下する。'}
   };
-  const friendshipTitle=f=>{const name=FRIENDSHIP_KINDS[f.kind].name;if(f.kind==='oathSwords'||f.kind==='markedPierce')return name+'（'+(f.count??3)+'）';if(f.kind==='poisonSpread')return name+'（'+f.ways+'×'+f.volleys+'）';if(f.kind==='poisonMeteor')return name+'（'+f.count+'）';if(f.kind==='wayLaser')return f.count+'方向レーザー';if(['reflectLaser','reflectCross','enhancedReflect'].includes(f.kind))return name+'（'+f.bounces+'）';if(['bomber','laserTurret','sniper','homing','meteor','pierce','dropBomb','splitShot','machinegun','drones','satellites','involute','crossBomb','counterRing','shockSplit','pierceHoming'].includes(f.kind))return name+'（'+(f.count??5)+'）';if(f.kind==='spread'||f.kind==='shotgun')return name+'（'+f.ways+'×'+f.volleys+'）';return name;};
+  const friendshipTitle=f=>{if(f.displayName)return f.displayName;const name=FRIENDSHIP_KINDS[f.kind].name;if(f.kind==='oathSwords'||f.kind==='markedPierce')return name+'（'+(f.count??3)+'）';if(f.kind==='poisonSpread')return name+'（'+f.ways+'×'+f.volleys+'）';if(f.kind==='poisonMeteor')return name+'（'+f.count+'）';if(f.kind==='wayLaser')return f.count+'方向レーザー';if(['reflectLaser','reflectCross','enhancedReflect'].includes(f.kind))return name+'（'+f.bounces+'）';if(['bomber','laserTurret','sniper','homing','meteor','pierce','dropBomb','splitShot','machinegun','drones','satellites','involute','crossBomb','counterRing','shockSplit','pierceHoming'].includes(f.kind))return name+'（'+(f.count??5)+'）';if(f.kind==='spread'||f.kind==='shotgun')return name+'（'+f.ways+'×'+f.volleys+'）';return name;};
 
   // 敵の攻撃。mult は基本ダメージ（ウェーブごとに上昇）に対する倍率。
   // 敵データ側の attacks: [{ kind, ...上書き }] で個別に調整できます。

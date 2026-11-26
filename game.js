@@ -4,6 +4,7 @@
   // ---------------------------------------------------------------------------
   // BOOT
   // ---------------------------------------------------------------------------
+  initializeFriendshipContacts();
   resetGame();
   showScreen('title', { focus: false, scroll: false });
   resize();
