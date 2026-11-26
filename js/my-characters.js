@@ -4,7 +4,7 @@ const MY_ABILITY_GROUPS={
   1:['adw','agb','aw','ms','ab'],4:['antiWind','heal','regen'],
   5:['asw','dash','drain'],6:['fk','gk','pm'],
   7:['sadw','sagb','saw','sms','santiWind','sasw'],8:['dashM','fb','wb','pa'],
-  9:['adl','sadl','pk','ek'],10:['bubblyMode','double','fbM']
+  9:['adl','sadl','pk','ek'],10:['bubblyMode','double','fbM','wbM']
 };
 const MY_ABILITY_CHAPTER=Object.fromEntries(Object.entries(MY_ABILITY_GROUPS).flatMap(([chapter,ids])=>ids.map(id=>[id,Number(chapter)])));
 const MY_STYLES={balance:'バランス',speed:'スピード',power:'パワー',artillery:'砲撃'};

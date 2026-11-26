@@ -351,6 +351,7 @@
     fkL:['ファーストキラーL','そのショットで最初に触れた敵へ与えるダメージが2.5倍。'],
     fkEL:['ファーストキラーEL','そのショットで最初に触れた敵へ与えるダメージが3倍'],
     wb:['ウォールブースト','そのショットで触れた壁の面数に応じて直殴りのパワーが1面1.1倍／2面1.2倍／3面1.5倍／4面2.0倍。'],
+    wbM:['ウォールブーストM','そのショットで触れた壁の面数に応じて直殴りのパワーが1面1.2倍／2面1.5倍／3面2.0倍／4面3.0倍。'],
     drain:['ドレイン','敵に触れるたびにHPを100回復。'],
     ak:['オールキラー','すべての敵へ与えるダメージが1.5倍。'],
     akM:['オールキラーM','すべての敵へ与えるダメージが2倍。'],
@@ -385,7 +386,9 @@
     fbEL:['友情ブーストEL','友情の威力が3倍']
   };
   const KILLER_TIERS={pk:{kind:"poison",mult:1.5},pkM:{kind:"poison",mult:2},pkL:{kind:"poison",mult:2.5},pkEL:{kind:"poison",mult:3},ak:{kind:'all',mult:1.5},akM:{kind:'all',mult:2},akL:{kind:'all',mult:2.5},akEL:{kind:'all',mult:3},gk:{kind:'gravity',mult:1.5},gkM:{kind:'gravity',mult:2},gkL:{kind:'gravity',mult:2.5},gkEL:{kind:'gravity',mult:3},fk:{kind:'first',mult:1.5},fkM:{kind:'first',mult:2},fkL:{kind:'first',mult:2.5},fkEL:{kind:'first',mult:3}};
-  const WALL_BOOST_TABLE=[1.1,1.2,1.5,2.0],DRAIN_HEAL=100;
+  const WALL_BOOST_TABLE=[1.1,1.2,1.5,2.0];
+  const WALL_BOOST_M_TABLE=[1.2,1.5,2.0,3.0];
+  const DRAIN_HEAL=100;
   const ALL_KILLER_COLORS=['#46b4ff','#a46bff','#ff74c4']; // オールキラーのエフェクト色（青・紫・ピンク）
   const DASH_TIERS={dash:1.5,dashM:2,dashL:2.5,dashEL:3};
   const dashMultiplier=u=>{for(const id of u.abilities||[])if(DASH_TIERS[id])return DASH_TIERS[id];return 1;};
@@ -411,7 +414,7 @@
     comet: ['adw', 'ms'],
     pyre: ['adw', 'ab','dash'],
     arc: ['agb', 'aw','adl'],
-    echo: ['adw','asw','pm'],
+    echo: ['adw','sasw','pm'],
     zephyr: ['aw', 'ms','fb'],
     salvo: ['adw', 'agb','gk'],
     vesper: ['aw','ab','regen'],
@@ -490,7 +493,7 @@
     globus:['aw','sasw','ek','bubblyMode','dashL'],
     aerion:['sadw','saw','asw','regen','double'],
     neo:['sadw','ms','sadl','fb','akM','barrierM'],
-    maestro:['sadw','santiWind','sasw','fb','dashM','wb']
+    maestro:['sadw','santiWind','sasw','fb','dashM','wbM']
   };
   for (const c of CHARACTERS) {
     c.shotType = c.type.startsWith('貫通') ? 'pierce' : 'reflect';

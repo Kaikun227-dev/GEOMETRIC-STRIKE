@@ -426,7 +426,7 @@ function touchPowerUpWalls(unit,sides){
     if(!state.enemies.some(e=>e.alive))return;
     const unit=state.units[state.activeUnit],level=gens.length,info=laserLevelInfo(level);
     queueEffect({type:'laserGen',side:'ally',ownerId:unit.id,gens:gens.map(g=>({...g})),level,mult:info.mult,thickness:info.thickness,
-      damage:Math.round(effectiveAttack(unit)*(state.atkUp||1)*wallBoostMultiplier(unit)*info.mult*LASER_GENERATOR.damagePerPower),color:unit.color,fired:0,wait:LASER_GENERATOR.chargeDelay,interval:LASER_GENERATOR.interval,flash:0});
+      damage:Math.round(effectiveAttack(unit)*(state.atkUp||1)*info.mult*LASER_GENERATOR.damagePerPower),color:unit.color,fired:0,wait:LASER_GENERATOR.chargeDelay,interval:LASER_GENERATOR.interval,flash:0});
     floatingText(310,FIELD.top+64,'LASER Lv.'+level+' ×'+info.mult+' ×'+LASER_GENERATOR.volleys,'#d6702a',17);
     tone(300,.35,'sawtooth',.03,0,900);
   }
@@ -521,7 +521,12 @@ function touchPowerUpWalls(unit,sides){
 
 
   // ウォールブースト：そのショットで触れた壁の面数（1〜4）に応じて直殴りのパワーが上がる。友情コンボには乗らない。
-  const wallBoostMultiplier=unit=>hasAbility(unit,'wb')?(WALL_BOOST_TABLE[(state.wallSides?.size||0)-1]||1):1;
+  const wallBoostMultiplier=unit=>{
+    const count=state.wallSides?.size||0;
+    if(count<1)return 1;
+    if(hasAbility(unit,'wbM'))return WALL_BOOST_M_TABLE[count-1]||1;
+    return hasAbility(unit,'wb')?(WALL_BOOST_TABLE[count-1]||1):1;
+  };
   // 敵への接触時：ファーストキラー用の「最初に触れた敵」の記録、ドレインの回復。
   function onEnemyTouch(unit,enemy){
     const touchMultiplier=state.waves[state.wave].enemyTouchMultiplier??state.stage.enemyTouchMultiplier??0;
@@ -603,7 +608,10 @@ function touchPowerUpWalls(unit,sides){
       if (wallHit) {
         touchPowerUpWalls(unit,hitSides);
         state.wallSides??=new Set();const sidesBefore=state.wallSides.size;for(const sd of hitSides)state.wallSides.add(sd);
-        if(hasAbility(unit,'wb')&&state.wallSides.size>sidesBefore)floatingText(unit.x,unit.y-52,'WALL ×'+WALL_BOOST_TABLE[state.wallSides.size-1],unit.color,14);
+        if((hasAbility(unit,'wb')||hasAbility(unit,'wbM'))&&state.wallSides.size>sidesBefore){
+          const table=hasAbility(unit,'wbM')?WALL_BOOST_M_TABLE:WALL_BOOST_TABLE;
+          floatingText(unit.x,unit.y-52,'WALL ×'+table[state.wallSides.size-1],unit.color,14);
+        }
         noteWallTouch(unit);
         for(const side of hitSides)placeLaserGen(side,unit);
         applyDamageWalls(unit);
