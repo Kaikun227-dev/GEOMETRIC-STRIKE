@@ -143,7 +143,9 @@ function advanceWeakPoint(enemy){
   ring(enemy.x,enemy.y,'#e1b327',enemy.r+30,.4);
 }
 function resolveEnemyDefeat(enemy){
-  if(!enemy.alive&&!enemy.retreated&&enemy.retreatAllOnDefeat!==false&&(enemy.boss||enemy.midBoss)){
+  const bosses=state.enemies.filter(e=>e.boss);
+  const retreatLeaders=bosses.length?bosses:state.enemies.filter(e=>e.midBoss);
+  if(!enemy.alive&&!enemy.retreated&&enemy.retreatAllOnDefeat!==false&&retreatLeaders.includes(enemy)&&retreatLeaders.every(e=>!e.alive)){
     for(const remaining of state.enemies){
       if(!remaining.alive)continue;
       remaining.alive=false;

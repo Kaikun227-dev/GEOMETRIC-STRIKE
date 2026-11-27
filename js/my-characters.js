@@ -3,11 +3,17 @@ const MY_CHARACTER_IDS=['mychar1','mychar2','mychar3','mychar4'];
 const MY_ABILITY_GROUPS={
   1:['adw','agb','aw','ms','ab'],4:['antiWind','heal','regen'],
   5:['asw','dash','drain'],6:['fk','gk','pm'],
-  7:['sadw','sagb','saw','sms','santiWind','sasw'],8:['dashM','fb','wb','pa'],
-  9:['adl','sadl','pk','ek'],10:['bubblyMode','double','fbM','wbM']
+  7:['sadw','sagb','saw','sms','santiWind','sasw'],8:['dashM','fb','wb'],
+  9:['adl','sadl','pk','ek'],10:['bubblyMode','pa','double']
 };
 const MY_ABILITY_CHAPTER=Object.fromEntries(Object.entries(MY_ABILITY_GROUPS).flatMap(([chapter,ids])=>ids.map(id=>[id,Number(chapter)])));
 const MY_STYLES={balance:'バランス',speed:'スピード',power:'パワー',artillery:'砲撃'};
+const MY_STYLE_STATS={
+  balance:{hp:4400,atk:1200,speed:340},
+  speed:{hp:4000,atk:1150,speed:420},
+  power:{hp:4800,atk:1450,speed:280},
+  artillery:{hp:3900,atk:1100,speed:310}
+};
 const MY_CHARACTER_KEY='geometric-my-characters-v1';
 const MY_COLORS=['#519daf','#bb7aab','#77a866','#dca355'];
 const defaultMyConfig=(id='mychar1')=>({name:'マイキャラ'+(MY_CHARACTER_IDS.indexOf(id)+1),color:MY_COLORS[MY_CHARACTER_IDS.indexOf(id)],mainFragment:'',subFragment:'',shotType:'reflect',battleStyle:'balance',abilities:[]});
@@ -17,7 +23,7 @@ for(const [i,id] of MY_CHARACTER_IDS.entries()){
   CHARACTERS.push(c);CHAR_BY_ID[id]=c;
 }
 function applyMyConfigs(){
-  for(const id of MY_CHARACTER_IDS){const config=myCharacterConfigs[id];Object.assign(CHAR_BY_ID[id],config,{kana:config.name,friendship:config.mainFragment?{...FRAGMENT_BY_ID[config.mainFragment].combo}:{kind:'pierce',power:300,count:4},secondary:config.subFragment?{...FRAGMENT_BY_ID[config.subFragment].combo}:{kind:'homing',power:180,count:4},abilities:[...config.abilities],type:(config.shotType==='pierce'?'貫通':'反射')+' / '+MY_STYLES[config.battleStyle]});}
+  for(const id of MY_CHARACTER_IDS){const config=myCharacterConfigs[id];Object.assign(CHAR_BY_ID[id],config,MY_STYLE_STATS[config.battleStyle],{kana:config.name,friendship:config.mainFragment?{...FRAGMENT_BY_ID[config.mainFragment].combo}:{kind:'pierce',power:300,count:4},secondary:config.subFragment?{...FRAGMENT_BY_ID[config.subFragment].combo}:{kind:'homing',power:180,count:4},abilities:[...config.abilities],type:(config.shotType==='pierce'?'貫通':'反射')+' / '+MY_STYLES[config.battleStyle]});}
 }
 function fragmentUsedBy(fragment,idToSkip=null){
   if(!fragment)return null;
